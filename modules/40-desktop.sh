@@ -14,4 +14,23 @@ module_run() {
         fc-cache -f "$font_dir"
     }
     need "JetBrainsMono Nerd Font" _nf_t _nf_i
+
+    # Omarchy-style Ratatui TUIs for NetworkManager Wi-Fi (wlctl) and Bluetooth (bluetui)
+    _wl_t() { command -v wlctl >/dev/null; }
+    _wl_i() {
+        mkdir -p "$HOME/.local/bin" &&
+        curl -fsSL https://github.com/aashish-thapa/wlctl/releases/latest/download/wlctl-x86_64-unknown-linux-musl \
+            -o "$HOME/.local/bin/wlctl" &&
+        chmod +x "$HOME/.local/bin/wlctl"
+    }
+    need "Wi-Fi TUI (wlctl)" _wl_t _wl_i
+
+    _bt_t() { command -v bluetui >/dev/null; }
+    _bt_i() {
+        mkdir -p "$HOME/.local/bin" &&
+        curl -fsSL https://github.com/pythops/bluetui/releases/latest/download/bluetui-x86_64-linux-musl \
+            -o "$HOME/.local/bin/bluetui" &&
+        chmod +x "$HOME/.local/bin/bluetui"
+    }
+    need "Bluetooth TUI (bluetui)" _bt_t _bt_i
 }

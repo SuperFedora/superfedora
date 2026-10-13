@@ -195,9 +195,9 @@
 | Super + Ctrl + Space | Next 16-bit theme |
 | Super + Ctrl + Shift + Space | Pick 16-bit theme |
 | Super + Ctrl + Alt + Space | Toggle dark/light theme |
-| Super + Ctrl + A | Audio settings |
-| Super + Ctrl + W | Wi-Fi settings |
-| Super + Ctrl + B | Bluetooth settings |
+| Super + Ctrl + A | Audio settings (wiremix TUI) |
+| Super + Ctrl + W | Wi-Fi settings (wlctl TUI) |
+| Super + Ctrl + B | Bluetooth settings (bluetui TUI) |
 | Super + Backspace | Toggle gaps |
 | Super + Shift + Space | Toggle top bar |
 | Super + Alt + R | Reload Hyprland + bar |

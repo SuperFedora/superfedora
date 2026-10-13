@@ -58,9 +58,9 @@ menu_setup() {
     case "$(pick "Setup" \
         "  Audio" "  Wi-Fi" "󰂯  Bluetooth" "󰍹  Monitors" "  Keybindings" \
         "  Hyprland config" "  Hypridle" "  Hyprlock" "  Quickshell bar" "  IdleScreen")" in
-        *Audio*)      gnome-control-center sound & ;;
-        *Wi-Fi*)      gnome-control-center wifi & ;;
-        *Bluetooth*)  gnome-control-center bluetooth & ;;
+        *Audio*)      float_term wiremix ;;
+        *Wi-Fi*)      float_term wlctl ;;
+        *Bluetooth*)  float_term bluetui ;;
         *Monitors*)   float_term "${EDITOR:-nano}" "$H/conf/monitors.conf" ;;
         *Keybind*)    float_term "${EDITOR:-nano}" "$H/conf/bindings.conf" ;;
         *Hyprland*)   float_term "${EDITOR:-nano}" "$H/hyprland.conf" ;;

@@ -63,21 +63,31 @@ PanelWindow {
                     }
                 }
             }
-            list.push({ label: "More Settings...", cmd: "gnome-control-center bluetooth", close: true, accent: true });
+            list.push({ label: "More Settings (bluetui)...", cmd: "PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" kitty --class floating-term -e bluetui", close: true, accent: true });
             return list;
         }
         if (pop.tab === "network") {
             const statusText = Status.netType === "wifi"
                 ? ("Wi-Fi: " + (Status.ssid || "Connected") + " (" + Status.signal + "%)")
                 : (Status.netType === "ethernet" ? "Ethernet: Connected" : "Status: Offline");
-            return [
+            const list = [
                 { header: "NETWORK" },
                 { info: statusText },
                 { label: Status.netType === "wifi" ? "Turn Wi-Fi Off" : "Turn Wi-Fi On",
-                  cmd: (Status.netType === "wifi" ? "nmcli radio wifi off" : "nmcli radio wifi on") + "; sleep 0.5", close: false },
-                { label: "Network TUI (nmtui)", cmd: "kitty --class floating-term -e nmtui", close: true },
-                { label: "More Settings...", cmd: "gnome-control-center wifi", close: true, accent: true }
+                  cmd: (Status.netType === "wifi" ? "nmcli radio wifi off" : "nmcli radio wifi on") + "; sleep 0.5", close: false }
             ];
+            for (const w of Status.wifiList) {
+                const safe = w.ssid.replace(/'/g, "'\\''");
+                list.push({
+                    label: (w.active ? "[*] " : "[ ] ") + w.ssid + " (" + w.signal + "%)",
+                    cmd: w.active
+                        ? "nmcli connection down '" + safe + "'"
+                        : "nmcli device wifi connect '" + safe + "' || PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" kitty --class floating-term -e wlctl",
+                    close: false
+                });
+            }
+            list.push({ label: "More Settings (wlctl)...", cmd: "PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" kitty --class floating-term -e wlctl", close: true, accent: true });
+            return list;
         }
         if (pop.tab === "audio") {
             const pct = Math.round(pop.vol * 100);
@@ -87,7 +97,7 @@ PanelWindow {
                 { label: pop.muted ? "Unmute Output" : "Mute Output", action: "mute" },
                 { label: "Volume +10%", action: "vol_up" },
                 { label: "Volume -10%", action: "vol_down" },
-                { label: "More Settings...", cmd: "gnome-control-center sound", close: true, accent: true }
+                { label: "More Settings (wiremix)...", cmd: "PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" kitty --class floating-term -e wiremix", close: true, accent: true }
             ];
         }
         if (pop.tab === "cpu") {
@@ -97,7 +107,7 @@ PanelWindow {
                 { info: "Memory Used: " + Status.mem + "%", barValue: Status.mem / 100.0 },
                 { label: Status.idleEnabled ? "Enable Stay-Awake Mode" : "Resume Idle Screensaver",
                   cmd: "~/.config/hypr/scripts/toggle-idle.sh", close: false },
-                { label: "Open Activity Monitor (btop)", cmd: "kitty --class floating-term -e btop", close: true, accent: true }
+                { label: "More Settings (btop)...", cmd: "kitty --class floating-term -e btop", close: true, accent: true }
             ];
         }
         if (pop.tab === "battery") {
@@ -107,7 +117,9 @@ PanelWindow {
                 { label: "Profile: Performance", cmd: "tuned-adm profile throughput-performance 2>/dev/null || powerprofilesctl set performance 2>/dev/null", close: false },
                 { label: "Profile: Balanced",    cmd: "tuned-adm profile balanced 2>/dev/null || powerprofilesctl set balanced 2>/dev/null", close: false },
                 { label: "Profile: Power Saver", cmd: "tuned-adm profile powersave 2>/dev/null || powerprofilesctl set power-saver 2>/dev/null", close: false },
-                { label: "More Settings...", cmd: "gnome-control-center power", close: true, accent: true }
+                { label: "More Settings (Power TUI)...",
+                  cmd: "kitty --class floating-term -e bash -c 'upower -i $(upower -e | grep -m1 BAT); echo; tuned-adm active 2>/dev/null || true; echo; read -n1 -rsp \"Press any key to close\"'",
+                  close: true, accent: true }
             ];
         }
         if (pop.tab === "power") {

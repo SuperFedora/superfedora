@@ -2,8 +2,9 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "panels"
 
-// Entry point: one bar per monitor + notification popups + OSD.
+// Entry point: multi-edge bars/docks per monitor + notification popups + OSD + Panel Studio.
 ShellRoot {
     id: root
     property bool barVisible: true
@@ -13,6 +14,22 @@ ShellRoot {
         Bar {}
     }
 
+    Variants {
+        model: root.barVisible ? Quickshell.screens : []
+        EdgePanel { edge: "bottom" }
+    }
+
+    Variants {
+        model: root.barVisible ? Quickshell.screens : []
+        EdgePanel { edge: "left" }
+    }
+
+    Variants {
+        model: root.barVisible ? Quickshell.screens : []
+        EdgePanel { edge: "right" }
+    }
+
+    PanelSettingsPopup {}
     Notifications {}
     Osd {}
 

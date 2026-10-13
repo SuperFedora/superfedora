@@ -17,6 +17,7 @@ slurp
 wl-clipboard
 libnotify
 playerctl
+wiremix
 NetworkManager-tui
 orca
 adwaita-icon-theme

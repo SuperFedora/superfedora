@@ -1,11 +1,19 @@
 import QtQuick
+import QtQuick.Layouts
 import Quickshell.Hyprland
 
-// Omarchy-style workspaces: 1–5 always shown, extra ones appear when used.
-Row {
+// Omarchy-style workspaces: 1-5 always shown, extra ones appear when used.
+// Supports horizontal (top/bottom) and vertical (left/right) edge panels.
+GridLayout {
     id: root
     property var monitor: null
-    spacing: 0
+    property bool vertical: false
+    property int thickness: Theme.barHeight
+
+    columns: root.vertical ? 1 : 99
+    rows: root.vertical ? 99 : 1
+    rowSpacing: 0
+    columnSpacing: 0
 
     readonly property var occupied: {
         const ids = {};
@@ -33,8 +41,8 @@ Row {
             readonly property bool active: modelData === root.activeId
             readonly property bool used: root.occupied[modelData] === true
 
-            width: 28
-            height: Theme.barHeight
+            implicitWidth: root.vertical ? root.thickness : 28
+            implicitHeight: root.vertical ? 28 : root.thickness
 
             Text {
                 anchors.centerIn: parent
