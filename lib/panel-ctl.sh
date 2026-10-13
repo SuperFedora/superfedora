@@ -42,21 +42,21 @@ write_default() {
     "enabled": false,
     "span": "hug",
     "percent": 70,
-    "thickness": 46,
-    "hideMode": "intellihide",
-    "start": ["launcher"],
-    "center": ["workspaces", "apps"],
-    "end": ["theme", "status"]
+    "thickness": 58,
+    "hideMode": "never",
+    "start": [],
+    "center": ["hardware"],
+    "end": []
   },
   "right": {
     "enabled": false,
     "span": "hug",
     "percent": 70,
-    "thickness": 46,
-    "hideMode": "intellihide",
-    "start": ["workspaces"],
-    "center": ["apps"],
-    "end": ["theme", "status"]
+    "thickness": 58,
+    "hideMode": "never",
+    "start": [],
+    "center": ["hardware"],
+    "end": []
   }
 }
 EOF

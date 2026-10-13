@@ -16,10 +16,10 @@ Scope {
         enabled: scope.edge === "bottom",
         span: "hug",
         percent: 65,
-        thickness: 50,
-        hideMode: "intellihide",
+        thickness: scope.isVert ? 58 : 52,
+        hideMode: scope.isVert ? "never" : "intellihide",
         start: [],
-        center: ["apps"],
+        center: [scope.isVert ? "hardware" : "apps"],
         end: []
     })
 
@@ -170,6 +170,12 @@ Scope {
                     monitor: scope.hyprMon
                     vertical: scope.isVert
                     thickness: scope.thickness - 8
+                }
+
+                HardwareTelemetry {
+                    visible: contentGrid.allSlots.includes("hardware")
+                    vertical: scope.isVert
+                    thickness: scope.thickness
                 }
 
                 DockApps {

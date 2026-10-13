@@ -202,7 +202,7 @@ PanelWindow {
                                 Rectangle {
                                     required property var modelData
                                     readonly property bool active: edgeCard.hide === modelData.id
-                                    Layout.fillWidth: true; implicitHeight: 24; radius: 3
+                                    Layout.fillWidth: true; implicitHeight: 22; radius: 3
                                     color: active ? Theme.bgHover : Theme.bg
                                     border.width: active ? 2 : 1; border.color: active ? Theme.blue : Theme.border
                                     Text {
@@ -213,6 +213,36 @@ PanelWindow {
                                     MouseArea {
                                         anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                         onClicked: Status.updatePanel(edgeCard.modelData, "hideMode", parent.modelData.id)
+                                    }
+                                }
+                            }
+                        }
+
+                        RowLayout {
+                            visible: edgeCard.modelData !== "top"
+                            Layout.fillWidth: true; spacing: 6
+                            Text { text: "CONTENT:  "; color: Theme.muted; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
+                            Repeater {
+                                model: [
+                                    { id: "hardware",           label: "Hardware Telemetry" },
+                                    { id: "apps",               label: "Apps Dock" },
+                                    { id: "workspaces,apps",    label: "Workspaces + Apps" },
+                                    { id: "workspaces,hardware",label: "Workspaces + HW" }
+                                ]
+                                Rectangle {
+                                    required property var modelData
+                                    readonly property bool active: (edgeCard.cfg.center || []).join(",") === modelData.id
+                                    Layout.fillWidth: true; implicitHeight: 22; radius: 3
+                                    color: active ? Theme.bgHover : Theme.bg
+                                    border.width: active ? 2 : 1; border.color: active ? Theme.cyan : Theme.border
+                                    Text {
+                                        anchors.centerIn: parent; text: parent.modelData.label
+                                        color: parent.active ? Theme.cyan : Theme.fgDim
+                                        font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: parent.active
+                                    }
+                                    MouseArea {
+                                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                        onClicked: Quickshell.execDetached(["sh", "-c", "~/.local/bin/superfedora panel set " + edgeCard.modelData + " start none && ~/.local/bin/superfedora panel set " + edgeCard.modelData + " end none && ~/.local/bin/superfedora panel set " + edgeCard.modelData + " center '" + parent.modelData.id + "'"])
                                     }
                                 }
                             }

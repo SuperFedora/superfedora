@@ -4,12 +4,16 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Lightweight system probes (CPU, network, idle) on slow timers.
+// Lightweight system probes (CPU, RAM, GPU, Temp, Net Throughput, Wi-Fi, Clocks, Panels).
 Singleton {
     id: root
 
     property int cpu: 0
     property int mem: 0
+    property int gpu: 0
+    property int tempC: 40
+    property real netRxKbps: 0
+    property real netTxKbps: 0
     property string netType: "none"     // wifi | ethernet | none
     property string ssid: ""
     property int signal: 0
@@ -21,28 +25,30 @@ Singleton {
     property bool autoTz: true
     property var worldClocks: []
 
-    // --- CPU & RAM from /proc/stat and /proc/meminfo -------------------
+    // --- Fast Localhost Telemetry (/proc/stat, /proc/meminfo, /proc/net/dev, thermal, drm) ---
     property var _lastCpu: null
+    property var _lastNet: null
+    property var _lastGpu: null
 
     FileView { id: procStat; path: "/proc/stat" }
     FileView { id: procMem; path: "/proc/meminfo" }
+    FileView { id: procNet; path: "/proc/net/dev" }
+    FileView { id: pkgTemp; path: "/sys/class/thermal/thermal_zone6/temp" }
+    FileView { id: fallbackTemp; path: "/sys/class/thermal/thermal_zone0/temp" }
+    FileView { id: gpuRc6; path: "/sys/class/drm/card1/gt/gt0/rc6_residency_ms" }
 
     Timer {
-        interval: 2000
-        running: true
-        repeat: true
-        triggeredOnStart: true
+        interval: 2000; running: true; repeat: true; triggeredOnStart: true
         onTriggered: {
+            const nowMs = Date.now();
             procStat.reload();
-            const line = procStat.text().split("\n")[0];
-            const v = line.trim().split(/\s+/).slice(1).map(Number);
+            const v = procStat.text().split("\n")[0].trim().split(/\s+/).slice(1).map(Number);
             if (v.length >= 4) {
                 const idle = v[3] + (v[4] || 0);
                 const total = v.reduce((a, b) => a + b, 0);
                 if (root._lastCpu) {
                     const dt = total - root._lastCpu.total;
-                    const di = idle - root._lastCpu.idle;
-                    root.cpu = dt > 0 ? Math.round(100 * (1 - di / dt)) : 0;
+                    root.cpu = dt > 0 ? Math.round(100 * (1 - (idle - root._lastCpu.idle) / dt)) : 0;
                 }
                 root._lastCpu = { total, idle };
             }
@@ -50,9 +56,34 @@ Singleton {
             const mtext = procMem.text();
             const mt = mtext.match(/MemTotal:\s+(\d+)/);
             const ma = mtext.match(/MemAvailable:\s+(\d+)/);
-            if (mt && ma && Number(mt[1]) > 0) {
-                root.mem = Math.round(100 * (1 - Number(ma[1]) / Number(mt[1])));
+            if (mt && ma && Number(mt[1]) > 0) root.mem = Math.round(100 * (1 - Number(ma[1]) / Number(mt[1])));
+            pkgTemp.reload();
+            let rawT = Number(pkgTemp.text().trim() || "0");
+            if (!rawT || rawT <= 0) { fallbackTemp.reload(); rawT = Number(fallbackTemp.text().trim() || "40000"); }
+            root.tempC = Math.round(rawT > 1000 ? rawT / 1000 : rawT);
+            gpuRc6.reload();
+            const rc6Txt = gpuRc6.text().trim();
+            if (rc6Txt !== "") {
+                const rc6 = Number(rc6Txt);
+                if (root._lastGpu && nowMs > root._lastGpu.t) {
+                    const dtMs = nowMs - root._lastGpu.t;
+                    root.gpu = Math.max(0, Math.min(100, Math.round(100 * (1 - Math.max(0, rc6 - root._lastGpu.rc6) / dtMs))));
+                }
+                root._lastGpu = { rc6: rc6, t: nowMs };
             }
+            procNet.reload();
+            let rxBytes = 0; let txBytes = 0;
+            for (const nl of procNet.text().split("\n").slice(2)) {
+                const parts = nl.trim().split(/[:\s]+/);
+                if (parts.length < 10 || parts[0] === "lo" || parts[0] === "") continue;
+                rxBytes += Number(parts[1] || 0); txBytes += Number(parts[9] || 0);
+            }
+            if (root._lastNet && nowMs > root._lastNet.t) {
+                const dtSec = (nowMs - root._lastNet.t) / 1000.0;
+                root.netRxKbps = Math.max(0, (rxBytes - root._lastNet.rx) / 1024.0 / dtSec);
+                root.netTxKbps = Math.max(0, (txBytes - root._lastNet.tx) / 1024.0 / dtSec);
+            }
+            root._lastNet = { rx: rxBytes, tx: txBytes, t: nowMs };
         }
     }
 
@@ -70,7 +101,6 @@ Singleton {
                 const list = [];
                 let activeSsid = "";
                 let activeSig = 0;
-
                 for (let i = 1; i < lines.length; i++) {
                     const parts = lines[i].split(":");
                     if (parts.length < 3) continue;
@@ -85,17 +115,9 @@ Singleton {
                     }
                 }
                 root.wifiList = list;
-                if (type === "wifi") {
-                    root.netType = "wifi";
-                    root.signal = activeSig;
-                    root.ssid = activeSsid;
-                } else if (type === "ethernet") {
-                    root.netType = "ethernet";
-                    root.ssid = "";
-                } else {
-                    root.netType = "none";
-                    root.ssid = "";
-                }
+                root.netType = (type === "wifi" || type === "ethernet") ? type : "none";
+                root.signal = type === "wifi" ? activeSig : 0;
+                root.ssid = type === "wifi" ? activeSsid : "";
             }
         }
     }
@@ -117,9 +139,8 @@ Singleton {
             "while IFS= read -r z; do [ -n \"$z\" ] && printf 'WC|%s|%s\\n' \"$z\" \"$(TZ=\"$z\" date +\"$fmt\")\"; done < \"$w\""]
         stdout: StdioCollector {
             onStreamFinished: {
-                const lines = text.trim().split("\n");
                 const wc = [];
-                for (const line of lines) {
+                for (const line of text.trim().split("\n")) {
                     const p = line.split("|");
                     if (p[0] === "CFG") {
                         root.clock24h = p[1] !== "0";
@@ -144,7 +165,6 @@ Singleton {
         tzProc.running = true;
     }
 
-    // --- hypridle running? ---------------------------------------------
     Process {
         id: idleProc
         command: ["pgrep", "-x", "hypridle"]
@@ -158,14 +178,11 @@ Singleton {
     property var panels: ({
         top:    { enabled: true,  span: "full", percent: 100, thickness: 36, hideMode: "never",      start: ["launcher", "workspaces"], center: ["clock"], end: ["tray", "status"] },
         bottom: { enabled: true,  span: "hug",  percent: 65,  thickness: 52, hideMode: "intellihide", start: [], center: ["apps"], end: [] },
-        left:   { enabled: false, span: "hug",  percent: 70,  thickness: 46, hideMode: "intellihide", start: ["launcher"], center: ["workspaces", "apps"], end: ["theme", "status"] },
-        right:  { enabled: false, span: "hug",  percent: 70,  thickness: 46, hideMode: "intellihide", start: ["workspaces"], center: ["apps"], end: ["theme", "status"] }
+        left:   { enabled: false, span: "hug",  percent: 70,  thickness: 58, hideMode: "never",       start: [], center: ["hardware"], end: [] },
+        right:  { enabled: false, span: "hug",  percent: 70,  thickness: 58, hideMode: "never",       start: [], center: ["hardware"], end: [] }
     })
 
-    FileView {
-        id: panelsFile
-        path: Quickshell.env("HOME") + "/.config/superfedora/panels.json"
-    }
+    FileView { id: panelsFile; path: Quickshell.env("HOME") + "/.config/superfedora/panels.json" }
 
     function reloadPanels(): void {
         panelsFile.reload();
@@ -183,8 +200,7 @@ Singleton {
         Quickshell.execDetached(["python3", "-c",
             "import json,os; p=os.path.expanduser('~/.config/superfedora/panels.json'); " +
             "d=json.load(open(p)) if os.path.exists(p) else {}; d['dockOrder']=" + JSON.stringify(newOrder) + "; " +
-            "json.dump(d,open(p,'w'),indent=2)"
-        ]);
+            "json.dump(d,open(p,'w'),indent=2)"]);
     }
 
     function updatePanel(edge, key, val): void {
@@ -206,14 +222,7 @@ Singleton {
         }
     }
 
-    Timer {
-        interval: 800
-        running: true
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: clientsProc.running = true
-    }
-
+    Timer { interval: 800; running: true; repeat: true; triggeredOnStart: true; onTriggered: clientsProc.running = true }
     Component.onCompleted: root.reloadPanels()
 
     IpcHandler {
@@ -223,22 +232,11 @@ Singleton {
     }
 
     Timer {
-        interval: 5000
-        running: true
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: {
-            netProc.running = true;
-            idleProc.running = true;
-            tzProc.running = true;
-        }
+        interval: 5000; running: true; repeat: true; triggeredOnStart: true
+        onTriggered: { netProc.running = true; idleProc.running = true; tzProc.running = true; }
     }
 
     function refresh() {
-        netProc.running = true;
-        idleProc.running = true;
-        tzProc.running = true;
-        clientsProc.running = true;
-        root.reloadPanels();
+        netProc.running = true; idleProc.running = true; tzProc.running = true; clientsProc.running = true; root.reloadPanels();
     }
 }
