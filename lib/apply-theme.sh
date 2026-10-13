@@ -150,9 +150,12 @@ EOF
         hyprctl keyword general:col.inactive_border "rgba(${BORDER}aa)" >/dev/null 2>&1 || true
     fi
 
-    # 4. Quickshell Top Bar, OSD, Notifications & Calendar (Theme.qml auto-reloads)
-    printf 'pragma Singleton\nimport QtQuick\nimport Quickshell\nSingleton {\n    readonly property color bg: "#%s"\n    readonly property color bgAlt: "#%s"\n    readonly property color bgHover: "#%s"\n    readonly property color border: "#%s"\n    readonly property color fg: "#%s"\n    readonly property color fgDim: "#%s"\n    readonly property color muted: "#%s"\n    readonly property color blue: "#%s"\n    readonly property color cyan: "#%s"\n    readonly property color green: "#9ece6a"\n    readonly property color yellow: "#e0af68"\n    readonly property color orange: "#ff9e64"\n    readonly property color red: "#f7768e"\n    readonly property color magenta: "#bb9af7"\n    readonly property string font: "JetBrainsMono Nerd Font"\n    readonly property int fontSize: 14\n    readonly property int iconSize: 18\n    readonly property int barHeight: 36\n    readonly property int pad: 14\n}\n' \
-        "$BG" "$BG_ALT" "$BG_HOV" "$BORDER" "$FG" "$FG_DIM" "$MUTED" "$ACCENT" "$HOT" > "$HOME/.config/quickshell/Theme.qml"
+    # 4. Quickshell Top Bar, OSD, Notifications & Calendar (live IPC update, zero reload popup)
+    printf '{"bg":"#%s","bgAlt":"#%s","bgHover":"#%s","border":"#%s","fg":"#%s","fgDim":"#%s","muted":"#%s","blue":"#%s","cyan":"#%s"}\n' \
+        "$BG" "$BG_ALT" "$BG_HOV" "$BORDER" "$FG" "$FG_DIM" "$MUTED" "$ACCENT" "$HOT" > "$STATE_DIR/quickshell-theme.json"
+    if command -v qs >/dev/null 2>&1; then
+        qs ipc call theme reload >/dev/null 2>&1 || true
+    fi
 
     # 5. Fuzzel Launcher & Menus (fuzzel.ini)
     printf '# Fuzzel Configuration — SuperFedora 16-Bit Theme (%s / %s)\nfont=JetBrainsMono Nerd Font:size=12\ndpi-aware=auto\nprompt="> "\nicon-theme=Adwaita\nterminal=kitty -e\nwidth=36\nlines=10\nhorizontal-pad=24\nvertical-pad=16\ninner-pad=10\n\n[colors]\nbackground=%sf2\ntext=%sff\nmatch=%sff\nselection=%sff\nselection-text=%sff\nselection-match=%sff\nborder=%sff\n\n[border]\nwidth=2\nradius=0\n' \
