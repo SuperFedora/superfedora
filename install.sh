@@ -88,7 +88,9 @@ say()  { printf '\033[1;34m::\033[0m %s\n' "$*"; }
 fail() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
 # ------------------------------------------------------------------------------
-[[ -r /etc/os-release ]] && . /etc/os-release
+OS_RELEASE="${SUPERFEDORA_OS_RELEASE:-/etc/os-release}"
+# shellcheck disable=SC1090
+[[ -r "$OS_RELEASE" ]] && . "$OS_RELEASE"
 [[ "${ID:-}" == fedora ]] || fail "SuperFedora needs Fedora (found ${PRETTY_NAME:-unknown})"
 [[ $EUID -ne 0 ]] || fail "run this as your normal user, not root (sudo is used when needed)"
 command -v sudo >/dev/null || fail "sudo is not installed; as root run: dnf install -y sudo && usermod -aG wheel $USER"

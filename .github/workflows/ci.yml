@@ -22,7 +22,11 @@ jobs:
       - name: ShellCheck
         run: |
           shellcheck --version
-          shellcheck -S warning -x install.sh bin/superfedora lib/*.sh modules/*.sh scripts/*.sh
+          shellcheck -S warning -x install.sh bin/superfedora lib/*.sh modules/*.sh scripts/*.sh tests/*.sh dotfiles/.config/hypr/scripts/*.sh
+      - name: Installer unit tests
+        run: bash tests/test_installer.sh
+      - name: Page Rules & Zero-Emoji Invariant
+        run: python3 tests/test_page_rules.py
       - name: Package lists are clean
         run: |
           if sed -e 's/#.*//' -e 's/[[:space:]]*$//' -e 's/^[[:space:]]*//' packages/*.txt | grep -n '[[:space:]]'; then

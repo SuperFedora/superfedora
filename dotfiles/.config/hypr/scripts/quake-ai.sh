@@ -47,10 +47,11 @@ resolve_agent() {
 compute_geometry() {
     local mon_json
     mon_json="$(hyprctl monitors -j 2>/dev/null || echo '[]')"
-    read -r MON_X MON_Y MON_W MON_H < <(jq -r '
-        (.[] | select(.focused == true)) // .[0] // {x:0, y:0, width:1920, height:1080, scale:1}
-        | "\(.x) \(.y) \((.width / (.scale // 1)) | floor) \((.height / (.scale // 1)) | floor)"
+    read -r MON_NAME MON_X MON_Y MON_W MON_H < <(jq -r '
+        (.[] | select(.focused == true)) // .[0] // {name:"default", x:0, y:0, width:1920, height:1080, scale:1}
+        | "\(.name // "default") \(.x) \(.y) \((.width / (.scale // 1)) | floor) \((.height / (.scale // 1)) | floor)"
     ' <<<"$mon_json")
+    MON_NAME="${MON_NAME:-default}"
     MON_X="${MON_X:-0}"; MON_Y="${MON_Y:-0}"; MON_W="${MON_W:-1920}"; MON_H="${MON_H:-1080}"
 
     # Bounded width/height so ultrawide monitors get a centered console, not full-width stretch
@@ -77,7 +78,7 @@ is_special_ai_open() {
 }
 
 notify_qs_show() {
-    command -v qs >/dev/null 2>&1 && qs ipc call ai show "$Q_W" "$AI_AGENT" >/dev/null 2>&1 || true
+    command -v qs >/dev/null 2>&1 && qs ipc call ai show "$Q_W" "$AI_AGENT" "$MON_NAME" >/dev/null 2>&1 || true
 }
 
 notify_qs_hide() {
@@ -138,7 +139,7 @@ case "$ACTION" in
         show_quake ;;
     hide|close)
         hide_quake ;;
-    restart)
+    restart|relaunch)
         pkill -f "kitty --class quake-ai" 2>/dev/null || true
         sleep 0.1
         show_quake ;;
@@ -163,5 +164,5 @@ case "$ACTION" in
         compute_geometry
         printf 'Agent: %s (%s) | Geometry: %dx%d+%d+%d\n' "$AI_LABEL" "$AI_BIN" "$Q_W" "$Q_H" "$Q_X" "$Q_Y" ;;
     *)
-        sed -n '6,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 2 ;;
+        sed -n '7,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

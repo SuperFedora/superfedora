@@ -107,8 +107,11 @@ cargo_native_install() {
     if ! command -v cargo >/dev/null 2>&1; then
         curl -fsSL https://sh.rustup.rs | sh -s -- -y --no-modify-path
     fi
+    local cc_bin="gcc" cxx_bin="g++"
+    [[ -x /usr/bin/gcc ]] && cc_bin="/usr/bin/gcc"
+    [[ -x /usr/bin/g++ ]] && cxx_bin="/usr/bin/g++"
     echo "[+] Compiling $comp from source for localhost ($MARCH_TARGET, $CPU_JOBS threads)..."
-    CFLAGS="$HOST_CFLAGS" CXXFLAGS="$HOST_CXXFLAGS" LDFLAGS="$HOST_LDFLAGS" \
+    CC="$cc_bin" CXX="$cxx_bin" CFLAGS="$HOST_CFLAGS" CXXFLAGS="$HOST_CXXFLAGS" LDFLAGS="$HOST_LDFLAGS" \
     RUSTFLAGS="$HOST_RUSTFLAGS" CARGO_BUILD_JOBS="$CPU_JOBS" \
         cargo install "$@" "$crate" --locked --force --root "$HOME/.local"
     [[ -x "$HOME/.local/bin/$bin" ]] && mark_built "$comp"
@@ -122,6 +125,9 @@ build_target() {
         echo "[OK] $comp already compiled for localhost ($MARCH_TARGET)"
         return 0
     fi
+    local cc_bin="gcc" cxx_bin="g++"
+    [[ -x /usr/bin/gcc ]] && cc_bin="/usr/bin/gcc"
+    [[ -x /usr/bin/g++ ]] && cxx_bin="/usr/bin/g++"
     case "$comp" in
         wlctl)
             ensure_build_deps gcc make pkgconf-pkg-config dbus-devel
@@ -140,11 +146,12 @@ build_target() {
             fi ;;
         fuzzel)
             ensure_build_deps gcc meson ninja-build pkgconf-pkg-config wayland-devel wayland-protocols-devel \
-                libxkbcommon-devel pixman-devel cairo-devel pango-devel fcft-devel scdoc
+                libxkbcommon-devel pixman-devel cairo-devel pango-devel fcft-devel tllist-devel \
+                fontconfig-devel libpng-devel librsvg2-devel scdoc
             local tmp; tmp="$(mktemp -d)"
             echo "[+] Compiling fuzzel from source for localhost ($MARCH_TARGET, $CPU_JOBS threads)..."
             git clone --depth 1 https://codeberg.org/dnkl/fuzzel.git "$tmp/fuzzel"
-            CFLAGS="$HOST_CFLAGS" LDFLAGS="$HOST_LDFLAGS" \
+            CC="$cc_bin" CFLAGS="$HOST_CFLAGS" LDFLAGS="$HOST_LDFLAGS" \
                 meson setup "$tmp/fuzzel/build" "$tmp/fuzzel" --prefix="$HOME/.local" -Dbuildtype=release -Db_lto=true
             ninja -C "$tmp/fuzzel/build" -j"$CPU_JOBS" install
             rm -rf "$tmp"
@@ -154,7 +161,7 @@ build_target() {
             local tmp; tmp="$(mktemp -d)"
             echo "[+] Compiling btop from source for localhost ($MARCH_TARGET, $CPU_JOBS threads)..."
             git clone --depth 1 https://github.com/aristocratos/btop.git "$tmp/btop"
-            make -C "$tmp/btop" OPTFLAGS="-O3 -march=native -mtune=native -flto=auto" -j"$CPU_JOBS"
+            CXX="$cxx_bin" make -C "$tmp/btop" OPTFLAGS="-O3 -march=native -mtune=native -flto=auto" -j"$CPU_JOBS"
             make -C "$tmp/btop" PREFIX="$HOME/.local" install
             rm -rf "$tmp"
             [[ -x "$HOME/.local/bin/btop" ]] && mark_built btop ;;
@@ -187,18 +194,25 @@ print_status() {
     done
 }
 
-ACTION="${1:-status}"
-[[ $# -gt 0 ]] && shift
+ACTION="status"
 FORCE=0
+ACTION_SET=0
 for arg in "$@"; do
     case "$arg" in
         --force|-f) FORCE=1 ;;
-        -h|--help) sed -n '6,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help|help) sed -n '7,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --status|--check) ACTION="status"; ACTION_SET=1 ;;
+        *)
+            if [[ $ACTION_SET -eq 0 ]]; then
+                ACTION="$arg"
+                ACTION_SET=1
+            fi ;;
     esac
 done
+[[ $ACTION_SET -eq 0 && $FORCE -eq 1 ]] && ACTION="all"
 
 case "$ACTION" in
-    status|check|--check|list)
+    status|--status|check|--check|list)
         print_status ;;
     profile|init)
         write_hw_profile
@@ -210,10 +224,8 @@ case "$ACTION" in
         done ;;
     wlctl|bluetui|wiremix|tuigreet|fuzzel|btop)
         build_target "$ACTION" "$FORCE" ;;
-    -h|--help|help)
-        sed -n '6,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *)
         echo "unknown build command: $ACTION" >&2
-        sed -n '6,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
+        sed -n '7,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
         exit 2 ;;
 esac

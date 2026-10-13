@@ -28,7 +28,10 @@ module_run() {
         need "localhost hardware profile (-march=native / target-cpu=native)" _hw_t _hw_i
 
         _src_t() {
-            [[ -f "$SF_STATE/source-built/wlctl.stamp" && -f "$SF_STATE/source-built/bluetui.stamp" && -f "$SF_STATE/source-built/wiremix.stamp" ]]
+            local c
+            for c in wlctl bluetui wiremix tuigreet fuzzel btop; do
+                [[ -f "$SF_STATE/source-built/$c.stamp" ]] || return 1
+            done
         }
         _src_i() { "$SF_ROOT/lib/build-source.sh" all; }
         need "localhost native source builds (wlctl, bluetui, wiremix, tuigreet, fuzzel, btop)" _src_t _src_i

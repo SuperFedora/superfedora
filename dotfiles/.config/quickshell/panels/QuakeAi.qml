@@ -35,11 +35,25 @@ PanelWindow {
         Quickshell.execDetached(["sh", "-c", cmd]);
     }
 
+    function setScreenByName(monName) {
+        if (!monName) return;
+        const screens = Quickshell.screens || [];
+        for (let i = 0; i < screens.length; i++) {
+            if (screens[i].name === monName) {
+                win.targetScreen = screens[i];
+                return;
+            }
+        }
+    }
+
     Connections {
         target: Hyprland
         function onRawEvent(event) {
             if (event.name === "activespecial" || event.name === "activespecialv2") {
                 const d = String(event.data || "");
+                const parts = d.split(",");
+                const mon = parts[parts.length - 1];
+                if (mon) win.setScreenByName(mon.trim());
                 win.open = d.includes("special:ai");
             }
         }
@@ -50,10 +64,11 @@ PanelWindow {
         function toggle(): void {
             win.runCmd("~/.config/hypr/scripts/quake-ai.sh toggle");
         }
-        function show(w: string, agent: string): void {
+        function show(w: string, agent: string, monName: string): void {
             const parsed = Number(w);
             if (parsed >= 600) win.consoleWidth = parsed;
             if (agent) win.activeAgent = agent;
+            if (monName) win.setScreenByName(monName);
             win.open = true;
         }
         function hide(): void {

@@ -18,7 +18,10 @@ module_run() {
     need "JetBrainsMono Nerd Font" _nf_t _nf_i
 
     # Omarchy-style Ratatui TUIs for PipeWire Audio (wiremix), Wi-Fi (wlctl) and Bluetooth (bluetui)
-    _wm_t() { command -v wiremix >/dev/null; }
+    _wm_t() {
+        command -v wiremix >/dev/null || return 1
+        [[ "${SF_BUILD_MODE:-quick}" != "source" || -f "$SF_STATE/source-built/wiremix.stamp" ]]
+    }
     _wm_i() {
         if [[ "${SF_BUILD_MODE:-quick}" == "source" ]]; then
             "$SF_ROOT/lib/build-source.sh" wiremix
@@ -28,7 +31,10 @@ module_run() {
     }
     need "Audio TUI (wiremix)" _wm_t _wm_i
 
-    _wl_t() { command -v wlctl >/dev/null; }
+    _wl_t() {
+        command -v wlctl >/dev/null || return 1
+        [[ "${SF_BUILD_MODE:-quick}" != "source" || -f "$SF_STATE/source-built/wlctl.stamp" ]]
+    }
     _wl_i() {
         if [[ "${SF_BUILD_MODE:-quick}" == "source" ]]; then
             "$SF_ROOT/lib/build-source.sh" wlctl
@@ -41,7 +47,10 @@ module_run() {
     }
     need "Wi-Fi TUI (wlctl)" _wl_t _wl_i
 
-    _bt_t() { command -v bluetui >/dev/null; }
+    _bt_t() {
+        command -v bluetui >/dev/null || return 1
+        [[ "${SF_BUILD_MODE:-quick}" != "source" || -f "$SF_STATE/source-built/bluetui.stamp" ]]
+    }
     _bt_i() {
         if [[ "${SF_BUILD_MODE:-quick}" == "source" ]]; then
             "$SF_ROOT/lib/build-source.sh" bluetui

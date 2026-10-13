@@ -59,7 +59,12 @@ trap 'rm -rf "$TMP_TEST"' EXIT
 
 MOCK_BIN="$TMP_TEST/bin"
 MOCK_HOME="$TMP_TEST/home"
+MOCK_OS_RELEASE="$TMP_TEST/os-release"
 mkdir -p "$MOCK_BIN" "$MOCK_HOME"
+cat > "$MOCK_OS_RELEASE" << 'EOF'
+ID=fedora
+PRETTY_NAME="Fedora Linux 44 (Forty Four)"
+EOF
 cat > "$MOCK_BIN/curl" << 'EOF'
 #!/bin/sh
 case "$*" in
@@ -83,7 +88,7 @@ EOF
 chmod +x "$MOCK_BIN/curl"
 
 # Test --build-from-source forwarding
-src_out="$(HOME="$MOCK_HOME" XDG_DATA_HOME="$MOCK_HOME/.local/share" PATH="$MOCK_BIN:$PATH" "$INSTALLER" --build-from-source </dev/null 2>&1)" || true
+src_out="$(HOME="$MOCK_HOME" XDG_DATA_HOME="$MOCK_HOME/.local/share" SUPERFEDORA_OS_RELEASE="$MOCK_OS_RELEASE" PATH="$MOCK_BIN:$PATH" "$INSTALLER" --build-from-source </dev/null 2>&1)" || true
 if [[ "$src_out" == *"mock superfedora install --build-from-source"* ]]; then
   pass "--build-from-source flag forwards cleanly to superfedora install"
 else
@@ -91,7 +96,7 @@ else
 fi
 
 # Test SUPERFEDORA_BUILD_MODE=source environment variable forwarding
-env_out="$(HOME="$MOCK_HOME" XDG_DATA_HOME="$MOCK_HOME/.local/share" PATH="$MOCK_BIN:$PATH" SUPERFEDORA_BUILD_MODE=source "$INSTALLER" </dev/null 2>&1)" || true
+env_out="$(HOME="$MOCK_HOME" XDG_DATA_HOME="$MOCK_HOME/.local/share" SUPERFEDORA_OS_RELEASE="$MOCK_OS_RELEASE" PATH="$MOCK_BIN:$PATH" SUPERFEDORA_BUILD_MODE=source "$INSTALLER" </dev/null 2>&1)" || true
 if [[ "$env_out" == *"mock superfedora install --build-from-source"* ]]; then
   pass "SUPERFEDORA_BUILD_MODE=source forwards --build-from-source cleanly"
 else
@@ -99,11 +104,21 @@ else
 fi
 
 # Test --quick flag forwarding
-quick_out="$(HOME="$MOCK_HOME" XDG_DATA_HOME="$MOCK_HOME/.local/share" PATH="$MOCK_BIN:$PATH" "$INSTALLER" --quick </dev/null 2>&1)" || true
+quick_out="$(HOME="$MOCK_HOME" XDG_DATA_HOME="$MOCK_HOME/.local/share" SUPERFEDORA_OS_RELEASE="$MOCK_OS_RELEASE" PATH="$MOCK_BIN:$PATH" "$INSTALLER" --quick </dev/null 2>&1)" || true
 if [[ "$quick_out" == *"mock superfedora install --quick"* ]]; then
   pass "--quick flag forwards cleanly to superfedora install"
 else
   fail "--quick flag forwarding failed: $quick_out"
+fi
+
+# Test non-Fedora OS rejection
+MOCK_UBUNTU="$TMP_TEST/os-release-ubuntu"
+printf 'ID=ubuntu\nPRETTY_NAME="Ubuntu 24.04 LTS"\n' > "$MOCK_UBUNTU"
+ubuntu_out="$(SUPERFEDORA_OS_RELEASE="$MOCK_UBUNTU" "$INSTALLER" --quick </dev/null 2>&1)" || true
+if [[ "$ubuntu_out" == *"SuperFedora needs Fedora"* ]]; then
+  pass "Non-Fedora OS is cleanly rejected by install.sh"
+else
+  fail "Non-Fedora OS was not rejected: $ubuntu_out"
 fi
 
 # 7. Test non-root enforcement: root EUID (0) should fail
