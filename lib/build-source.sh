@@ -13,6 +13,7 @@
 set -euo pipefail
 
 SF_ROOT="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/.." && pwd)"
+export SF_ROOT
 STATE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/superfedora"
 STAMP_DIR="$STATE_DIR/source-built"
 HW_ENV="$STATE_DIR/hardware-flags.env"
