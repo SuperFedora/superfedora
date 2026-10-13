@@ -8,6 +8,13 @@ module_run() {
     rpm -q --quiet ffmpeg-free && need_swap ffmpeg-free ffmpeg
     rpm -q --quiet ffmpeg-free || need_pkgs <(echo ffmpeg)
 
+    # SuperFedora workstation identity markers
+    if is_install; then
+        as_root mkdir -p /etc/superfedora
+        as_root sh -c "echo 'SUPERFEDORA=1' > /etc/superfedora/release"
+        as_root sh -c "echo 'export SUPERFEDORA=1' > /etc/profile.d/superfedora.sh"
+    fi
+
     need_service NetworkManager.service
     need_service bluetooth.service
     need_service tuned.service
