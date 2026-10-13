@@ -102,8 +102,7 @@ exec "\${SHELL:-/bin/bash}"
 EOF
     chmod +x "$runner"
     hyprctl dispatch exec "[workspace special:ai silent; float; size $Q_W $Q_H; move $Q_X $Q_Y] kitty --class quake-ai --title 'Quake AI — $AI_LABEL' -e $runner" >/dev/null
-    local i
-    for i in {1..30}; do
+    for _ in {1..30}; do
         has_quake_client && break
         sleep 0.04
     done
