@@ -40,21 +40,14 @@ Scope {
     }
 
     property bool sensorHovered: false
-    property bool panelHovered: false
     property bool keepRevealed: false
+    readonly property bool activelyHovered: scope.sensorHovered
+        || winHover.hovered
+        || dockApps.isInteracting
+        || Status.settingsOpen
 
-    Timer {
-        id: hideDelay
-        interval: 450
-        repeat: false
-        onTriggered: {
-            if (!scope.sensorHovered && !scope.panelHovered)
-                scope.keepRevealed = false;
-        }
-    }
-
-    function touchHover(active) {
-        if (active) {
+    onActivelyHoveredChanged: {
+        if (scope.activelyHovered) {
             scope.keepRevealed = true;
             hideDelay.stop();
         } else {
@@ -62,15 +55,25 @@ Scope {
         }
     }
 
+    Timer {
+        id: hideDelay
+        interval: 1600
+        repeat: false
+        onTriggered: {
+            if (!scope.activelyHovered)
+                scope.keepRevealed = false;
+        }
+    }
+
     readonly property bool shouldShow: {
         if (!scope.enabled) return false;
         if (scope.hideMode === "never") return true;
-        if (scope.keepRevealed || scope.sensorHovered || scope.panelHovered || Status.settingsOpen) return true;
+        if (scope.activelyHovered || scope.keepRevealed) return true;
         if (scope.hideMode === "intellihide") return !scope.wsHasWindows;
         return false; // autohide
     }
 
-    // 1. Thin 2px screen-edge hover sensor when hidden in intellihide / autohide mode
+    // 1. Screen-edge hover sensor when hidden in intellihide / autohide mode
     PanelWindow {
         id: edgeSensor
         screen: scope.modelData
@@ -84,20 +87,12 @@ Scope {
             right: scope.edge === "right" || scope.edge === "bottom"
             top: scope.edge === "left" || scope.edge === "right"
         }
-        implicitWidth: scope.isVert ? 3 : 200
-        implicitHeight: scope.isVert ? 200 : 3
+        implicitWidth: scope.isVert ? 6 : 320
+        implicitHeight: scope.isVert ? 320 : 6
 
-        MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            onEntered: {
-                scope.sensorHovered = true;
-                scope.touchHover(true);
-            }
-            onExited: {
-                scope.sensorHovered = false;
-                scope.touchHover(false);
-            }
+        HoverHandler {
+            id: sensorHover
+            onHoveredChanged: scope.sensorHovered = sensorHover.hovered
         }
     }
 
@@ -142,18 +137,9 @@ Scope {
             border.width: scope.span === "full" ? 0 : 2
             border.color: Theme.blue
 
-            MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                acceptedButtons: Qt.NoButton
-                onEntered: {
-                    scope.panelHovered = true;
-                    scope.touchHover(true);
-                }
-                onExited: {
-                    scope.panelHovered = false;
-                    scope.touchHover(false);
-                }
+            // Non-blocking HoverHandler tracks the cursor across the entire dock and all child tiles simultaneously
+            HoverHandler {
+                id: winHover
             }
 
             GridLayout {
@@ -171,7 +157,6 @@ Scope {
                     return s.concat(c).concat(e);
                 }
 
-                // Launcher button if configured
                 BarLabel {
                     visible: contentGrid.allSlots.includes("launcher")
                     text: "󰣛"
@@ -180,7 +165,6 @@ Scope {
                     onClicked: Quickshell.execDetached(["sh", "-c", "fuzzel"])
                 }
 
-                // Workspaces strip if configured
                 Workspaces {
                     visible: contentGrid.allSlots.includes("workspaces")
                     monitor: scope.hyprMon
@@ -188,18 +172,13 @@ Scope {
                     thickness: scope.thickness - 8
                 }
 
-                // Pinned & running apps dock if configured
                 DockApps {
+                    id: dockApps
                     visible: contentGrid.allSlots.includes("apps")
                     vertical: scope.isVert
                     thickness: scope.thickness
-                    onHoveredChanged: isHov => {
-                        scope.panelHovered = isHov;
-                        scope.touchHover(isHov);
-                    }
                 }
 
-                // Quick theme & panel buttons if configured
                 BarLabel {
                     visible: contentGrid.allSlots.includes("theme")
                     text: "󰏘"

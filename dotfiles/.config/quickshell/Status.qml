@@ -154,6 +154,7 @@ Singleton {
     // --- Hyprland clients & Multi-Edge Panels Config -------------------
     property bool settingsOpen: false
     property var clients: []
+    property var dockOrder: ["launcher", "terminal", "browser", "files", "editor", "monitor", "panels", "theme"]
     property var panels: ({
         top:    { enabled: true,  span: "full", percent: 100, thickness: 36, hideMode: "never",      start: ["launcher", "workspaces"], center: ["clock"], end: ["tray", "status"] },
         bottom: { enabled: true,  span: "hug",  percent: 65,  thickness: 52, hideMode: "intellihide", start: [], center: ["apps"], end: [] },
@@ -173,7 +174,17 @@ Singleton {
         try {
             const d = JSON.parse(raw);
             if (d && d.top && d.bottom) root.panels = d;
+            if (d && Array.isArray(d.dockOrder) && d.dockOrder.length > 0) root.dockOrder = d.dockOrder;
         } catch (e) {}
+    }
+
+    function saveDockOrder(newOrder): void {
+        root.dockOrder = newOrder;
+        Quickshell.execDetached(["python3", "-c",
+            "import json,os; p=os.path.expanduser('~/.config/superfedora/panels.json'); " +
+            "d=json.load(open(p)) if os.path.exists(p) else {}; d['dockOrder']=" + JSON.stringify(newOrder) + "; " +
+            "json.dump(d,open(p,'w'),indent=2)"
+        ]);
     }
 
     function updatePanel(edge, key, val): void {
