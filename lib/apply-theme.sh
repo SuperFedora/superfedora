@@ -80,6 +80,7 @@ apply_all() {
     printf 'wallpaper {\n    monitor =\n    path = %s\n    fit_mode = cover\n}\n\nsplash = false\n' "$wall_rel" > "$HOME/.config/hypr/hyprpaper.conf"
     echo "$wall_abs" > "$HOME/.config/hypr/.current-wallpaper"
     if command -v hyprctl >/dev/null 2>&1 && [[ -f "$wall_abs" ]]; then
+        hyprctl hyprpaper unload all >/dev/null 2>&1 || true
         hyprctl hyprpaper preload "$wall_abs" >/dev/null 2>&1 || true
         hyprctl hyprpaper wallpaper ",$wall_abs" >/dev/null 2>&1 || true
     fi

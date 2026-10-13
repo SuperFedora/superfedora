@@ -31,6 +31,49 @@ PanelWindow {
         objects: [Pipewire.defaultAudioSink]
     }
 
+    function toggleLauncher() {
+        const next = !launcherMenu.open;
+        calendarPopup.open = false;
+        statusPopup.tab = "";
+        launcherMenu.open = next;
+    }
+
+    function toggleCalendar() {
+        const next = !calendarPopup.open;
+        launcherMenu.open = false;
+        statusPopup.tab = "";
+        if (next) calendarPopup.resetToToday();
+        calendarPopup.open = next;
+    }
+
+    function toggleStatus(tabName, item) {
+        launcherMenu.open = false;
+        calendarPopup.open = false;
+        if (statusPopup.tab === tabName) {
+            statusPopup.tab = "";
+        } else {
+            const pt = item.mapToItem(null, 0, 0);
+            statusPopup.rightOffset = Math.max(6, Math.round(bar.width - (pt.x + item.width)));
+            Status.refresh();
+            statusPopup.tab = tabName;
+        }
+    }
+
+    LauncherMenu {
+        id: launcherMenu
+        targetScreen: bar.modelData
+    }
+
+    Calendar {
+        id: calendarPopup
+        targetScreen: bar.modelData
+    }
+
+    StatusPopup {
+        id: statusPopup
+        targetScreen: bar.modelData
+    }
+
     // ---------------- Left ----------------
     RowLayout {
         anchors.left: parent.left
@@ -40,9 +83,9 @@ PanelWindow {
 
         BarLabel {
             text: "󰣛"
-            color: Theme.blue
+            color: launcherMenu.open ? Theme.cyan : Theme.blue
             pixelSize: Theme.iconSize + 2
-            onClicked: bar.run("~/.config/hypr/scripts/menu.sh")
+            onClicked: bar.toggleLauncher()
             onRightClicked: bar.run("fuzzel")
         }
 
@@ -71,11 +114,6 @@ PanelWindow {
     }
 
     // ---------------- Center ----------------
-    Calendar {
-        id: calendarPopup
-        targetScreen: bar.modelData
-    }
-
     BarLabel {
         id: clock
         anchors.centerIn: parent
@@ -84,10 +122,7 @@ PanelWindow {
         bold: true
         color: calendarPopup.open ? Theme.blue : Theme.fg
         text: Qt.formatDateTime(now, "ddd, MMM d  ·  HH:mm")
-        onClicked: {
-            if (!calendarPopup.open) calendarPopup.resetToToday();
-            calendarPopup.open = !calendarPopup.open;
-        }
+        onClicked: bar.toggleCalendar()
 
         Timer {
             interval: 1000
@@ -122,35 +157,40 @@ PanelWindow {
 
         // Bluetooth
         BarLabel {
+            id: btBtn
             readonly property var adapter: Bluetooth.defaultAdapter
             readonly property int connected: Bluetooth.devices.values.filter(d => d.connected).length
             visible: adapter !== null
             text: !adapter || !adapter.enabled ? "󰂲" : (connected > 0 ? "󰂱" : "󰂯")
-            color: adapter && adapter.enabled ? Theme.fg : Theme.muted
-            onClicked: bar.run("gnome-control-center bluetooth")
+            color: statusPopup.tab === "bluetooth" ? Theme.blue : (adapter && adapter.enabled ? Theme.fg : Theme.muted)
+            onClicked: bar.toggleStatus("bluetooth", btBtn)
+            onRightClicked: bar.run("gnome-control-center bluetooth")
         }
 
         // Network
         BarLabel {
+            id: netBtn
             text: {
                 if (Status.netType === "ethernet") return "󰀂";
                 if (Status.netType !== "wifi") return "󰤮";
                 const s = Status.signal;
                 return s >= 80 ? "󰤨" : s >= 60 ? "󰤥" : s >= 40 ? "󰤢" : s >= 20 ? "󰤟" : "󰤯";
             }
-            color: Status.netType === "none" ? Theme.muted : Theme.fg
-            onClicked: bar.run("gnome-control-center wifi")
+            color: statusPopup.tab === "network" ? Theme.blue : (Status.netType === "none" ? Theme.muted : Theme.fg)
+            onClicked: bar.toggleStatus("network", netBtn)
+            onRightClicked: bar.run("gnome-control-center wifi")
         }
 
         // Audio
         BarLabel {
+            id: audioBtn
             readonly property var sink: Pipewire.defaultAudioSink
             readonly property bool ready: sink !== null && sink.audio !== null
             readonly property real vol: ready ? sink.audio.volume : 0
             readonly property bool muted: ready ? sink.audio.muted : true
             text: muted ? "󰝟" : vol >= 0.66 ? "󰕾" : vol >= 0.33 ? "󰖀" : "󰕿"
-            color: muted ? Theme.muted : Theme.fg
-            onClicked: if (ready) sink.audio.muted = !sink.audio.muted
+            color: statusPopup.tab === "audio" ? Theme.blue : (muted ? Theme.muted : Theme.fg)
+            onClicked: bar.toggleStatus("audio", audioBtn)
             onRightClicked: bar.run("gnome-control-center sound")
             onScrolled: delta => {
                 if (!ready) return;
@@ -160,13 +200,16 @@ PanelWindow {
 
         // CPU
         BarLabel {
+            id: cpuBtn
             text: "󰍛"
-            color: Status.cpu >= 80 ? Theme.red : Theme.fg
-            onClicked: bar.run("kitty --class floating-term -e btop")
+            color: statusPopup.tab === "cpu" ? Theme.blue : (Status.cpu >= 80 ? Theme.red : Theme.fg)
+            onClicked: bar.toggleStatus("cpu", cpuBtn)
+            onRightClicked: bar.run("kitty --class floating-term -e btop")
         }
 
         // Battery
         BarLabel {
+            id: batBtn
             readonly property var dev: UPower.displayDevice
             readonly property bool present: dev !== null && dev.isLaptopBattery
             readonly property int pct: present ? Math.round(dev.percentage <= 1 ? dev.percentage * 100 : dev.percentage) : 0
@@ -178,15 +221,18 @@ PanelWindow {
                 const icons = ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"];
                 return icons[Math.min(10, Math.floor(pct / 10))];
             }
-            color: charging ? Theme.green : pct <= 15 ? Theme.red : pct <= 30 ? Theme.yellow : Theme.fg
-            onClicked: bar.run("notify-send -a Battery 'Battery' '" + pct + "%" + (charging ? " · charging" : "") + "'")
+            color: statusPopup.tab === "battery" ? Theme.blue : (charging ? Theme.green : pct <= 15 ? Theme.red : pct <= 30 ? Theme.yellow : Theme.fg)
+            onClicked: bar.toggleStatus("battery", batBtn)
+            onRightClicked: bar.run("gnome-control-center power")
         }
 
         // Power
         BarLabel {
+            id: powerBtn
             text: "󰐥"
-            color: Theme.red
-            onClicked: bar.run("~/.config/hypr/scripts/menu.sh system")
+            color: statusPopup.tab === "power" ? Theme.orange : Theme.red
+            onClicked: bar.toggleStatus("power", powerBtn)
+            onRightClicked: bar.run("~/.config/hypr/scripts/menu.sh system")
         }
     }
 }

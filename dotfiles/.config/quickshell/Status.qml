@@ -13,6 +13,7 @@ Singleton {
     property string netType: "none"     // wifi | ethernet | none
     property string ssid: ""
     property int signal: 0
+    property var wifiList: []
     property bool idleEnabled: true
 
     // --- CPU & RAM from /proc/stat and /proc/meminfo -------------------
@@ -61,17 +62,35 @@ Singleton {
     Process {
         id: netProc
         command: ["sh", "-c",
-            "nmcli -t -f TYPE,STATE device 2>/dev/null | grep -m1 ':connected$' | cut -d: -f1; " +
-            "nmcli -t -f ACTIVE,SIGNAL,SSID device wifi list --rescan no 2>/dev/null | grep -m1 '^yes'"]
+            "nmcli -t -f TYPE,STATE device 2>/dev/null | grep -m1 ':connected$' | cut -d: -f1 || echo none; " +
+            "nmcli -t -f ACTIVE,SIGNAL,SSID device wifi list --rescan no 2>/dev/null"]
         stdout: StdioCollector {
             onStreamFinished: {
                 const lines = text.trim().split("\n");
-                const type = lines[0] || "";
+                const type = lines[0] || "none";
+                const seen = {};
+                const list = [];
+                let activeSsid = "";
+                let activeSig = 0;
+
+                for (let i = 1; i < lines.length; i++) {
+                    const parts = lines[i].split(":");
+                    if (parts.length < 3) continue;
+                    const act = parts[0] === "yes";
+                    const sig = Number(parts[1] || 0);
+                    const name = parts.slice(2).join(":").trim();
+                    if (!name) continue;
+                    if (act) { activeSsid = name; activeSig = sig; }
+                    if (!seen[name] && list.length < 6) {
+                        seen[name] = true;
+                        list.push({ ssid: name, signal: sig, active: act });
+                    }
+                }
+                root.wifiList = list;
                 if (type === "wifi") {
-                    const parts = (lines[1] || "").split(":");
                     root.netType = "wifi";
-                    root.signal = Number(parts[1] || 0);
-                    root.ssid = parts.slice(2).join(":");
+                    root.signal = activeSig;
+                    root.ssid = activeSsid;
                 } else if (type === "ethernet") {
                     root.netType = "ethernet";
                     root.ssid = "";
