@@ -2,7 +2,7 @@
 
 [![Release](https://img.shields.io/github/v/release/SuperFedora/superfedora?label=SuperFedora)](https://github.com/SuperFedora/superfedora/releases)
 [![CI](https://github.com/SuperFedora/superfedora/actions/workflows/ci.yml/badge.svg)](https://github.com/SuperFedora/superfedora/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 Minimal Fedora -> keyboard-driven Hyprland workstation, with COSMIC keybindings, a Quickshell bar, and the IdleScreen screensaver.
 
@@ -14,4 +14,4 @@ It checks what is already installed and installs only what is missing, so it is 
 
 **Docs, components, and keybindings: [superfedora.github.io](https://superfedora.github.io/)**
 
-Licensed under the MIT License.
+Licensed under the Apache License, Version 2.0.
