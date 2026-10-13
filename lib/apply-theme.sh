@@ -66,6 +66,14 @@ load_state() {
     [[ "${THEME_MODE:-dark}" == "light" ]] || THEME_MODE="dark"
 }
 
+write_lock_shape() {
+    printf 'shape {\n    monitor =\n    size = %s\n    color = rgba(%s, %s)\n    rounding = %s\n    border_size = 2\n    border_color = rgb(%s)\n    position = %s\n    halign = %s\n    valign = %s\n}\n' "$1" "$LOCK_IN" "$2" "$3" "$ACCENT" "$4" "$5" "$6"
+}
+
+write_lock_lbl() {
+    printf 'label {\n    monitor =\n    text = %s\n    color = %s\n    font_size = %s\n    font_family = JetBrainsMono Nerd Font\n    position = %s\n    halign = %s\n    valign = %s\n%s}\n' "$1" "$2" "$3" "$4" "$5" "$6" "${7:-}"
+}
+
 apply_all() {
     local color="$1" mode="$2"
     palette_tokens "$color" "$mode"
@@ -85,55 +93,23 @@ apply_all() {
         hyprctl hyprpaper wallpaper ",$wall_abs" >/dev/null 2>&1 || true
     fi
 
-    # 2. Lock Screen (hyprlock — unblurred 4K 16-bit SUPER FEDORA Hero art)
-    cat > "$HOME/.config/hypr/hyprlock.conf" <<EOF
-# Hyprlock Configuration — SuperFedora 16-Bit Theme ($NAME / $mode)
-background {
-    monitor =
-    path = $wall_rel
-    blur_passes = 0
-    blur_size = 0
-}
-label {
-    monitor =
-    text = cmd[update:1000] echo "\$(date +"%H:%M")"
-    color = rgba($LOCK_FG, 1.0)
-    font_size = 76
-    font_family = JetBrainsMono Nerd Font
-    position = 0, -55
-    halign = center
-    valign = top
-}
-label {
-    monitor =
-    text = cmd[update:1000] echo "\$(date +"%A, %B %d")"
-    color = rgba($LOCK_DIM, 1.0)
-    font_size = 20
-    font_family = JetBrainsMono Nerd Font
-    position = 0, -150
-    halign = center
-    valign = top
-}
-input-field {
-    monitor =
-    size = 260, 50
-    outline_thickness = 2
-    dots_size = 0.25
-    dots_spacing = 0.15
-    dots_center = true
-    fade_on_empty = false
-    font_color = rgb($LOCK_FG)
-    inner_color = rgba($LOCK_IN, 0.88)
-    outer_color = rgb(#$ACCENT)
-    check_color = rgb(#9ece6a)
-    fail_color = rgb(#f7768e)
-    fail_text = <i>Incorrect password</i>
-    capslock_color = rgb(#e0af68)
-    position = 0, 90
-    halign = center
-    valign = bottom
-}
-EOF
+    # 2. Lock Screen (hyprlock — clock-free 4K 16-bit SUPER FEDORA Hero art + GNOME-style HUD & controls)
+    local hud_cmd='cmd[update:5000] sh -c '\''net=$(nmcli -t -f TYPE,STATE dev 2>/dev/null | grep -m1 ":connected$" | cut -d: -f1); [ "$net" = "wifi" ] && net="󰤨 Wi-Fi" || ([ "$net" = "ethernet" ] && net="󰀂 ETH" || net="󰤮 Offline"); vol=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | awk "{if (\$3==\"[MUTED]\") print \"󰝟 Muted\"; else printf \"󰕾 %d%%\", \$2*100}"); bat=""; for b in /sys/class/power_supply/BAT*; do [ -e "$b/capacity" ] && bat="  ·  󰁹 $(cat "$b/capacity")% ($(cat "$b/status"))"; done; echo "$net  ·  $vol$bat"'\'''
+    local media_cmd='cmd[update:3000] sh -c '\''st=$(playerctl status 2>/dev/null); if [ "$st" = "Playing" ] || [ "$st" = "Paused" ]; then ic=$([ "$st" = "Playing" ] && echo "󰎆 PLAYING:" || echo "󰏤 PAUSED:"); info=$(playerctl metadata --format "{{ artist }} - {{ title }}" 2>/dev/null | cut -c1-48); [ -n "$info" ] && echo "  $ic $info  "; fi'\'''
+    {
+        printf '# Hyprlock Configuration — SuperFedora 16-Bit Theme (%s / %s)\ngeneral {\n    hide_cursor = false\n    ignore_empty_input = true\n    immediate_render = true\n    fail_timeout = 1200\n}\nanimations {\n    enabled = false\n}\nbackground {\n    monitor =\n    path = %s\n    blur_passes = 0\n    blur_size = 0\n}\n' "$NAME" "$mode" "$wall_rel"
+        write_lock_shape "430, 38" "0.90" "4" "-24, -20" "right" "top"
+        write_lock_lbl "$hud_cmd" "rgba($LOCK_FG, 1.0)" "12" "-42, -29" "right" "top"
+        write_lock_lbl "$media_cmd" "rgb($HOT)" "12" "24, -28" "left" "top"
+        write_lock_shape "460, 210" "0.92" "6" "0, 28" "center" "bottom"
+        printf 'image {\n    monitor =\n    path = ~/Pictures/Wallpapers/avatar.jpg\n    size = 64\n    rounding = 6\n    border_size = 2\n    border_color = rgb(%s)\n    position = 0, 156\n    halign = center\n    valign = bottom\n}\n' "$HOT"
+        write_lock_lbl "<b>\$USER</b>  ·  <span foreground=\"#$ACCENT\">[SESSION LOCKED]</span>" "rgba($LOCK_FG, 1.0)" "14" "0, 124" "center" "bottom"
+        printf 'input-field {\n    monitor =\n    size = 340, 44\n    outline_thickness = 2\n    rounding = 4\n    dots_size = 0.26\n    dots_spacing = 0.18\n    dots_center = true\n    fade_on_empty = false\n    font_color = rgb(%s)\n    inner_color = rgba(%s, 0.98)\n    outer_color = rgb(%s)\n    check_color = rgb(9ece6a)\n    fail_color = rgb(f7768e)\n    fail_text = <b>AUTH FAILED ($ATTEMPTS) — TRY AGAIN</b>\n    capslock_color = rgb(e0af68)\n    placeholder_text = <i>Type password to unlock...</i>\n    position = 0, 70\n    halign = center\n    valign = bottom\n}\n' "$LOCK_FG" "$LOCK_IN" "$ACCENT"
+        write_lock_lbl "󰤄 Suspend"    "rgba($LOCK_DIM, 1.0)" "12" "-140, 38" "center" "bottom" $'    onclick = systemctl suspend\n'
+        write_lock_lbl "󰍹 Screen Off" "rgba($LOCK_DIM, 1.0)" "12" "-45, 38"  "center" "bottom" $'    onclick = hyprctl dispatch dpms off\n'
+        write_lock_lbl "󰜉 Restart"    "rgba($LOCK_DIM, 1.0)" "12" "55, 38"   "center" "bottom" $'    onclick = systemctl reboot\n'
+        write_lock_lbl "󰐥 Power Off"  "rgb(f7768e)"          "12" "145, 38"  "center" "bottom" $'    onclick = systemctl poweroff\n'
+    } > "$HOME/.config/hypr/hyprlock.conf"
 
     # 3. Hyprland Borders & Groupbar (looknfeel.conf + live hyprctl)
     [[ -f "$HOME/.config/hypr/conf/looknfeel.conf" ]] && sed -i \
@@ -153,9 +129,7 @@ EOF
     # 4. Quickshell Top Bar, OSD, Notifications & Calendar (live IPC update, zero reload popup)
     printf '{"bg":"#%s","bgAlt":"#%s","bgHover":"#%s","border":"#%s","fg":"#%s","fgDim":"#%s","muted":"#%s","blue":"#%s","cyan":"#%s"}\n' \
         "$BG" "$BG_ALT" "$BG_HOV" "$BORDER" "$FG" "$FG_DIM" "$MUTED" "$ACCENT" "$HOT" > "$STATE_DIR/quickshell-theme.json"
-    if command -v qs >/dev/null 2>&1; then
-        qs ipc call theme reload >/dev/null 2>&1 || true
-    fi
+    command -v qs >/dev/null 2>&1 && qs ipc call theme reload >/dev/null 2>&1 || true
 
     # 5. Fuzzel Launcher & Menus (fuzzel.ini)
     printf '# Fuzzel Configuration — SuperFedora 16-Bit Theme (%s / %s)\nfont=JetBrainsMono Nerd Font:size=12\ndpi-aware=auto\nprompt="> "\nicon-theme=Adwaita\nterminal=kitty -e\nwidth=36\nlines=10\nhorizontal-pad=24\nvertical-pad=16\ninner-pad=10\n\n[colors]\nbackground=%sf2\ntext=%sff\nmatch=%sff\nselection=%sff\nselection-text=%sff\nselection-match=%sff\nborder=%sff\n\n[border]\nwidth=2\nradius=0\n' \
@@ -178,12 +152,10 @@ EOF
     fi
 
     # 7. IdleScreen configuration
-    printf '[general]\nidle_timeout_secs = 120\nprimary_output = ""\n\n[saver]\nactive = "superfedora"\n\n[saver.ascii]\nmode = "superfedora"\ntargets = [\n    "superfedora",\n]\ntext = ""\nfps = 0\ndwell_secs = 5.0\ndissolve_duration_secs = 0.7\n' > "$HOME/.config/idlescreen/config.toml"
+    printf '[general]\nidle_timeout_secs = 120\nprimary_output = ""\n\n[saver]\nactive = "superfedora"\n\n[saver.ascii]\nmode = "superfedora"\ntargets = ["superfedora"]\ntext = ""\nfps = 0\ndwell_secs = 5.0\ndissolve_duration_secs = 0.699999988079071\n' > "$HOME/.config/idlescreen/config.toml"
 
     # 8. GTK / XDG Desktop Portal color-scheme
-    if command -v gsettings >/dev/null 2>&1; then
-        gsettings set org.gnome.desktop.interface color-scheme "$PORTAL_SCHEME" 2>/dev/null || true
-    fi
+    command -v gsettings >/dev/null 2>&1 && gsettings set org.gnome.desktop.interface color-scheme "$PORTAL_SCHEME" 2>/dev/null || true
 
     # 9. Login Greeter (greetd + tuigreet ANSI theme when /etc/greetd/config.toml is writable)
     local tui_theme="border=$TUI_C;title=$TUI_C;prompt=$TUI_C;time=$TUI_TEXT;action=$TUI_C;button=$TUI_C;container=$TUI_BG;input=$TUI_TEXT"
