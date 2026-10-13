@@ -29,7 +29,35 @@
 set -euo pipefail
 
 usage() {
-    sed -n '2,27p' "${BASH_SOURCE[0]:-$0}" | sed 's/^# \{0,1\}//'
+    cat << 'EOF'
+==============================================================================
+SuperFedora web installer
+
+  curl -fsSL https://superfedora.github.io/install.sh | bash
+  curl -fsSL https://superfedora.github.io/install.sh | bash -s -- --dry-run
+
+Start from a Fedora "Minimal Install" (Everything netinstall) or any existing
+Fedora system. This script:
+  1. checks that this is Fedora and that you can use sudo
+  2. downloads the latest SuperFedora release to ~/.local/share/superfedora
+  3. installs the `superfedora` and `sf` commands to ~/.local/bin
+  4. runs `superfedora install`, which checks every component and installs
+     only what is missing (safe to re-run at any time)
+
+Arguments:
+  -h, --help                   show this help message
+  --dry-run                    preview what would be installed without changes
+  --only <modules>             run only specified modules (e.g. 40,desktop)
+  --skip <modules>             skip specified modules
+  -v, --verbose                show verbose command execution
+
+Environment:
+  SUPERFEDORA_VERSION=v0.2.0   install a specific release (default: latest)
+  SUPERFEDORA_REF=main         install a branch instead of a release
+  SUPERFEDORA_NO_RUN=1         fetch and install the command only
+  SUPERFEDORA_ARGS="--dry-run" extra arguments for `superfedora install`
+==============================================================================
+EOF
 }
 
 case "${1:-}" in
