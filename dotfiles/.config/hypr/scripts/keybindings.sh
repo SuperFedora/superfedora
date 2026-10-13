@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-# List every described keybinding (bindd) in a searchable fuzzel window.
+# Copyright 2026 SuperFedora Contributors
+# SPDX-License-Identifier: Apache-2.0
+# ==============================================================================
+# keybindings.sh — Searchable Fuzzel HUD for all described Hyprland keybindings
+# ==============================================================================
+set -euo pipefail
+
 hyprctl binds -j | jq -r '
   def mods($m):
     [ (if ($m / 64 | floor) % 2 == 1 then "SUPER" else empty end),
@@ -10,4 +16,4 @@ hyprctl binds -j | jq -r '
       | (mods(.modmask)) as $m
       | "\(if $m == "" then "" else $m + " + " end)\(.key)\t\(.description)"' \
   | awk -F'\t' '!seen[$0]++ { printf "%-28s %s\n", $1, $2 }' \
-  | fuzzel --dmenu --prompt "Keys  " --width 70 --lines 20 >/dev/null
+  | fuzzel --dmenu --prompt "Keys  " --width 70 --lines 20 >/dev/null || true

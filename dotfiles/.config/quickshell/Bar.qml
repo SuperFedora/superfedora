@@ -150,6 +150,13 @@ PanelWindow {
         Tray { bar: bar; Layout.rightMargin: 6 }
 
         BarLabel {
+            text: "󰚩"
+            color: Theme.cyan
+            onClicked: bar.run("~/.config/hypr/scripts/quake-ai.sh toggle")
+            onRightClicked: bar.run("~/.config/hypr/scripts/quake-ai.sh next-agent")
+        }
+
+        BarLabel {
             text: "󰕮"
             color: Status.settingsOpen ? Theme.cyan : Theme.fgDim
             onClicked: Status.settingsOpen = !Status.settingsOpen

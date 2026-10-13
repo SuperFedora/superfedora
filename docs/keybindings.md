@@ -1,6 +1,6 @@
 # SuperFedora Keybindings
 
-> Generated from [`bindings.conf`](../dotfiles/.config/hypr/conf/bindings.conf) for **SuperFedora v0.2.0** by `scripts/gen-keybindings-doc.py`. Do not edit by hand.
+> Generated from [`bindings.conf`](../dotfiles/.config/hypr/conf/bindings.conf) for **SuperFedora v0.3.0** by `scripts/gen-keybindings-doc.py`. Do not edit by hand.
 >
 > Bindings mirror Pop!_OS COSMIC defaults. Press **Super + F1** on the desktop for a searchable list.
 
@@ -181,8 +181,9 @@
 | Super + Shift + T | Activity monitor (btop) |
 | Super + Shift + B | Private browser window |
 | Super + P | Pin floating window |
-| Super + ` | Toggle scratchpad |
-| Super + Shift + ` | Send window to scratchpad |
+| Super + ` | Quake AI drop-down (Antigravity) |
+| Super + Shift + ` | Switch Quake AI agent |
+| Super + Ctrl + ` | Toggle scratchpad |
 | Super + Alt + Tab | Next tab in stack |
 | Super + Alt + Shift + Tab | Previous tab in stack |
 | Super + N | Dismiss notification |

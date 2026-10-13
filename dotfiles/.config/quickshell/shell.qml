@@ -29,6 +29,7 @@ ShellRoot {
         EdgePanel { edge: "right" }
     }
 
+    QuakeAi {}
     PanelSettingsPopup {}
     Notifications {}
     Osd {}

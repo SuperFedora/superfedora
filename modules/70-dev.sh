@@ -1,4 +1,6 @@
 # shellcheck shell=bash
+# Copyright 2026 SuperFedora Contributors
+# SPDX-License-Identifier: Apache-2.0
 # desc: Developer toolchains (compilers, Node, Rust, uv)
 
 module_run() {
@@ -18,4 +20,17 @@ module_run() {
     command -v cargo-binstall >/dev/null && need "cargo-deb + cargo-generate-rpm" _cpkg_t _cpkg_i
 
     need_script_tool "uv / uvx" uv https://astral.sh/uv/install.sh sh
+
+    # When --build-from-source is active, generate localhost -march=native profile & compile native targets
+    if [[ "${SF_BUILD_MODE:-quick}" == "source" ]]; then
+        _hw_t() { [[ -f "$SF_STATE/hardware-flags.env" ]]; }
+        _hw_i() { "$SF_ROOT/lib/build-source.sh" profile; }
+        need "localhost hardware profile (-march=native / target-cpu=native)" _hw_t _hw_i
+
+        _src_t() {
+            [[ -f "$SF_STATE/source-built/wlctl.stamp" && -f "$SF_STATE/source-built/bluetui.stamp" && -f "$SF_STATE/source-built/wiremix.stamp" ]]
+        }
+        _src_i() { "$SF_ROOT/lib/build-source.sh" all; }
+        need "localhost native source builds (wlctl, bluetui, wiremix, tuigreet, fuzzel, btop)" _src_t _src_i
+    fi
 }

@@ -16,7 +16,8 @@ float_term() { "$TERM_CMD" --class floating-term -e "$@" & }
 
 menu_main() {
     case "$(pick "Go" \
-        "󰀻  Apps" "  Capture" "󰔡  Toggle" "  Style" "  Setup" "  About" "  System")" in
+        "󰚩  Quake AI" "󰀻  Apps" "  Capture" "󰔡  Toggle" "  Style" "  Setup" "  About" "  System")" in
+        *Quake*)   "$S/quake-ai.sh" toggle ;;
         *Apps*)    fuzzel ;;
         *Capture*) menu_capture ;;
         *Toggle*)  menu_toggle ;;
@@ -37,7 +38,8 @@ menu_capture() {
 }
 
 menu_toggle() {
-    case "$(pick "Toggle" "󰒲  Idle / stay awake" "󰍜  Top bar" "  Gaps" "󰹑  Float active window")" in
+    case "$(pick "Toggle" "󰚩  Quake AI console" "󰒲  Idle / stay awake" "󰍜  Top bar" "  Gaps" "󰹑  Float active window")" in
+        *Quake*) "$S/quake-ai.sh" toggle ;;
         *Idle*)  "$S/toggle-idle.sh" ;;
         *bar*)   qs ipc call bar toggle ;;
         *Gaps*)  "$S/toggle-gaps.sh" ;;
@@ -81,12 +83,31 @@ menu_system() {
     esac
 }
 
+restart_shell() {
+    pkill -x quickshell || true
+    sleep 0.3
+    hyprctl dispatch exec quickshell >/dev/null
+}
+
+toggle_screenreader() {
+    if pgrep -x orca >/dev/null; then
+        pkill -x orca
+        notify-send -a System -t 1500 "Screen reader off"
+    else
+        orca --replace >/dev/null 2>&1 &
+        disown
+        notify-send -a System -t 1500 "Screen reader on"
+    fi
+}
+
 case "${1:-main}" in
-    main)    menu_main ;;
-    capture) menu_capture ;;
-    toggle)  menu_toggle ;;
-    style)   menu_style ;;
-    setup)   menu_setup ;;
-    system)  menu_system ;;
-    *)       menu_main ;;
+    main)                menu_main ;;
+    capture)             menu_capture ;;
+    toggle)              menu_toggle ;;
+    style)               menu_style ;;
+    setup)               menu_setup ;;
+    system)              menu_system ;;
+    restart-shell)       restart_shell ;;
+    toggle-screenreader) toggle_screenreader ;;
+    *)                   menu_main ;;
 esac

@@ -1,4 +1,6 @@
 # shellcheck shell=bash
+# Copyright 2026 SuperFedora Contributors
+# SPDX-License-Identifier: Apache-2.0
 # desc: Hyprland desktop, Quickshell bar, portals and desktop helpers
 
 module_run() {
@@ -15,22 +17,40 @@ module_run() {
     }
     need "JetBrainsMono Nerd Font" _nf_t _nf_i
 
-    # Omarchy-style Ratatui TUIs for NetworkManager Wi-Fi (wlctl) and Bluetooth (bluetui)
+    # Omarchy-style Ratatui TUIs for PipeWire Audio (wiremix), Wi-Fi (wlctl) and Bluetooth (bluetui)
+    _wm_t() { command -v wiremix >/dev/null; }
+    _wm_i() {
+        if [[ "${SF_BUILD_MODE:-quick}" == "source" ]]; then
+            "$SF_ROOT/lib/build-source.sh" wiremix
+        else
+            as_root dnf install -y wiremix
+        fi
+    }
+    need "Audio TUI (wiremix)" _wm_t _wm_i
+
     _wl_t() { command -v wlctl >/dev/null; }
     _wl_i() {
-        mkdir -p "$HOME/.local/bin" &&
-        curl -fsSL https://github.com/aashish-thapa/wlctl/releases/latest/download/wlctl-x86_64-unknown-linux-musl \
-            -o "$HOME/.local/bin/wlctl" &&
-        chmod +x "$HOME/.local/bin/wlctl"
+        if [[ "${SF_BUILD_MODE:-quick}" == "source" ]]; then
+            "$SF_ROOT/lib/build-source.sh" wlctl
+        else
+            mkdir -p "$HOME/.local/bin" &&
+            curl -fsSL https://github.com/aashish-thapa/wlctl/releases/latest/download/wlctl-x86_64-unknown-linux-musl \
+                -o "$HOME/.local/bin/wlctl" &&
+            chmod +x "$HOME/.local/bin/wlctl"
+        fi
     }
     need "Wi-Fi TUI (wlctl)" _wl_t _wl_i
 
     _bt_t() { command -v bluetui >/dev/null; }
     _bt_i() {
-        mkdir -p "$HOME/.local/bin" &&
-        curl -fsSL https://github.com/pythops/bluetui/releases/latest/download/bluetui-x86_64-linux-musl \
-            -o "$HOME/.local/bin/bluetui" &&
-        chmod +x "$HOME/.local/bin/bluetui"
+        if [[ "${SF_BUILD_MODE:-quick}" == "source" ]]; then
+            "$SF_ROOT/lib/build-source.sh" bluetui
+        else
+            mkdir -p "$HOME/.local/bin" &&
+            curl -fsSL https://github.com/pythops/bluetui/releases/latest/download/bluetui-x86_64-linux-musl \
+                -o "$HOME/.local/bin/bluetui" &&
+            chmod +x "$HOME/.local/bin/bluetui"
+        fi
     }
     need "Bluetooth TUI (bluetui)" _bt_t _bt_i
 }

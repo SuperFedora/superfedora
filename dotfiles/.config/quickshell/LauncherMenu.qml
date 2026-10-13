@@ -32,6 +32,7 @@ PanelWindow {
 
     readonly property var items: [
         { section: "LAUNCH" },
+        { label: "Quake AI (agy)",     hint: "SUPER+`", cmd: "~/.config/hypr/scripts/quake-ai.sh toggle" },
         { label: "App Launcher",       hint: "SUPER+A", cmd: "fuzzel" },
         { label: "Terminal",           hint: "SUPER+T", cmd: "xdg-terminal-exec" },
         { label: "Web Browser",        hint: "SUPER+B", cmd: "gtk-launch \"$(xdg-settings get default-web-browser)\"" },
