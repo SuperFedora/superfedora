@@ -46,10 +46,11 @@ menu_toggle() {
 }
 
 menu_style() {
-    case "$(pick "Style" "󰸉  Next wallpaper" "󰸉  Pick wallpaper" "  Edit look & feel")" in
-        *Next*) "$S/wallpaper.sh" next ;;
-        *Pick*) "$S/wallpaper.sh" pick ;;
-        *Edit*) float_term "${EDITOR:-nano}" "$H/conf/looknfeel.conf" ;;
+    case "$(pick "Style" "Next 16-bit color" "Toggle dark / light mode" "Pick 16-bit theme" "Edit look & feel")" in
+        *Next*)   "$S/wallpaper.sh" next ;;
+        *Toggle*) "$S/wallpaper.sh" toggle ;;
+        *Pick*)   "$S/wallpaper.sh" pick ;;
+        *Edit*)   float_term "${EDITOR:-nano}" "$H/conf/looknfeel.conf" ;;
     esac
 }
 

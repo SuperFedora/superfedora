@@ -1,40 +1,39 @@
 #!/usr/bin/env bash
-# Wallpaper switcher for hyprpaper.
-# Sources: ~/Pictures/Wallpapers, then Fedora's dark backgrounds.
-# Usage: wallpaper.sh [next|pick|set <file>]
-set -u
-state="$HOME/.config/hypr/.current-wallpaper"
+# Copyright 2026 SuperFedora Contributors
+# SPDX-License-Identifier: Apache-2.0
+# ==============================================================================
+# wallpaper.sh — SuperFedora 16-bit theme & wallpaper switcher for Hyprland
+# Usage: wallpaper.sh [next|prev|toggle|pick|set <color-or-file>]
+# ==============================================================================
+set -euo pipefail
 
-mapfile -t walls < <(
-    find "$HOME/Pictures/Wallpapers" /usr/share/backgrounds/fedora-workstation \
-        -maxdepth 2 -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*_dark.webp' \) \
-        2>/dev/null | sort
-)
-[ "${#walls[@]}" -eq 0 ] && exit 1
+THEME_ENGINE="$HOME/.local/share/superfedora/lib/apply-theme.sh"
+if command -v sf >/dev/null 2>&1; then
+    run_theme() { sf theme "$@"; }
+elif [[ -x "$THEME_ENGINE" ]]; then
+    run_theme() { "$THEME_ENGINE" "$@"; }
+else
+    run_theme() { return 1; }
+fi
 
-apply() {
+apply_file() {
     local f="$1"
-    hyprctl hyprpaper wallpaper ",$f" >/dev/null
-    echo "$f" > "$state"
-    # Persist for next login (hyprpaper 0.8 block syntax)
+    hyprctl hyprpaper preload "$f" >/dev/null 2>&1 || true
+    hyprctl hyprpaper wallpaper ",$f" >/dev/null 2>&1 || true
+    echo "$f" > "$HOME/.config/hypr/.current-wallpaper"
     printf 'wallpaper {\n    monitor =\n    path = %s\n    fit_mode = cover\n}\n\nsplash = false\n' "$f" \
         > "$HOME/.config/hypr/hyprpaper.conf"
 }
 
 case "${1:-next}" in
-    next)
-        cur="$(cat "$state" 2>/dev/null)"
-        next="${walls[0]}"
-        for i in "${!walls[@]}"; do
-            if [ "${walls[$i]}" = "$cur" ]; then
-                next="${walls[$(( (i + 1) % ${#walls[@]} ))]}"; break
-            fi
-        done
-        apply "$next" ;;
-    pick)
-        choice="$(printf '%s\n' "${walls[@]}" | sed "s|$HOME|~|" \
-            | fuzzel --dmenu --prompt "Wallpaper  " --width 80)" || exit 0
-        apply "${choice/#\~/$HOME}" ;;
+    next|prev|toggle|pick|status|reload)
+        run_theme "${1:-next}" ;;
     set)
-        apply "$2" ;;
+        if [[ -f "${2:-}" ]]; then
+            apply_file "$2"
+        else
+            run_theme set "${2:-01-super-blue}" "${3:-}"
+        fi ;;
+    *)
+        run_theme next ;;
 esac

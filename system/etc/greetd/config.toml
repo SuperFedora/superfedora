@@ -7,5 +7,5 @@
 vt = 1
 
 [default_session]
-command = "tuigreet --time --asterisks --remember --remember-session --sessions /usr/share/wayland-sessions --cmd 'uwsm start -e -D Hyprland hyprland.desktop' --greeting 'SuperFedora'"
+command = "tuigreet --time --asterisks --remember --remember-session --theme 'border=blue;title=blue;prompt=blue;time=white;action=blue;button=blue;container=black;input=white' --sessions /usr/share/wayland-sessions --cmd 'uwsm start -e -D Hyprland hyprland.desktop' --greeting 'SUPER FEDORA'"
 user = "greetd"

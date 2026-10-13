@@ -20,9 +20,16 @@ module_run() {
     # Default applications used by Super+B / Super+F / Super+T
     local ff=firefox.desktop
     [[ -f /usr/share/applications/org.mozilla.firefox.desktop ]] && ff=org.mozilla.firefox.desktop
-    _browser_t() { [[ "$(xdg-settings get default-web-browser 2>/dev/null)" == "$ff" ]]; }
-    _browser_i() { xdg-settings set default-web-browser "$ff"; }
-    command -v xdg-settings >/dev/null && need "default browser: Firefox" _browser_t _browser_i
+    _browser_t() {
+        [[ "$(xdg-settings get default-web-browser 2>/dev/null)" == "$ff" ]] &&
+        [[ "$(xdg-mime query default x-scheme-handler/http 2>/dev/null)" == "$ff" ]] &&
+        [[ "$(xdg-mime query default x-scheme-handler/https 2>/dev/null)" == "$ff" ]]
+    }
+    _browser_i() {
+        xdg-mime default "$ff" x-scheme-handler/http x-scheme-handler/https text/html application/xhtml+xml
+        xdg-settings set default-web-browser "$ff" 2>/dev/null || true
+    }
+    command -v xdg-mime >/dev/null && need "default browser: Firefox" _browser_t _browser_i
 
     _fm_t() { [[ "$(xdg-mime query default inode/directory 2>/dev/null)" == org.gnome.Nautilus.desktop ]]; }
     _fm_i() { xdg-mime default org.gnome.Nautilus.desktop inode/directory; }

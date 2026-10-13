@@ -33,7 +33,7 @@ Row {
             readonly property bool active: modelData === root.activeId
             readonly property bool used: root.occupied[modelData] === true
 
-            width: 22
+            width: 28
             height: Theme.barHeight
 
             Text {

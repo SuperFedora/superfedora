@@ -53,10 +53,10 @@ Scope {
             right: true
         }
         margins {
-            top: 10
+            top: Theme.barHeight + 8
             right: 10
         }
-        exclusionMode: ExclusionMode.Normal
+        exclusionMode: ExclusionMode.Ignore
         implicitWidth: 360
         implicitHeight: column.implicitHeight
 

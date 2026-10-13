@@ -7,6 +7,7 @@ Item {
     property string text: ""
     property color color: Theme.fg
     property bool bold: false
+    property int pixelSize: Theme.iconSize
     property string tooltip: ""
 
     signal clicked()
@@ -29,7 +30,7 @@ Item {
         text: root.text
         color: root.color
         font.family: Theme.font
-        font.pixelSize: Theme.fontSize
+        font.pixelSize: root.pixelSize
         font.bold: root.bold
     }
 

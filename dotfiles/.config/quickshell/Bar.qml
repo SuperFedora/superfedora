@@ -41,6 +41,7 @@ PanelWindow {
         BarLabel {
             text: "󰣛"
             color: Theme.blue
+            pixelSize: Theme.iconSize + 2
             onClicked: bar.run("~/.config/hypr/scripts/menu.sh")
             onRightClicked: bar.run("fuzzel")
         }
@@ -56,6 +57,7 @@ PanelWindow {
             visible: mode !== ""
             text: "󰌌 " + mode.toUpperCase() + "  ·  Esc to exit"
             color: Theme.yellow
+            pixelSize: Theme.fontSize
             bold: true
             onClicked: Hyprland.dispatch("submap reset")
 
@@ -69,16 +71,23 @@ PanelWindow {
     }
 
     // ---------------- Center ----------------
+    Calendar {
+        id: calendarPopup
+        targetScreen: bar.modelData
+    }
+
     BarLabel {
         id: clock
         anchors.centerIn: parent
-        property bool showDate: false
         property date now: new Date()
+        pixelSize: Theme.fontSize
         bold: true
-        text: showDate
-            ? Qt.formatDateTime(now, "dddd, d MMMM yyyy")
-            : Qt.formatDateTime(now, "dddd HH:mm")
-        onClicked: showDate = !showDate
+        color: calendarPopup.open ? Theme.blue : Theme.fg
+        text: Qt.formatDateTime(now, "ddd, MMM d  ·  HH:mm")
+        onClicked: {
+            if (!calendarPopup.open) calendarPopup.resetToToday();
+            calendarPopup.open = !calendarPopup.open;
+        }
 
         Timer {
             interval: 1000

@@ -9,17 +9,23 @@ Singleton {
     id: root
 
     property int cpu: 0
+    property int mem: 0
     property string netType: "none"     // wifi | ethernet | none
     property string ssid: ""
     property int signal: 0
     property bool idleEnabled: true
 
-    // --- CPU from /proc/stat -------------------------------------------
+    // --- CPU & RAM from /proc/stat and /proc/meminfo -------------------
     property var _lastCpu: null
 
     FileView {
         id: procStat
         path: "/proc/stat"
+    }
+
+    FileView {
+        id: procMem
+        path: "/proc/meminfo"
     }
 
     Timer {
@@ -31,15 +37,23 @@ Singleton {
             procStat.reload();
             const line = procStat.text().split("\n")[0];
             const v = line.trim().split(/\s+/).slice(1).map(Number);
-            if (v.length < 4) return;
-            const idle = v[3] + (v[4] || 0);
-            const total = v.reduce((a, b) => a + b, 0);
-            if (root._lastCpu) {
-                const dt = total - root._lastCpu.total;
-                const di = idle - root._lastCpu.idle;
-                root.cpu = dt > 0 ? Math.round(100 * (1 - di / dt)) : 0;
+            if (v.length >= 4) {
+                const idle = v[3] + (v[4] || 0);
+                const total = v.reduce((a, b) => a + b, 0);
+                if (root._lastCpu) {
+                    const dt = total - root._lastCpu.total;
+                    const di = idle - root._lastCpu.idle;
+                    root.cpu = dt > 0 ? Math.round(100 * (1 - di / dt)) : 0;
+                }
+                root._lastCpu = { total, idle };
             }
-            root._lastCpu = { total, idle };
+            procMem.reload();
+            const mtext = procMem.text();
+            const mt = mtext.match(/MemTotal:\s+(\d+)/);
+            const ma = mtext.match(/MemAvailable:\s+(\d+)/);
+            if (mt && ma && Number(mt[1]) > 0) {
+                root.mem = Math.round(100 * (1 - Number(ma[1]) / Number(mt[1])));
+            }
         }
     }
 

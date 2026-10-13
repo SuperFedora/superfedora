@@ -3,13 +3,12 @@ idle_timeout_secs = 120
 primary_output = ""
 
 [saver]
-active = "ascii"
+active = "superfedora"
 
 [saver.ascii]
-mode = "os,de"
+mode = "superfedora"
 targets = [
-    "os",
-    "de",
+    "superfedora",
 ]
 text = ""
 fps = 0

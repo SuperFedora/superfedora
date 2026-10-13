@@ -15,12 +15,12 @@ Row {
         Item {
             id: trayItem
             required property SystemTrayItem modelData
-            width: 20
+            width: 26
             height: Theme.barHeight
 
             IconImage {
                 anchors.centerIn: parent
-                implicitSize: 15
+                implicitSize: 20
                 source: trayItem.modelData.icon
             }
 

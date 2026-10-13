@@ -192,8 +192,9 @@
 | Ctrl + Print | Screenshot screen |
 | Super + Shift + S | Screenshot region |
 | Super + Print | Color picker |
-| Super + Ctrl + Space | Next wallpaper |
-| Super + Ctrl + Shift + Space | Pick wallpaper |
+| Super + Ctrl + Space | Next 16-bit theme |
+| Super + Ctrl + Shift + Space | Pick 16-bit theme |
+| Super + Ctrl + Alt + Space | Toggle dark/light theme |
 | Super + Ctrl + A | Audio settings |
 | Super + Ctrl + W | Wi-Fi settings |
 | Super + Ctrl + B | Bluetooth settings |

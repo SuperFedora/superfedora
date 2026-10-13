@@ -63,6 +63,12 @@ if [[ "$MODE" == "check" ]]; then
         if [[ ! -e "$live" ]]; then
             echo "missing   ~/$rel"; drift=1
         elif ! same_file "$SRC/$rel" "$live"; then
+            if [[ -f "$STATE_DIR/theme.env" ]]; then
+                case "$rel" in
+                    .config/hypr/hyprpaper.conf|.config/hypr/hyprlock.conf|.config/hypr/conf/looknfeel.conf|.config/quickshell/Theme.qml|.config/fuzzel/fuzzel.ini|.config/kitty/kitty.conf)
+                        continue ;;
+                esac
+            fi
             echo "modified  ~/$rel"; drift=1
         fi
     done
@@ -107,6 +113,10 @@ for rel in "${FILES[@]}"; do
     [[ "$rel" == .config/quickshell/* ]] && shell_changed=1
     [[ "$rel" == .config/systemd/user/* ]] && units_changed=1
 done
+
+if [[ -f "$STATE_DIR/theme.env" && -x "$REPO_DIR/lib/apply-theme.sh" && $EUID -ne 0 ]]; then
+    "$REPO_DIR/lib/apply-theme.sh" reload || true
+fi
 
 if [[ $units_changed -eq 1 ]]; then
     if [[ $EUID -eq 0 && "$TARGET_USER" != root ]]; then
