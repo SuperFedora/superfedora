@@ -5,6 +5,12 @@ All notable changes to SuperFedora. Every change ships as a tagged release
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-10-13
+
+### Added
+- **`sf` CLI Symlink:** Created `sf` command symlink alongside `superfedora` for concise terminal ergonomics.
+- **Installer Help & Passthrough:** Added `-h` and `--help` CLI flags to `install.sh` and enabled argument forwarding (`--dry-run`, `--only`, `--skip`, `--verbose`) directly to `superfedora install`.
+
 ## [0.1.0] — 2026-10-13
 
 Initial release of SuperFedora under the `@SuperFedora` organization.

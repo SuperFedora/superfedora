@@ -3,14 +3,22 @@
 # SuperFedora web installer
 #
 #   curl -fsSL https://superfedora.github.io/install.sh | bash
+#   curl -fsSL https://superfedora.github.io/install.sh | bash -s -- --dry-run
 #
 # Start from a Fedora "Minimal Install" (Everything netinstall) or any existing
 # Fedora system. This script:
 #   1. checks that this is Fedora and that you can use sudo
 #   2. downloads the latest SuperFedora release to ~/.local/share/superfedora
-#   3. installs the `superfedora` command to ~/.local/bin
+#   3. installs the `superfedora` and `sf` commands to ~/.local/bin
 #   4. runs `superfedora install`, which checks every component and installs
 #      only what is missing (safe to re-run at any time)
+#
+# Arguments:
+#   -h, --help                   show this help message
+#   --dry-run                    preview what would be installed without changes
+#   --only <modules>             run only specified modules (e.g. 40,desktop)
+#   --skip <modules>             skip specified modules
+#   -v, --verbose                show verbose command execution
 #
 # Environment:
 #   SUPERFEDORA_VERSION=v0.1.0   install a specific release (default: latest)
@@ -19,6 +27,17 @@
 #   SUPERFEDORA_ARGS="--dry-run" extra arguments for `superfedora install`
 # ==============================================================================
 set -euo pipefail
+
+usage() {
+    sed -n '2,27p' "${BASH_SOURCE[0]:-$0}" | sed 's/^# \{0,1\}//'
+}
+
+case "${1:-}" in
+    -h|--help)
+        usage
+        exit 0
+        ;;
+esac
 
 REPO="SuperFedora/superfedora"
 DEST="${XDG_DATA_HOME:-$HOME/.local/share}/superfedora"
@@ -80,15 +99,23 @@ cat > "$BIN_DIR/superfedora" <<EOF
 exec "$DEST/bin/superfedora" "\$@"
 EOF
 chmod +x "$BIN_DIR/superfedora"
-say "installed SuperFedora $(cat "$DEST/VERSION") → $BIN_DIR/superfedora"
+ln -sf "$BIN_DIR/superfedora" "$BIN_DIR/sf"
+say "installed SuperFedora $(cat "$DEST/VERSION") → $BIN_DIR/sf (and $BIN_DIR/superfedora)"
 
 [[ "${SUPERFEDORA_NO_RUN:-}" == 1 ]] && exit 0
 
 # ------------------------------------------------------------------------------
+# Collect arguments to forward to `superfedora install`
+FORWARD_ARGS=()
+if [[ -n "${SUPERFEDORA_ARGS:-}" ]]; then
+    # shellcheck disable=SC2206
+    FORWARD_ARGS+=($SUPERFEDORA_ARGS)
+fi
+FORWARD_ARGS+=("$@")
+
 # Re-attach stdin to the terminal so sudo can prompt when piped from curl
-# shellcheck disable=SC2086
 if [[ -t 1 && -r /dev/tty ]]; then
-    exec "$BIN_DIR/superfedora" install ${SUPERFEDORA_ARGS:-} < /dev/tty
+    exec "$BIN_DIR/superfedora" install "${FORWARD_ARGS[@]}" < /dev/tty
 else
-    exec "$BIN_DIR/superfedora" install ${SUPERFEDORA_ARGS:-}
+    exec "$BIN_DIR/superfedora" install "${FORWARD_ARGS[@]}"
 fi

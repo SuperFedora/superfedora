@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# superfedora — install, check and update a SuperFedora workstation
+# sf / superfedora — install, check and update a SuperFedora workstation
 # ==============================================================================
-# Usage: superfedora <command> [options]
+# Usage: sf <command> [options]
+#    or: superfedora <command> [options]
 #
 # Commands:
 #   install            Check every module and install whatever is missing
@@ -30,7 +31,7 @@ PAGES_URL="https://superfedora.github.io/install.sh"
 # Detection must see user-level installs (rustup, uv, vendor CLIs)
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.minimax-code/bin:$HOME/.grok/bin:$PATH"
 
-usage() { sed -n '4,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '4,23p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 CMD="${1:-}"; [[ $# -gt 0 ]] && shift
 ONLY="" SKIP="" DRY=0
