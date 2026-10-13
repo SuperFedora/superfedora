@@ -1,0 +1,23 @@
+# Hyprland desktop (COPR lionheartp/Hyprland + Fedora)
+hyprland
+hypridle
+hyprlock
+hyprpaper
+hyprpicker
+hyprpolkitagent
+xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk
+quickshell
+qt6-qtwayland
+fuzzel
+
+# Used by keybindings, menus and the bar
+grim
+slurp
+wl-clipboard
+libnotify
+playerctl
+NetworkManager-tui
+orca
+adwaita-icon-theme
+fedora-workstation-backgrounds

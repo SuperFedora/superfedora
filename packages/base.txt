@@ -1,0 +1,58 @@
+# What a Fedora "Minimal Install" lacks for a laptop desktop.
+# One package per line; '#' starts a comment.
+
+# Core tools
+bash-completion
+curl
+diffutils
+wget2-wget
+git
+jq
+tar
+gzip
+xz
+unzip
+man-db
+sudo
+
+# Networking
+NetworkManager
+NetworkManager-wifi
+NetworkManager-bluetooth
+linux-firmware
+
+# Audio (PipeWire)
+pipewire
+pipewire-pulseaudio
+pipewire-alsa
+wireplumber
+alsa-ucm
+alsa-sof-firmware
+
+# Bluetooth, power, hardware
+bluez
+upower
+tuned-ppd
+brightnessctl
+fwupd
+polkit
+
+# Graphics / video acceleration (VA-API from RPM Fusion)
+mesa-dri-drivers
+mesa-vulkan-drivers
+intel-media-driver
+mesa-va-drivers-freeworld
+
+# Desktop plumbing
+xdg-user-dirs
+xdg-utils
+gnome-keyring
+gvfs
+dbus-broker
+
+# Fonts
+fontconfig
+adwaita-sans-fonts
+adwaita-mono-fonts
+google-noto-sans-fonts
+google-noto-color-emoji-fonts

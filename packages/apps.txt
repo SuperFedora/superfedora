@@ -1,0 +1,13 @@
+# Applications
+kitty
+foot
+firefox
+nautilus
+gnome-calculator
+gnome-control-center
+btop
+fastfetch
+google-chrome-stable
+microsoft-edge-stable
+tailscale
+pycharm-community

@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bash syntax
+        run: |
+          for f in install.sh bin/superfedora lib/*.sh modules/*.sh scripts/*.sh \
+                   $(grep -rl '^#!/usr/bin/env bash' dotfiles); do
+            bash -n "$f" || exit 1
+          done
+      - name: ShellCheck
+        run: |
+          shellcheck --version
+          shellcheck -S warning -x install.sh bin/superfedora lib/*.sh modules/*.sh scripts/*.sh
+      - name: Package lists are clean
+        run: |
+          if sed -e 's/#.*//' -e 's/[[:space:]]*$//' -e 's/^[[:space:]]*//' packages/*.txt | grep -n '[[:space:]]'; then
+            echo "one package per line"; exit 1
+          fi
+      - name: Keybinding doc is current
+        run: |
+          python3 scripts/gen-keybindings-doc.py
+          git diff --exit-code docs/keybindings.md
+
+  install:
+    name: Install on clean Fedora ${{ matrix.fedora }}
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        fedora: ['44']
+    container:
+      image: registry.fedoraproject.org/fedora:${{ matrix.fedora }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create an administrator user (as on a Minimal Install)
+        run: |
+          useradd -m -G wheel tester
+          echo 'tester ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/tester
+          chmod 440 /etc/sudoers.d/tester
+          cp -a "$GITHUB_WORKSPACE" /home/tester/sf && chown -R tester: /home/tester/sf
+      - name: Dry run
+        run: sudo -iu tester env NO_COLOR=1 /home/tester/sf/bin/superfedora install --dry-run
+      - name: Install
+        run: sudo -iu tester env NO_COLOR=1 /home/tester/sf/bin/superfedora install
+      - name: Second run installs nothing
+        run: |
+          out="$(sudo -iu tester env NO_COLOR=1 /home/tester/sf/bin/superfedora install)"
+          echo "$out" | tail -8
+          ! echo "$out" | grep -E '^\s+\+ ' || { echo "second run was not idempotent"; exit 1; }
+      - name: Status
+        run: sudo -iu tester env NO_COLOR=1 /home/tester/sf/bin/superfedora status
+      - name: Install log
+        if: always()
+        run: cat /home/tester/.config/superfedora/install.log || true

@@ -1,0 +1,11 @@
+# SuperFedora login screen: greetd + tuigreet on tty1.
+# Hyprland is started through uwsm, which runs it as a systemd user session
+# (graphical-session.target, portals and user services come up properly).
+# Managed by SuperFedora (system/etc/greetd/config.toml).
+
+[terminal]
+vt = 1
+
+[default_session]
+command = "tuigreet --time --asterisks --remember --remember-session --sessions /usr/share/wayland-sessions --cmd 'uwsm start -e -D Hyprland hyprland.desktop' --greeting 'SuperFedora'"
+user = "greetd"

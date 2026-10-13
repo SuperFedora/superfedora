@@ -1,0 +1,17 @@
+[general]
+idle_timeout_secs = 120
+primary_output = ""
+
+[saver]
+active = "ascii"
+
+[saver.ascii]
+mode = "os,de"
+targets = [
+    "os",
+    "de",
+]
+text = ""
+fps = 0
+dwell_secs = 5.0
+dissolve_duration_secs = 0.7

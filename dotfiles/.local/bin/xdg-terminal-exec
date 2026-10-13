@@ -1,0 +1,3 @@
+#!/bin/sh
+# Default terminal launcher used by Hyprland ($terminal) and desktop files.
+exec kitty "$@"

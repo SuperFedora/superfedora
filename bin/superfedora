@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# superfedora — install, check and update a SuperFedora workstation
+# ==============================================================================
+# Usage: superfedora <command> [options]
+#
+# Commands:
+#   install            Check every module and install whatever is missing
+#   status             Report what is present / missing (changes nothing)
+#   update             Fetch the latest release, then run install
+#   dotfiles [--check] Deploy desktop configs (or list drift from this release)
+#   modules            List modules in run order
+#   rollback           Revert to the pre-install Btrfs snapshot
+#   version            Print the SuperFedora version
+#
+# Options:
+#   --dry-run          With install: show what would be installed
+#   --only a,b         Run only these modules (names or numbers, e.g. 40,desktop)
+#   --skip a,b         Skip these modules
+#   -v, --verbose      Show command output instead of only logging it
+#   -h, --help         Show this help
+# ==============================================================================
+set -uo pipefail
+
+SF_ROOT="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/.." && pwd)"
+export SF_ROOT
+REPO_SLUG="SuperFedora/superfedora"
+PAGES_URL="https://superfedora.github.io/install.sh"
+
+# Detection must see user-level installs (rustup, uv, vendor CLIs)
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.minimax-code/bin:$HOME/.grok/bin:$PATH"
+
+usage() { sed -n '4,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+
+CMD="${1:-}"; [[ $# -gt 0 ]] && shift
+ONLY="" SKIP="" DRY=0
+DOTFILE_ARGS=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --dry-run) DRY=1 ;;
+        --only) ONLY="${2:-}"; shift ;;
+        --only=*) ONLY="${1#*=}" ;;
+        --skip) SKIP="${2:-}"; shift ;;
+        --skip=*) SKIP="${1#*=}" ;;
+        -v|--verbose) export SF_VERBOSE=1 ;;
+        --check|--no-reload) DOTFILE_ARGS+=("$1") ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+    shift
+done
+
+case "$CMD" in
+    install) MODE=install; [[ $DRY -eq 1 ]] && MODE=dry-run ;;
+    status|check|audit) MODE=status ;;
+    ""|-h|--help|help) usage; exit 0 ;;
+    *) MODE=status ;;
+esac
+export MODE
+
+# shellcheck source=../lib/core.sh
+source "$SF_ROOT/lib/core.sh"
+# shellcheck source=../lib/check.sh
+source "$SF_ROOT/lib/check.sh"
+
+# ------------------------------------------------------------------------------
+module_files() { find "$SF_ROOT/modules" -maxdepth 1 -name '[0-9][0-9]-*.sh' | sort; }
+module_name()  { local b; b="$(basename "$1" .sh)"; echo "${b#[0-9][0-9]-}"; }
+module_num()   { basename "$1" | cut -c1-2; }
+module_desc()  { sed -n 's/^# desc: //p' "$1" | head -1; }
+
+in_list() {  # in_list FILE "a,b,c"
+    local f="$1" item
+    IFS=',' read -ra items <<< "$2"
+    for item in "${items[@]}"; do
+        [[ "$item" == "$(module_name "$f")" || "$item" == "$(module_num "$f")" ]] && return 0
+    done
+    return 1
+}
+
+run_modules() {
+    local f
+    for f in $(module_files); do
+        [[ -n "$ONLY" ]] && ! in_list "$f" "$ONLY" && continue
+        [[ -n "$SKIP" ]] && in_list "$f" "$SKIP" && continue
+        section "$(module_num "$f") $(module_name "$f") — $(module_desc "$f")"
+        # Each module runs in a subshell-free scope so counters accumulate
+        # shellcheck disable=SC1090
+        source "$f"
+        module_run
+        unset -f module_run
+    done
+}
+
+# ------------------------------------------------------------------------------
+case "$CMD" in
+    install)
+        [[ $EUID -eq 0 ]] && die "run as your normal user (sudo is used when needed)"
+        mkdir -p "$SF_STATE"
+        printf '%sSuperFedora v%s%s — %s\n' "$C_B" "$SF_VERSION" "$C_R" \
+            "$([[ $MODE == dry-run ]] && echo 'dry run, nothing will change' || echo 'installing what is missing')"
+        _log_file "superfedora $MODE v$SF_VERSION"
+        run_modules
+        summary
+        if [[ $MODE == install ]]; then
+            echo "$SF_VERSION" > "$SF_STATE/version"
+            [[ $SF_FAILED -eq 0 ]] || exit 1
+        fi
+        ;;
+    status|check|audit)
+        printf '%sSuperFedora v%s%s — status (installed: %s)\n' "$C_B" "$SF_VERSION" "$C_R" \
+            "$(cat "$SF_STATE/version" 2>/dev/null || echo none)"
+        run_modules
+        summary
+        [[ $SF_MISSING -eq 0 && $SF_FAILED -eq 0 ]]
+        ;;
+    update)
+        info "fetching the latest SuperFedora release…"
+        curl -fsSL "$PAGES_URL" | SUPERFEDORA_NO_RUN=1 bash || die "could not fetch the installer"
+        exec "$HOME/.local/bin/superfedora" install "$@"
+        ;;
+    dotfiles)
+        exec "$SF_ROOT/lib/install-dotfiles.sh" "${DOTFILE_ARGS[@]}"
+        ;;
+    modules|list)
+        for f in $(module_files); do
+            printf '  %s  %-12s %s\n' "$(module_num "$f")" "$(module_name "$f")" "$(module_desc "$f")"
+        done
+        ;;
+    rollback)
+        snap="$(cat "$SF_STATE/last_pre_install_snapshot" 2>/dev/null)"
+        [[ -n "$snap" ]] || die "no pre-install snapshot recorded in $SF_STATE"
+        echo "This reverts system files to Snapper snapshot #$snap (taken before SuperFedora installed)."
+        read -r -p "Continue? [y/N] " a
+        [[ "$a" =~ ^[Yy]$ ]] || exit 0
+        as_root snapper -c root undochange "$snap..0"
+        echo "Done. Reboot to finish. Desktop configs replaced by SuperFedora are in $SF_STATE/backups/."
+        ;;
+    version|--version)
+        echo "SuperFedora $SF_VERSION ($REPO_SLUG)"
+        ;;
+    *)
+        echo "unknown command: $CMD" >&2; usage >&2; exit 2 ;;
+esac

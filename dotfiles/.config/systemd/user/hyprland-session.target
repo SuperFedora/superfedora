@@ -1,0 +1,11 @@
+# Started by Hyprland (conf/autostart.conf) and stopped on exit.
+# GDM launches Hyprland directly (start-hyprland, not uwsm), so nothing
+# activates graphical-session.target. Without it, services that require it,
+# such as xdg-desktop-portal (screen sharing, file pickers) and
+# idlescreen.service, never start.
+[Unit]
+Description=Hyprland compositor session
+Documentation=man:systemd.special(7)
+BindsTo=graphical-session.target
+Wants=graphical-session-pre.target
+After=graphical-session-pre.target

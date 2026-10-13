@@ -1,0 +1,2 @@
+# IdleScreen screensaver (idlescreen.github.io RPM repository)
+idlescreen
