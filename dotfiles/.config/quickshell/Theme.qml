@@ -5,8 +5,8 @@ import Quickshell.Io
 
 Singleton {
     id: root
-    property string theme: "01-super-blue"
-    property string themeName: "Super Blue"
+    property string theme: "12-cobalt"
+    property string themeName: "Cobalt"
     property string mode: "dark"
     property bool nightlight: false
     property color bg: "#1a1b26"

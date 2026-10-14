@@ -15,6 +15,7 @@ Singleton {
     property real spkVol: 0.6; property bool spkMuted: false; property real micVol: 1.0; property bool micMuted: false; property bool webcamEnabled: true
     property var audioSinks: []; property var audioSources: []; property var startupApps: []
     property int kbdBacklight: 0; property bool bat0Present: false; property string bat0Threshold: "Standard (0% - 100%)"; property string aiAgent: "agy"
+    property bool rgbSupported: false; property int rgbCount: 0; property string rgbHex: "7aa2f7"
     property string aiReply: "Ready. Type a prompt above and press Enter for an instant answer, or click [ OPEN TERMINAL ] for an interactive session."
     property bool aiBusy: false; property string _pendingAiPrompt: ""
     property bool pocketOpen: false; property bool superDeckOpen: false; property string superDeckSection: "ai"; property bool superDeckPowerHighlight: false
@@ -81,6 +82,7 @@ Singleton {
             "~/.config/hypr/scripts/toggle-touchpad.sh dpms sync >/dev/null 2>&1 || true; k=$(cat /sys/class/leds/tpacpi::kbd_backlight/brightness ~/.config/superfedora/kbd-backlight 2>/dev/null | head -n1); echo \"KBD|${k:-0}\"; " +
             "ag=$(grep '^AI_AGENT=' ~/.config/superfedora/quake-ai.env 2>/dev/null | cut -d= -f2 | tr -d \"'\\\"\"); echo \"AGY|${ag:-agy}\"; " +
             "awk -F'=' '/^[[:space:]]*exec-once[[:space:]]*=/{c=$2; sub(/^[[:space:]]+/,\"\",c); if(c!~/(systemctl|superfedora\\.locked|hyprpolkitagent|sfx play startup)/) print \"STA|\"c}' ~/.config/hypr/conf/autostart.conf 2>/dev/null || true; " +
+            "echo \"RGB|$(cat ~/.config/superfedora/rgb-devices 2>/dev/null || echo 0)|$(cat ~/.config/superfedora/rgb-color 2>/dev/null || echo 7aa2f7)\"; " +
             "if [ -d /sys/class/power_supply/BAT0 ]; then bs=$(cat /sys/class/power_supply/BAT0/charge_control_start_threshold /sys/class/power_supply/BAT0/charge_start_threshold 2>/dev/null | head -n1); be=$(cat /sys/class/power_supply/BAT0/charge_control_end_threshold /sys/class/power_supply/BAT0/charge_stop_threshold 2>/dev/null | head -n1); echo \"BAT0|1|${bs:-0}|${be:-100}\"; fi"]
         stdout: StdioCollector {
             onStreamFinished: {
@@ -97,6 +99,7 @@ Singleton {
                     if (lines[i].startsWith("KBD|")) { root.kbdBacklight = Math.max(0, Math.min(2, Number(lines[i].split("|")[1] || 0))); continue; }
                     if (lines[i].startsWith("AGY|")) { root.aiAgent = (lines[i].split("|")[1] || "agy").trim(); continue; }
                     if (lines[i].startsWith("STA|")) { const sc = lines[i].slice(4).trim(); if (sc) stApps.push(sc); continue; }
+                    if (lines[i].startsWith("RGB|")) { const rp = lines[i].split("|"); root.rgbCount = Number(rp[1] || 0); root.rgbSupported = root.rgbCount > 0; root.rgbHex = (rp[2] || "7aa2f7").replace(/^#/, ""); continue; }
                     if (lines[i].startsWith("BAT0|")) { const bp = lines[i].split("|"); root.bat0Present = true; root.bat0Threshold = "Start " + (bp[2] || "0") + "% / Stop " + (bp[3] || "100") + "%"; continue; }
                     const parts = lines[i].split(":"); if (parts.length < 4) continue;
                     const act = parts[0] === "yes", sig = Number(parts[1] || 0), sec = (parts[2] || "").trim(), name = parts.slice(3).join(":").replace(/\\:/g, ":").replace(/\\\\/g, "\\").trim(), open = (!sec || sec === "--");
@@ -113,6 +116,7 @@ Singleton {
         }
     }
 
+    Process { id: rgbProbeProc; command: ["sh", "-c", "mkdir -p ~/.config/superfedora; c=0; if command -v openrgb >/dev/null 2>&1; then c=$(timeout 3 openrgb --noautoconnect -l 2>/dev/null | grep -cE '^[0-9]+: ' || true); fi; [ \"$c\" -gt 0 ] && echo \"$c\" > ~/.config/superfedora/rgb-devices || rm -f ~/.config/superfedora/rgb-devices; qs ipc call status refresh >/dev/null 2>&1 || true"] }
     Process { id: aiAskProc; command: ["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh ask " + JSON.stringify(root._pendingAiPrompt)]; stdout: StdioCollector { onStreamFinished: { root.aiReply = text.trim() || "Done."; root.aiBusy = false; } } }
     Process {
         id: tzProc
@@ -130,6 +134,7 @@ Singleton {
         }
     }
 
+    function setRgbColor(hex) { if (!root.rgbSupported) return; const h = String(hex || "7aa2f7").replace(/^#/, ""); root.rgbHex = h === "off" ? "000000" : h; root.playSfx("click"); Quickshell.execDetached(["sh", "-c", "~/.local/bin/sf theme rgb '" + h + "' || ~/Projects/superfedora/superfedora/lib/apply-theme.sh rgb '" + h + "'"]); }
     function askQuickAi(prompt) { const q = String(prompt || "").trim(); if (!q || root.aiBusy) return; root._pendingAiPrompt = q; root.aiBusy = true; root.aiReply = "Querying " + root.aiAgent.toUpperCase() + "..."; root.playSfx("confirm"); aiAskProc.running = true; }
     function addStartupApp(cmd) { const c = String(cmd || "").trim().replace(/'/g, ""); if (!c) return; root.playSfx("confirm"); Quickshell.execDetached(["sh", "-c", "grep -Fqx 'exec-once = " + c + "' ~/.config/hypr/conf/autostart.conf 2>/dev/null || printf '\\nexec-once = %s\\n' '" + c + "' >> ~/.config/hypr/conf/autostart.conf; [ -f ~/Projects/superfedora/superfedora/dotfiles/.config/hypr/conf/autostart.conf ] && cp -f ~/.config/hypr/conf/autostart.conf ~/Projects/superfedora/superfedora/dotfiles/.config/hypr/conf/autostart.conf; qs ipc call status refresh"]); }
     function removeStartupApp(cmd) { const c = String(cmd || "").trim().replace(/'/g, ""); if (!c) return; root.playSfx("click"); Quickshell.execDetached(["sh", "-c", "awk -v t='exec-once = " + c + "' '$0 != t' ~/.config/hypr/conf/autostart.conf > ~/.config/hypr/conf/autostart.conf.tmp && mv ~/.config/hypr/conf/autostart.conf.tmp ~/.config/hypr/conf/autostart.conf; [ -f ~/Projects/superfedora/superfedora/dotfiles/.config/hypr/conf/autostart.conf ] && cp -f ~/.config/hypr/conf/autostart.conf ~/Projects/superfedora/superfedora/dotfiles/.config/hypr/conf/autostart.conf; qs ipc call status refresh"]); }
@@ -237,7 +242,7 @@ Singleton {
     function runDockCmd(args): void { Quickshell.execDetached(["sh", "-c", "~/.local/bin/superfedora dock " + args + " 2>/dev/null || ~/Projects/superfedora/superfedora/lib/panel-ctl.sh " + args]); }
     Process { id: clientsProc; command: ["sh", "-c", "hyprctl clients -j 2>/dev/null || echo '[]'"]; stdout: StdioCollector { onStreamFinished: { try { const arr = JSON.parse(text.trim() || "[]"); root.clients = arr.filter(c => c.mapped && c.workspace && (c.workspace.id > 0 || String(c.workspace.name || "").includes("minimized"))); } catch (e) {} } } }
     Connections { target: Hyprland; function onRawEvent(event) { const n = String(event.name || ""); if (n.includes("window") || n.includes("workspace") || n.includes("focusedmon")) clientsProc.running = true; } }
-    Component.onCompleted: { root.reloadBarIcons(); root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); clientsProc.running = true; }
+    Component.onCompleted: { root.reloadBarIcons(); root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); clientsProc.running = true; rgbProbeProc.running = true; }
     IpcHandler { target: "dock"; function reload(): void { root.reloadDock(); clientsProc.running = true; } function toggleApps(): void { root.appGridOpen = !root.appGridOpen; root.playSfx("click"); } function toggle(): void { root.runDockCmd("always toggle"); } }
     IpcHandler { target: "superdeck"; function toggle(): void { root.toggleSuperDeck(""); } function toggleAi(): void { root.toggleSuperDeck("ai"); } function open(sec: string): void { const t = root.normalizeDeckTab(sec); root.settingsOpen = false; root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; root.superDeckOpen = true; root.refresh(); } function numkey(n: string): void { if (root.superDeckOpen) { const t = root.normalizeDeckTab(n); root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; root.refresh(); root.playSfx("click"); } else Hyprland.dispatch("workspace " + (n === "0" ? "empty" : n)); } function close(): void { root.superDeckOpen = false; } }
     IpcHandler { target: "settings"; function toggle(): void { root.toggleSettings(""); } function open(page: string): void { root.openSettings(page); } function close(): void { root.settingsOpen = false; } }

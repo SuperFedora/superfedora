@@ -44,7 +44,7 @@ detect_hw() {
     GPU_INFO="$(lspci 2>/dev/null | awk -F': ' '/VGA|3D|Display/{print $2; exit}' || echo "Wayland/DRM")"
     HOST_CFLAGS="-O3 -pipe -march=native -mtune=native -flto=auto -ffat-lto-objects -fno-plt"
     HOST_CXXFLAGS="-O3 -pipe -march=native -mtune=native -flto=auto -ffat-lto-objects -fno-plt"
-    HOST_LDFLAGS="-Wl,-O1,--sort-common,--as-needed,-z,relro,-z,now -flto=auto ${LD_FLAG}"
+    HOST_LDFLAGS="-Wl,-O1,--sort-common,--as-needed,-z,relro,-z,now,-rpath,$SYSROOT/lib64 -flto=auto ${LD_FLAG}"
     HOST_RUSTFLAGS="-C opt-level=3 -C target-cpu=native -C codegen-units=1 -C strip=symbols ${RUST_LD}"
 }
 
@@ -74,6 +74,7 @@ ensure_pkgs() {
         sed -i "s|$HOME/.local/sysroot||g; s|^prefix=/usr$|prefix=$SYSROOT|g; s|/usr/include|$SYSROOT/include|g; s|/usr/lib64|$SYSROOT/lib64|g" "$SYSROOT"/lib64/pkgconfig/*.pc "$SYSROOT"/share/pkgconfig/*.pc 2>/dev/null || true
         find "$SYSROOT/lib64/cmake" -name "*.cmake" -exec sed -i "s|$HOME/.local/sysroot||g; s|/usr/include|$SYSROOT/include|g; s|/usr/lib64/qt6|$SYSROOT/lib64/qt6|g; s|/usr/libexec/qt6|$SYSROOT/libexec/qt6|g" {} + 2>/dev/null || true
         sed -i 's/!isnormal(val)/!__builtin_isnormal(val)/g; s/isinf(val)/__builtin_isinf(val)/g; s/signbit(val)/__builtin_signbit(val)/g' "$SYSROOT/include/spa-0.2/spa/utils/json-core.h" 2>/dev/null || true
+        [[ -x "$SYSROOT/bin/qmake6" ]] && printf '[Paths]\nPrefix = %s\nArchData = lib64/qt6\nData = share/qt6\nHeaders = include/qt6\nLibraries = lib64\nLibraryExecutables = lib64/qt6/libexec\nBinaries = lib64/qt6/bin\nHostPrefix = %s\nHostData = lib64/qt6\nHostBinaries = lib64/qt6/bin\nHostLibraryExecutables = lib64/qt6/libexec\nHostLibraries = lib64\n' "$SYSROOT" "$SYSROOT" > "$SYSROOT/bin/qt.conf"
         for p in "${missing[@]}"; do touch "$HOME/.local/pkg_cache/.ok-$p"; done
     fi
 }
@@ -87,6 +88,7 @@ preset_deps() {
         wlctl|bluetui)        echo "gcc make pkgconf-pkg-config dbus-devel" ;;
         wiremix)              echo "gcc clang make pkgconf-pkg-config pipewire-devel alsa-lib-devel" ;;
         fuzzel)               echo "gcc meson ninja-build pkgconf-pkg-config wayland-devel wayland-protocols-devel libxkbcommon-devel pixman-devel cairo-devel pango-devel fcft-devel tllist-devel fontconfig-devel libpng-devel librsvg2-devel scdoc" ;;
+        openrgb)              echo "gcc-c++ make pkgconf-pkg-config qt6-qtbase-devel qt6-linguist hidapi-devel libusb1-devel mbedtls-devel" ;;
         hyprland)             echo "gcc-c++ cmake meson ninja-build pkgconf-pkg-config wayland-devel wayland-protocols-devel cairo-devel pango-devel pixman-devel libdrm-devel mesa-libEGL-devel mesa-libGLES-devel mesa-libgbm-devel libinput-devel libxkbcommon-devel libuuid-devel tomlplusplus-devel hyprlang-devel hyprcursor-devel hyprutils-devel hyprwayland-scanner-devel aquamarine-devel hyprgraphics-devel hyprwire-devel glaze-devel re2-devel muParser-devel libdisplay-info-devel libliftoff-devel libseat-devel hwdata-devel xcb-util-devel xcb-util-wm-devel xcb-util-errors-devel xcb-util-renderutil-devel xcb-util-keysyms-devel xcb-util-image-devel xorg-x11-server-Xwayland-devel libXcursor-devel systemd-devel lua-devel readline-devel" ;;
         quickshell)           echo "gcc-c++ cmake ninja-build pkgconf-pkg-config spirv-tools qt6-qtbase-devel qt6-qtbase-private-devel qt6-qtdeclarative-devel qt6-qtwayland-devel qt6-qtsvg-devel qt6-qtshadertools-devel wayland-devel wayland-protocols-devel libdrm-devel mesa-libgbm-devel pipewire-devel pam-devel cli11-devel jemalloc-devel polkit-devel glib2-devel breakpad-devel" ;;
         *)                    echo "gcc gcc-c++ make cmake" ;;
@@ -156,6 +158,12 @@ forge_generic_dir() {
         ninja -C "$dir/build" -j "$CPU_JOBS"
         found="$(find "$dir/build" -type f -executable -name "$bin_hint" | head -1)"
         install_bin "$found" "$bin_hint"; record_forge "$name" "$repo" "$bin_hint" "meson"
+    elif compgen -G "$dir/*.pro" >/dev/null; then
+        echo "[+] Building QMake project $name with CXXFLAGS='$HOST_CXXFLAGS' (-j$CPU_JOBS)..."
+        local qm="$SYSROOT/bin/qmake6"; [[ -x "$qm" ]] || qm="$(command -v qmake6 || command -v qmake-qt5 || command -v qmake)"
+        (cd "$dir" && "$qm" INCLUDEPATH+="$SYSROOT/include $SYSROOT/include/hidapi $SYSROOT/include/libusb-1.0" QMAKE_CC="$cc_bin" QMAKE_CXX="$cxx_bin" QMAKE_LINK="$cxx_bin" QMAKE_CFLAGS_RELEASE="$HOST_CFLAGS" QMAKE_CXXFLAGS_RELEASE="$HOST_CXXFLAGS" QMAKE_LFLAGS_RELEASE="$HOST_LDFLAGS -L$SYSROOT/lib64" && make -j "$CPU_JOBS")
+        found="$(find "$dir" -maxdepth 2 -type f -executable -iname "$bin_hint" | head -1)"
+        install_bin "$found" "$bin_hint"; record_forge "$name" "$repo" "$bin_hint" "qmake"
     elif [[ -f "$dir/Makefile" || -f "$dir/GNUmakefile" ]]; then
         echo "[+] Building Makefile project $name with OPTFLAGS='$HOST_CXXFLAGS' (-j$CPU_JOBS)..."
         CC="$cc_bin" CXX="$cxx_bin" make -C "$dir" OPTFLAGS="-O3 -march=native -mtune=native -flto=auto" -j "$CPU_JOBS"
@@ -168,8 +176,7 @@ forge_generic_dir() {
         (cd "$dir" && zig build -Doptimize=ReleaseFast -Dcpu=native)
         install_bin "$dir/zig-out/bin/$bin_hint" "$bin_hint"; record_forge "$name" "$repo" "$bin_hint" "zig"
     else
-        echo "error: no supported build manifest (Cargo.toml, CMakeLists.txt, meson.build, Makefile, go.mod, build.zig) in $dir" >&2
-        return 1
+        echo "error: no supported build manifest in $dir" >&2; return 1
     fi
 }
 
@@ -189,6 +196,7 @@ forge_target() {
         bluetui|pythops/bluetui) name="bluetui"; repo="https://github.com/pythops/bluetui.git"; bin="bluetui" ;;
         wiremix|tsowell/wiremix) name="wiremix"; repo="https://github.com/tsowell/wiremix.git"; bin="wiremix" ;;
         fuzzel|dnkl/fuzzel) name="fuzzel"; repo="https://codeberg.org/dnkl/fuzzel.git"; bin="fuzzel" ;;
+        openrgb|calcprogrammer1/openrgb) name="openrgb"; repo="https://gitlab.com/CalcProgrammer1/OpenRGB.git"; bin="openrgb" ;;
         hyprland|hyprwm/hyprland) name="hyprland"; repo="https://github.com/hyprwm/Hyprland.git"; bin="Hyprland"; git_branch="v$(rpm -q --qf '%{VERSION}' hyprland 2>/dev/null || echo 0.56.2)" ;;
         quickshell|outfoxxed/quickshell|quickshell-mirror/quickshell) name="quickshell"; repo="https://github.com/quickshell-mirror/quickshell.git"; bin="quickshell" ;;
         */*) name="${raw##*/}"; bin="$name"; [[ "$raw" == http*://* || "$raw" == git@* ]] && repo="${raw}.git" || repo="https://github.com/${raw}.git" ;;
@@ -218,7 +226,7 @@ print_status() {
         "$CPU_MODEL" "$MARCH_TARGET" "$CPU_ARCH" "$CPU_JOBS" "$ISA_FLAGS" "$LINKER" "$GPU_INFO" "$HOST_CFLAGS" "$HOST_RUSTFLAGS"
     printf '  PRESET       BINARY            STATUS\n  ------       ------            ------\n'
     local p b st
-    for p in ripgrep:rg fastfetch:fastfetch idlescreen:idlescreen fd:fd zoxide:zoxide btop:btop wlctl:wlctl bluetui:bluetui wiremix:wiremix fuzzel:fuzzel hyprland:Hyprland quickshell:quickshell; do
+    for p in ripgrep:rg fastfetch:fastfetch idlescreen:idlescreen fd:fd zoxide:zoxide btop:btop wlctl:wlctl bluetui:bluetui wiremix:wiremix fuzzel:fuzzel openrgb:openrgb hyprland:Hyprland quickshell:quickshell; do
         b="${p#*:}"; p="${p%:*}"; st="not-forged"
         [[ -f "$STAMP_DIR/$p.stamp" && -x "$BIN_DIR/$b" ]] && st="forged ($MARCH_TARGET)"
         printf '  %-12s %-17s [%s]\n' "$p" "$b" "$st"

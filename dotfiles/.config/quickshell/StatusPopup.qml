@@ -22,8 +22,8 @@ PanelWindow {
     visible: Status.superDeckOpen && pop.isTargetMon; screen: pop.targetScreen; color: "transparent"
     WlrLayershell.namespace: "superfedora-superdeck"; WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: pop.visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    anchors.top: true; margins.top: Theme.barHeight + 6; exclusionMode: ExclusionMode.Ignore
-    implicitWidth: pop.fullW; implicitHeight: pop.fullH
+    anchors { top: true; bottom: true; left: true; right: true }
+    margins.top: Theme.barHeight; exclusionMode: ExclusionMode.Ignore
 
     readonly property var btAdapter: Bluetooth.defaultAdapter; readonly property bool btEnabled: btAdapter !== null && btAdapter.enabled
     readonly property var btList: btAdapter ? Bluetooth.devices.values.slice(0, 7) : []
@@ -53,9 +53,14 @@ PanelWindow {
     onVisibleChanged: if (pop.visible) { pop.confirmCmd = ""; pop.wifiPassSsid = ""; fadeAnim.restart(); pop.focusActiveTab(); }
     onActiveTabChanged: if (pop.visible) { pop.confirmCmd = ""; pop.wifiPassSsid = ""; fadeAnim.restart(); pop.focusActiveTab(); }
 
+    MouseArea { anchors.fill: parent; onClicked: Status.superDeckOpen = false }
+
     Rectangle {
-        id: box; anchors.fill: parent; color: Theme.bg; radius: Theme.radius; border.width: 2; focus: true
+        id: box; width: pop.fullW; height: pop.fullH
+        anchors { top: parent.top; topMargin: 6; horizontalCenter: parent.horizontalCenter }
+        color: Theme.bg; radius: Theme.radius; border.width: 2; focus: true
         border.color: pop.activeTab === "power" ? Theme.red : Theme.blue
+        MouseArea { anchors.fill: parent }
         Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
         Keys.onPressed: event => {
             if (event.key === Qt.Key_Escape) {
@@ -86,10 +91,9 @@ PanelWindow {
             anchors { fill: parent; leftMargin: 10; rightMargin: 10; topMargin: 6; bottomMargin: 10 }
             spacing: 8
 
-            // ---------------- 16-Bit SNES Top Tab Bar (1 2 3 4 5 6 7 8 9 0 + SETTINGS + ESC) ----------------
+            // ---------------- 16-Bit Top Tab Bar (1 2 3 4 5 6 7 8 9 0 + SETTINGS + ESC) ----------------
             RowLayout {
                 Layout.fillWidth: true; Layout.preferredHeight: 32; spacing: 4
-                Text { text: "󰣛"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize + 1; font.bold: true; Layout.rightMargin: 2 }
                 Repeater {
                     model: pop.tabs
                     Rectangle {

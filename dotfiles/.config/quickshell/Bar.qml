@@ -43,9 +43,10 @@ PanelWindow {
     Calendar { id: calendarPopup; targetScreen: bar.modelData }
     StatusPopup { id: statusPopup; targetScreen: bar.modelData }
 
-    // Omarchy Quattro: double-click empty bar space to toggle bar transparency
+    // Omarchy Quattro: click empty bar space to close popups; double-click to toggle bar transparency
     MouseArea {
         anchors.fill: parent; z: -1
+        onClicked: { Status.superDeckOpen = false; calendarPopup.mode = ""; }
         onDoubleClicked: { Theme.barOpacity = Theme.barOpacity < 0.99 ? 1.0 : 0.82; Status.playSfx("toggle"); }
     }
 

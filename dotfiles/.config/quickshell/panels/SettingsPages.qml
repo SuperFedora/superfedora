@@ -21,7 +21,7 @@ Item {
         { id: "agy", label: "Antigravity (agy)" }, { id: "claude", label: "Claude Code" }, { id: "chatgpt", label: "ChatGPT / Codex" },
         { id: "grok", label: "xAI Grok" }, { id: "vibe", label: "Mistral Vibe" }, { id: "mcode", label: "MiniMax Code" }, { id: "ollama", label: "Local Ollama" }
     ]
-    readonly property var forgeTargets: ["hyprland", "quickshell", "idlescreen", "ripgrep", "fastfetch", "btop", "fd", "zoxide"]
+    readonly property var forgeTargets: ["hyprland", "quickshell", "openrgb", "idlescreen", "ripgrep", "fastfetch", "btop", "fd"]
 
     function esc(s) { return String(s || "").replace(/'/g, "'\\''"); }
     function submitStartup() { const c = startupIn.text.trim(); if (!c) return; Status.addStartupApp(c); startupIn.text = ""; }

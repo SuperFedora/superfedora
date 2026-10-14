@@ -2,12 +2,12 @@
 # Copyright 2026 SuperFedora Contributors
 # SPDX-License-Identifier: Apache-2.0
 # ==============================================================================
-# sfx.sh — SuperFedora 16-Bit SNES Sound Engine (pw-play + synthesized PCM WAV)
+# sfx.sh — SuperFedora 16-Bit Sound Engine (pw-play + synthesized PCM WAV)
 # ==============================================================================
 # Usage:
 #   sf sfx status                    Print 16-bit sound engine state (on/off)
 #   sf sfx on | off | toggle | mute  Enable, disable, or toggle 16-bit UI sounds
-#   sf sfx init                      Pre-synthesize 16-bit SNES WAV sound bank
+#   sf sfx init                      Pre-synthesize 16-bit WAV sound bank
 #   sf sfx [play] <chime>            Play chime (startup|click|confirm|toggle|volume|alert)
 # ==============================================================================
 set -euo pipefail
@@ -108,22 +108,22 @@ case "$CMD" in
     on|enable|unmute)
         save_state 1
         play_sound confirm
-        echo "[OK] 16-bit SNES sound effects enabled" ;;
+        echo "[OK] 16-bit sound effects enabled" ;;
     off|disable|mute)
         save_state 0
-        echo "[OK] 16-bit SNES sound effects muted" ;;
+        echo "[OK] 16-bit sound effects muted" ;;
     toggle)
         if [[ "${SFX_ENABLED:-1}" == "1" ]]; then
             save_state 0
-            echo "[OK] 16-bit SNES sound effects muted"
+            echo "[OK] 16-bit sound effects muted"
         else
             save_state 1
             play_sound confirm
-            echo "[OK] 16-bit SNES sound effects enabled"
+            echo "[OK] 16-bit sound effects enabled"
         fi ;;
     init)
         ensure_bank
-        echo "[OK] Synthesized 16-bit SNES WAV sound bank in $CACHE_DIR" ;;
+        echo "[OK] Synthesized 16-bit WAV sound bank in $CACHE_DIR" ;;
     play)
         play_sound "${2:-click}" ;;
     startup|boot|click|tick|confirm|ok|volume|vol|alert|err)

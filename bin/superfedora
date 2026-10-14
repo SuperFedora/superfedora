@@ -18,8 +18,8 @@
 #   dock [action]      Omarchy dock, Launchpad app grid & workspace layout (position, autohide, always, pin, layout)
 #   notify [action]    Notification Center, DND, clear & history (status, dnd, clear, history)
 #   session [action]   Select or switch Desktop Environment (DE) session
-#   sfx [action]       16-bit SNES sound effects engine (status, on, off, toggle, play)
-#   tui | welcome      Launch 16-bit SNES Startup & Workstation Control Deck TUI
+#   sfx [action]       16-bit sound effects engine (status, on, off, toggle, play)
+#   tui | welcome      Launch 16-bit Startup & Workstation Control Deck TUI
 #   ai [action]        Quake AI console, Ollama ip:port & custom agents
 #   modules            List modules in run order
 #   rollback [action]  Btrfs snapshot manager, grub-btrfs & Boot-Guard rollback

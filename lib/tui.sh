@@ -126,9 +126,9 @@ run_interactive_tui() {
         printf '  %s[3]%s Hardware & Network TUIs (wiremix Audio, wlctl Wi-Fi, bluetui Bluetooth, btop)\n' "$C_CYN$B" "$R"
         printf '  %s[4]%s Btrfs Snapshots, grub-btrfs & Boot-Guard Rollback Manager\n' "$C_CYN$B" "$R"
         printf '  %s[5]%s Omarchy Quattro Dock & Workspace Layout Controls\n' "$C_CYN$B" "$R"
-        printf '  %s[6]%s 16-Bit SNES Sound Engine (%s) & IdleScreen Setup\n' "$C_CYN$B" "$R" "$SFX_STATE"
+        printf '  %s[6]%s 16-Bit Sound Engine (%s) & IdleScreen Setup\n' "$C_CYN$B" "$R" "$SFX_STATE"
         printf '  %s[7]%s Workstation Health Audit (sf status)\n' "$C_CYN$B" "$R"
-        printf '  %s[q]%s Exit Cartridge Deck\n\n' "$D" "$R"
+        printf '  %s[q]%s Exit Control Deck\n\n' "$D" "$R"
         read -r -p "SuperFedora Deck > " choice || exit 0
         "$SF_ROOT/lib/sfx.sh" play click 2>/dev/null || true
         case "$choice" in
@@ -140,7 +140,7 @@ run_interactive_tui() {
                     m) "$SF_ROOT/lib/apply-theme.sh" toggle ;;
                     c) "$SF_ROOT/lib/apply-theme.sh" corners toggle ;;
                     l) "$SF_ROOT/lib/apply-theme.sh" nightlight toggle ;;
-                    s) read -r -p "  Name (snes|tokyo-night|catppuccin|nord|01..08): " tn; "$SF_ROOT/lib/apply-theme.sh" "$tn" ;;
+                    s) read -r -p "  Name (crimson|scarlet|ember|amber|topaz|citrine|peridot|emerald|verdant|lagoon|glacier|cobalt|indigo|violet|orchid|fuchsia): " tn; "$SF_ROOT/lib/apply-theme.sh" "$tn" ;;
                 esac
                 read -r -p "Press Enter to continue..." _ ;;
             2)

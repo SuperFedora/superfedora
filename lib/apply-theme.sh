@@ -19,22 +19,26 @@ set -euo pipefail
 
 STATE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/superfedora"
 STATE_FILE="$STATE_DIR/theme.env"
-COLORS=("01-super-blue" "02-metroid-violet" "03-super-ruby" "04-emerald-green" "05-star-gold" "06-electric-cyan" "07-flame-orange" "08-neon-coral" "snes" "tokyo-night" "catppuccin" "nord")
+COLORS=("01-crimson" "02-scarlet" "03-ember" "04-amber" "05-topaz" "06-citrine" "07-peridot" "08-emerald" "09-verdant" "10-lagoon" "11-glacier" "12-cobalt" "13-indigo" "14-violet" "15-orchid" "16-fuchsia")
 
 resolve_color() {
     case "${1,,}" in
-        1|01|blue|super-blue|01-super-blue)                  echo "01-super-blue" ;;
-        2|02|violet|purple|metroid-violet|02-metroid-violet) echo "02-metroid-violet" ;;
-        3|03|ruby|red|super-ruby|03-super-ruby)              echo "03-super-ruby" ;;
-        4|04|emerald|green|emerald-green|04-emerald-green)   echo "04-emerald-green" ;;
-        5|05|gold|yellow|star-gold|05-star-gold)             echo "05-star-gold" ;;
-        6|06|cyan|electric-cyan|06-electric-cyan)            echo "06-electric-cyan" ;;
-        7|07|orange|flame-orange|07-flame-orange)            echo "07-flame-orange" ;;
-        8|08|coral|neon-coral|08-neon-coral)                 echo "08-neon-coral" ;;
-        snes|16bit|super-nintendo)                           echo "snes" ;;
-        tokyo|tokyo-night|tokyonight)                        echo "tokyo-night" ;;
-        catppuccin|mocha|latte)                              echo "catppuccin" ;;
-        nord|arctic)                                         echo "nord" ;;
+        1|01|crimson|01-crimson|ruby|red|03-super-ruby)              echo "01-crimson" ;;
+        2|02|scarlet|02-scarlet)                                     echo "02-scarlet" ;;
+        3|03|ember|03-ember)                                         echo "03-ember" ;;
+        4|04|amber|04-amber|orange|07-flame-orange)                  echo "04-amber" ;;
+        5|05|topaz|05-topaz|gold|05-star-gold)                       echo "05-topaz" ;;
+        6|06|citrine|06-citrine|yellow)                              echo "06-citrine" ;;
+        7|07|peridot|07-peridot|lime)                                echo "07-peridot" ;;
+        8|08|emerald|08-emerald|green|04-emerald-green)              echo "08-emerald" ;;
+        9|09|verdant|09-verdant|mint)                                echo "09-verdant" ;;
+        10|lagoon|10-lagoon|teal)                                    echo "10-lagoon" ;;
+        11|glacier|11-glacier|cyan|06-electric-cyan|nord)            echo "11-glacier" ;;
+        12|cobalt|12-cobalt|blue|01-super-blue|tokyo|tokyo-night)    echo "12-cobalt" ;;
+        13|indigo|13-indigo)                                         echo "13-indigo" ;;
+        14|violet|14-violet|purple|02-metroid-violet|snes)           echo "14-violet" ;;
+        15|orchid|15-orchid|catppuccin)                              echo "15-orchid" ;;
+        16|fuchsia|16-fuchsia|coral|magenta|08-neon-coral)           echo "16-fuchsia" ;;
         *) return 1 ;;
     esac
 }
@@ -49,20 +53,23 @@ resolve_mode() {
 }
 
 palette_tokens() {
-    WALL_KEY="$1"
     case "$1" in
-        01-super-blue)     NAME="Super Blue";     D_ACC="7aa2f7"; D_HOT="bcd3ff"; L_ACC="2554a3"; L_HOT="3c6eb4"; TUI_C="blue" ;;
-        02-metroid-violet) NAME="Metroid Violet"; D_ACC="bb9af7"; D_HOT="decbff"; L_ACC="6b38b8"; L_HOT="8b5cf6"; TUI_C="magenta" ;;
-        03-super-ruby)     NAME="Super Ruby";     D_ACC="f7768e"; D_HOT="ffbac7"; L_ACC="b91c3c"; L_HOT="e11d48"; TUI_C="red" ;;
-        04-emerald-green)  NAME="Emerald Green";  D_ACC="9ece6a"; D_HOT="cbf0a3"; L_ACC="2d7a31"; L_HOT="16a34a"; TUI_C="green" ;;
-        05-star-gold)      NAME="Star Gold";      D_ACC="e0af68"; D_HOT="ffdf9e"; L_ACC="946210"; L_HOT="ca8a04"; TUI_C="yellow" ;;
-        06-electric-cyan)  NAME="Electric Cyan";  D_ACC="7dcfff"; D_HOT="bfeaff"; L_ACC="0369a1"; L_HOT="0284c7"; TUI_C="cyan" ;;
-        07-flame-orange)   NAME="Flame Orange";   D_ACC="ff9e64"; D_HOT="ffc9a6"; L_ACC="b84309"; L_HOT="ea580c"; TUI_C="lightred" ;;
-        08-neon-coral)     NAME="Neon Coral";     D_ACC="f43f5e"; D_HOT="ff99ac"; L_ACC="9f1239"; L_HOT="be123c"; TUI_C="lightmagenta" ;;
-        snes)              NAME="SNES 16-Bit";    WALL_KEY="02-metroid-violet"; D_ACC="b48ead"; D_HOT="e0af68"; L_ACC="6b38b8"; L_HOT="b84309"; TUI_C="magenta" ;;
-        tokyo-night)       NAME="Tokyo Night";    WALL_KEY="01-super-blue";     D_ACC="7aa2f7"; D_HOT="7dcfff"; L_ACC="2e7de9"; L_HOT="007197"; TUI_C="blue" ;;
-        catppuccin)        NAME="Catppuccin";     WALL_KEY="08-neon-coral";     D_ACC="cba6f7"; D_HOT="f5c2e7"; L_ACC="8839ef"; L_HOT="ea76cb"; TUI_C="magenta" ;;
-        nord)              NAME="Nord";           WALL_KEY="06-electric-cyan";  D_ACC="88c0d0"; D_HOT="81a1c1"; L_ACC="5e81ac"; L_HOT="4c566a"; TUI_C="cyan" ;;
+        01-crimson) NAME="Crimson"; WALL_KEY="03-super-ruby";     D_ACC="f7768e"; D_HOT="ffbac7"; L_ACC="b91c3c"; L_HOT="e11d48"; TUI_C="red" ;;
+        02-scarlet) NAME="Scarlet"; WALL_KEY="08-neon-coral";     D_ACC="ff5a5f"; D_HOT="ff8fa3"; L_ACC="c81e32"; L_HOT="e11d48"; TUI_C="lightred" ;;
+        03-ember)   NAME="Ember";   WALL_KEY="07-flame-orange";   D_ACC="ff7b54"; D_HOT="ffb26b"; L_ACC="c2410c"; L_HOT="ea580c"; TUI_C="lightred" ;;
+        04-amber)   NAME="Amber";   WALL_KEY="07-flame-orange";   D_ACC="ff9e64"; D_HOT="ffc98b"; L_ACC="b84309"; L_HOT="ea580c"; TUI_C="yellow" ;;
+        05-topaz)   NAME="Topaz";   WALL_KEY="05-star-gold";      D_ACC="e0af68"; D_HOT="ffdf9e"; L_ACC="946210"; L_HOT="ca8a04"; TUI_C="yellow" ;;
+        06-citrine) NAME="Citrine"; WALL_KEY="05-star-gold";      D_ACC="f9e2af"; D_HOT="fff3b0"; L_ACC="854d0e"; L_HOT="ca8a04"; TUI_C="yellow" ;;
+        07-peridot) NAME="Peridot"; WALL_KEY="04-emerald-green";  D_ACC="a6e3a1"; D_HOT="d8f3dc"; L_ACC="15803d"; L_HOT="16a34a"; TUI_C="lightgreen" ;;
+        08-emerald) NAME="Emerald"; WALL_KEY="04-emerald-green";  D_ACC="9ece6a"; D_HOT="cbf0a3"; L_ACC="2d7a31"; L_HOT="16a34a"; TUI_C="green" ;;
+        09-verdant) NAME="Verdant"; WALL_KEY="04-emerald-green";  D_ACC="73daca"; D_HOT="a8f9ff"; L_ACC="0f766e"; L_HOT="0d9488"; TUI_C="cyan" ;;
+        10-lagoon)  NAME="Lagoon";  WALL_KEY="06-electric-cyan";  D_ACC="2ac3de"; D_HOT="89dceb"; L_ACC="0e7490"; L_HOT="0891b2"; TUI_C="cyan" ;;
+        11-glacier) NAME="Glacier"; WALL_KEY="06-electric-cyan";  D_ACC="7dcfff"; D_HOT="bfeaff"; L_ACC="0369a1"; L_HOT="0284c7"; TUI_C="lightcyan" ;;
+        12-cobalt)  NAME="Cobalt";  WALL_KEY="01-super-blue";     D_ACC="7aa2f7"; D_HOT="bcd3ff"; L_ACC="2554a3"; L_HOT="3c6eb4"; TUI_C="blue" ;;
+        13-indigo)  NAME="Indigo";  WALL_KEY="01-super-blue";     D_ACC="6c71c4"; D_HOT="a5abff"; L_ACC="3730a3"; L_HOT="4f46e5"; TUI_C="lightblue" ;;
+        14-violet)  NAME="Violet";  WALL_KEY="02-metroid-violet"; D_ACC="bb9af7"; D_HOT="decbff"; L_ACC="6b38b8"; L_HOT="8b5cf6"; TUI_C="magenta" ;;
+        15-orchid)  NAME="Orchid";  WALL_KEY="02-metroid-violet"; D_ACC="cba6f7"; D_HOT="f5c2e7"; L_ACC="7e22ce"; L_HOT="a855f7"; TUI_C="lightmagenta" ;;
+        16-fuchsia) NAME="Fuchsia"; WALL_KEY="08-neon-coral";     D_ACC="f43f5e"; D_HOT="ff99ac"; L_ACC="9f1239"; L_HOT="be123c"; TUI_C="lightmagenta" ;;
     esac
     if [[ "$2" == "light" ]]; then
         ACCENT="$L_ACC"; HOT="$L_HOT"; BG="e6e8f0"; BG_ALT="d8dae5"; BG_HOV="cfd2e0"; BORDER="9ea4bd"
@@ -80,10 +87,10 @@ palette_tokens() {
 }
 
 load_state() {
-    THEME_COLOR="01-super-blue"; THEME_MODE="dark"; THEME_CORNERS="square"; THEME_NIGHTLIGHT="off"
+    THEME_COLOR="12-cobalt"; THEME_MODE="dark"; THEME_CORNERS="square"; THEME_NIGHTLIGHT="off"
     # shellcheck disable=SC1090
     [[ -f "$STATE_FILE" ]] && source "$STATE_FILE"
-    THEME_COLOR="$(resolve_color "${THEME_COLOR:-01-super-blue}" || echo "01-super-blue")"
+    THEME_COLOR="$(resolve_color "${THEME_COLOR:-12-cobalt}" || echo "12-cobalt")"
     [[ "${THEME_MODE:-dark}" == "light" ]] || THEME_MODE="dark"
     [[ "${THEME_CORNERS:-square}" == "rounded" ]] || THEME_CORNERS="square"
     [[ "${THEME_NIGHTLIGHT:-off}" == "on" ]] || THEME_NIGHTLIGHT="off"
@@ -169,12 +176,9 @@ apply_all() {
     command -v tmux >/dev/null 2>&1 && tmux source-file "$STATE_DIR/tmux-theme.conf" 2>/dev/null || true
     printf 'vim.o.background = "%s"\n' "$mode" > "$STATE_DIR/nvim-theme.lua"
 
-    # 6. IdleScreen, GTK/Portal, Night Light & Greetd
+    # 6. IdleScreen, GTK/Portal, Night Light, OpenRGB & Greetd
     printf '[general]\nidle_timeout_secs = 120\nprimary_output = ""\n\n[saver]\nactive = "superfedora"\n\n[saver.ascii]\nmode = "superfedora"\ntargets = ["superfedora"]\ntext = ""\nfps = 0\ndwell_secs = 5.0\ndissolve_duration_secs = 0.699999988079071\n' > "$HOME/.config/idlescreen/config.toml"
-    if command -v gsettings >/dev/null 2>&1; then
-        gsettings set org.gnome.desktop.interface color-scheme "$PORTAL_SCHEME" 2>/dev/null || true
-        gsettings set org.gnome.desktop.interface gtk-theme "$GTK_THEME" 2>/dev/null || true
-    fi
+    command -v gsettings >/dev/null 2>&1 && { gsettings set org.gnome.desktop.interface color-scheme "$PORTAL_SCHEME" 2>/dev/null || true; gsettings set org.gnome.desktop.interface gtk-theme "$GTK_THEME" 2>/dev/null || true; }
     if [[ "$nl" == "on" ]]; then
         if ! pgrep -x wlsunset >/dev/null 2>&1 && ! pgrep -x hyprsunset >/dev/null 2>&1; then
             if command -v hyprsunset >/dev/null 2>&1; then nohup hyprsunset -t 4200 >/dev/null 2>&1 &
@@ -183,10 +187,10 @@ apply_all() {
     else
         pkill -x wlsunset 2>/dev/null || true; pkill -x hyprsunset 2>/dev/null || true
     fi
+    echo "$ACCENT" > "$STATE_DIR/rgb-color"
+    [[ -s "$STATE_DIR/rgb-devices" ]] && command -v openrgb >/dev/null 2>&1 && (openrgb --noautoconnect -m direct -c "$ACCENT" >/dev/null 2>&1 &) || true
     local tui_theme="border=$TUI_C;title=$TUI_C;prompt=$TUI_C;time=$TUI_TEXT;action=$TUI_C;button=$TUI_C;container=$TUI_BG;input=$TUI_TEXT"
-    if [[ -w /etc/greetd/config.toml ]]; then
-        printf '# SuperFedora login screen: greetd + tuigreet on tty1.\n[terminal]\nvt = 1\n\n[default_session]\ncommand = "tuigreet --time --asterisks --remember --remember-session --theme '\''%s'\'' --sessions /usr/share/wayland-sessions --cmd '\''uwsm start -e -D Hyprland hyprland.desktop'\'' --greeting '\''SUPER FEDORA'\''"\nuser = "greetd"\n' "$tui_theme" > /etc/greetd/config.toml
-    fi
+    [[ -w /etc/greetd/config.toml ]] && printf '# SuperFedora login screen: greetd + tuigreet on tty1.\n[terminal]\nvt = 1\n\n[default_session]\ncommand = "tuigreet --time --asterisks --remember --remember-session --theme '\''%s'\'' --sessions /usr/share/wayland-sessions --cmd '\''uwsm start -e -D Hyprland hyprland.desktop'\'' --greeting '\''SUPER FEDORA'\''"\nuser = "greetd"\n' "$tui_theme" > /etc/greetd/config.toml
     local mode_disp="night"; [[ "$mode" == "light" ]] && mode_disp="day"
     printf '[OK] Active 16-bit theme: %s (%s/%s mode, %s corners, nightlight: %s)\n' "$NAME" "$mode_disp" "$mode" "$corners" "$nl"
 }
@@ -209,9 +213,7 @@ set -- "${POS_ARGS[@]}"
 [[ -n "$OPT_NL" ]] && { [[ "$OPT_NL" == "toggle" ]] && { [[ "$THEME_NIGHTLIGHT" == "on" ]] && THEME_NIGHTLIGHT="off" || THEME_NIGHTLIGHT="on"; } || THEME_NIGHTLIGHT="$OPT_NL"; }
 
 CMD="${1:-status}"
-if [[ $# -eq 0 && ( -n "$OPT_MODE" || -n "$OPT_CORNERS" || -n "$OPT_NL" ) ]]; then
-    apply_all "$THEME_COLOR" "$THEME_MODE" "$THEME_CORNERS" "$THEME_NIGHTLIGHT"; exit 0
-fi
+[[ $# -eq 0 && ( -n "$OPT_MODE" || -n "$OPT_CORNERS" || -n "$OPT_NL" ) ]] && { apply_all "$THEME_COLOR" "$THEME_MODE" "$THEME_CORNERS" "$THEME_NIGHTLIGHT"; exit 0; }
 
 case "$CMD" in
     set)
@@ -227,19 +229,19 @@ case "$CMD" in
         m="$(resolve_mode "$target")" || { echo "mode must be night, day, dark, light, or toggle" >&2; exit 2; }
         apply_all "$THEME_COLOR" "$m" "$THEME_CORNERS" "$THEME_NIGHTLIGHT" ;;
     corners)
-        target="${2:-toggle}"
-        [[ "$target" == "toggle" ]] && { [[ "$THEME_CORNERS" == "rounded" ]] && target="square" || target="rounded"; }
+        target="${2:-toggle}"; [[ "$target" == "toggle" ]] && { [[ "$THEME_CORNERS" == "rounded" ]] && target="square" || target="rounded"; }
         [[ "$target" == "rounded" || "$target" == "square" ]] || { echo "corners must be square, rounded, or toggle" >&2; exit 2; }
         apply_all "$THEME_COLOR" "$THEME_MODE" "$target" "$THEME_NIGHTLIGHT" ;;
     nightlight|night-light)
-        target="${2:-toggle}"
-        [[ "$target" == "toggle" ]] && { [[ "$THEME_NIGHTLIGHT" == "on" ]] && target="off" || target="on"; }
+        target="${2:-toggle}"; [[ "$target" == "toggle" ]] && { [[ "$THEME_NIGHTLIGHT" == "on" ]] && target="off" || target="on"; }
         apply_all "$THEME_COLOR" "$THEME_MODE" "$THEME_CORNERS" "$target" ;;
-    reload)
-        apply_all "$THEME_COLOR" "$THEME_MODE" "$THEME_CORNERS" "$THEME_NIGHTLIGHT" >/dev/null ;;
+    rgb|openrgb)
+        palette_tokens "$THEME_COLOR" "$THEME_MODE"; hex="${2:-$ACCENT}"; hex="${hex#\#}"; [[ "${hex,,}" == "off" ]] && hex="000000"
+        mkdir -p "$STATE_DIR" && echo "$hex" > "$STATE_DIR/rgb-color"
+        command -v openrgb >/dev/null 2>&1 && openrgb --noautoconnect -m direct -c "$hex" >/dev/null 2>&1 || true ;;
+    reload) apply_all "$THEME_COLOR" "$THEME_MODE" "$THEME_CORNERS" "$THEME_NIGHTLIGHT" >/dev/null ;;
     pick)
-        other_m="day"; [[ "$THEME_MODE" == "light" ]] && other_m="night"
-        other_c="rounded"; [[ "$THEME_CORNERS" == "rounded" ]] && other_c="square"
+        other_m="day"; [[ "$THEME_MODE" == "light" ]] && other_m="night"; other_c="rounded"; [[ "$THEME_CORNERS" == "rounded" ]] && other_c="square"
         choice="$(printf '%s\n' "[*] Toggle mode ($THEME_MODE -> $other_m)" "[*] Toggle corners ($THEME_CORNERS -> $other_c)" "${COLORS[@]}" | fuzzel --dmenu --prompt "16-Bit Theme > " --lines 12 --width 42)" || exit 0
         if [[ "$choice" == "[*] Toggle mode"* ]]; then apply_all "$THEME_COLOR" "$(resolve_mode toggle)" "$THEME_CORNERS" "$THEME_NIGHTLIGHT"
         elif [[ "$choice" == "[*] Toggle corners"* ]]; then apply_all "$THEME_COLOR" "$THEME_MODE" "$other_c" "$THEME_NIGHTLIGHT"
