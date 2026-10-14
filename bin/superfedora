@@ -15,6 +15,7 @@
 #   dotfiles [--check] Deploy desktop configs (or list drift from this release)
 #   theme [action]     Switch 16-bit theme (set, next, prev, toggle, pick)
 #   panel [action]     Configure Top/Bottom/Left/Right bars & docks
+#   ai [action]        Quake AI console, Ollama ip:port & custom agents
 #   modules            List modules in run order
 #   rollback           Revert to the pre-install Btrfs snapshot
 #   version            Print the SuperFedora version
@@ -38,7 +39,7 @@ PAGES_URL="https://superfedora.github.io/install.sh"
 # Detection must see user-level installs (rustup, uv, vendor CLIs)
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.minimax-code/bin:$HOME/.grok/bin:$PATH"
 
-usage() { sed -n '6,29p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '6,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 CMD="${1:-}"; [[ $# -gt 0 ]] && shift
 [[ "$CMD" == "theme" || "$CMD" == "themes" ]] && exec "$SF_ROOT/lib/apply-theme.sh" "$@"

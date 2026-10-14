@@ -42,6 +42,7 @@ Scope {
         Rectangle {
             anchors.fill: parent
             color: Theme.bg
+            radius: Theme.radius
             border.width: 2
             border.color: Theme.blue
 
@@ -60,10 +61,12 @@ Scope {
                 Rectangle {
                     Layout.fillWidth: true
                     height: 6
+                    radius: Theme.radiusSm
                     color: Theme.bgAlt
                     Rectangle {
                         width: parent.width * Math.min(1, root.vol)
                         height: parent.height
+                        radius: Theme.radiusSm
                         color: root.muted ? Theme.muted : Theme.blue
                     }
                 }

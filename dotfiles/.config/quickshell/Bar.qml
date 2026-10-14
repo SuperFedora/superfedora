@@ -156,7 +156,7 @@ PanelWindow {
             text: "󰚩"
             color: statusPopup.tab === "ai" ? Theme.blue : Theme.cyan
             onClicked: bar.toggleStatus("ai", aiBtn)
-            onRightClicked: bar.run("~/.config/hypr/scripts/quake-ai.sh toggle")
+            onRightClicked: { statusPopup.tab = ""; bar.run("~/.config/hypr/scripts/quake-ai.sh toggle"); }
         }
 
         BarLabel {

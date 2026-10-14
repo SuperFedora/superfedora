@@ -11,26 +11,28 @@
 # ==============================================================================
 set -euo pipefail
 
-export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.minimax-code/bin:$HOME/.grok/bin:$HOME/.npm-global/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.minimax-code/bin:$HOME/.minimax/bin:$HOME/.grok/bin:$HOME/.npm-global/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 SELF="$(realpath "${BASH_SOURCE[0]}")"
 STATE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/superfedora"
 STATE_FILE="$STATE_DIR/quake-ai.env"
 AGENTS_FILE="$STATE_DIR/ai-agents.conf"
 mkdir -p "$STATE_DIR"
 
-AI_AGENT="agy"
-OLLAMA_HOST="127.0.0.1:11434"
-OLLAMA_MODEL="llama3.2"
+AI_AGENT="agy"; OLLAMA_HOST="127.0.0.1:11434"; OLLAMA_MODEL=""
 # shellcheck disable=SC1090
 [[ -f "$STATE_FILE" ]] && source "$STATE_FILE"
-AI_AGENT="${AI_AGENT:-agy}"
-OLLAMA_HOST="${OLLAMA_HOST:-127.0.0.1:11434}"
-OLLAMA_MODEL="${OLLAMA_MODEL:-llama3.2}"
+AI_AGENT="${AI_AGENT:-agy}"; OLLAMA_HOST="${OLLAMA_HOST:-127.0.0.1:11434}"
+
+detect_ollama_model() {
+    local h="${1:-$OLLAMA_HOST}" m=""
+    m="$(curl -fsSL --max-time 1 "http://$h/api/tags" 2>/dev/null | jq -r '.models[0].name // empty' 2>/dev/null || true)"
+    [[ -z "$m" ]] && command -v ollama >/dev/null 2>&1 && m="$(OLLAMA_HOST="$h" ollama list 2>/dev/null | awk 'NR==2 {print $1}' || true)"
+    printf '%s' "${m:-llama3.2}"
+}
+[[ -z "$OLLAMA_MODEL" ]] && OLLAMA_MODEL="$(detect_ollama_model "$OLLAMA_HOST")"
 [[ -f "$AGENTS_FILE" ]] || printf '# SuperFedora Custom AI Agents (id|label|command)\n' > "$AGENTS_FILE"
 
-save_state() {
-    printf 'AI_AGENT=%q\nOLLAMA_HOST=%q\nOLLAMA_MODEL=%q\n' "$AI_AGENT" "$OLLAMA_HOST" "$OLLAMA_MODEL" > "$STATE_FILE"
-}
+save_state() { printf 'AI_AGENT=%q\nOLLAMA_HOST=%q\nOLLAMA_MODEL=%q\n' "$AI_AGENT" "$OLLAMA_HOST" "$OLLAMA_MODEL" > "$STATE_FILE"; }
 
 normalize_id() {
     case "${1:-$AI_AGENT}" in
@@ -58,7 +60,8 @@ all_agents() {
     if [[ -f "$AGENTS_FILE" ]]; then
         while IFS='|' read -r cid clabel ccmd; do
             [[ -z "${cid// /}" || "$cid" == \#* ]] && continue
-            cbin="${ccmd%% *}"
+            case "$cid" in agy|mcode|grok|vibe|claude|chatgpt|ollama) continue ;; esac
+            clabel="${clabel//|/ -}"; ccmd="${ccmd//|/ }"; cbin="${ccmd%% *}"
             printf '%s|custom|%s|%s|%s\n' "$cid" "${clabel:-$cid}" "${ccmd:-$cid}" "${cbin:-$cid}"
         done < "$AGENTS_FILE"
     fi
@@ -69,8 +72,7 @@ resolve_agent() {
     target="$(normalize_id "${1:-$AI_AGENT}")"
     while IFS='|' read -r cid ccat clabel ccmd cbin; do
         if [[ "$cid" == "$target" ]]; then
-            AI_AGENT="$cid"; AI_CATEGORY="$ccat"; AI_LABEL="$clabel"; AI_CMD="$ccmd"; AI_BIN="$cbin"
-            found=1; break
+            AI_AGENT="$cid"; AI_CATEGORY="$ccat"; AI_LABEL="$clabel"; AI_CMD="$ccmd"; AI_BIN="$cbin"; found=1; break
         fi
     done < <(all_agents)
     if [[ $found -eq 0 ]]; then
@@ -97,27 +99,27 @@ set_ollama() {
         [[ "$host" != *:* ]] && host="$host:11434"
         OLLAMA_HOST="$host"
     fi
-    [[ -n "$model" ]] && OLLAMA_MODEL="$model"
+    if [[ -n "$model" ]]; then OLLAMA_MODEL="$model"
+    elif [[ -n "$host" ]]; then OLLAMA_MODEL="$(detect_ollama_model "$OLLAMA_HOST")"
+    fi
     save_state
 }
 
 add_custom_agent() {
     local id="${1:-}" label="${2:-}" cmd="${3:-}" tmp="$AGENTS_FILE.tmp"
     id="$(echo "$id" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9_-')"
+    label="${label//|/ -}"; cmd="${cmd//|/ }"
     [[ -n "$id" && -n "$cmd" ]] || { echo "Usage: quake-ai.sh add-agent <id> <label> <command>" >&2; exit 2; }
+    case "$id" in agy|mcode|grok|vibe|claude|chatgpt|ollama) echo "Cannot override built-in agent '$id'" >&2; exit 2 ;; esac
     [[ -z "$label" ]] && label="$id ($cmd)"
-    if [[ -f "$AGENTS_FILE" ]]; then
-        grep -Ev "^${id}\\|" "$AGENTS_FILE" > "$tmp" || true
-        mv "$tmp" "$AGENTS_FILE"
-    fi
+    if [[ -f "$AGENTS_FILE" ]]; then grep -Ev "^${id}\\|" "$AGENTS_FILE" > "$tmp" || true; mv "$tmp" "$AGENTS_FILE"; fi
     printf '%s|%s|%s\n' "$id" "$label" "$cmd" >> "$AGENTS_FILE"
 }
 
 remove_custom_agent() {
     local id="${1:-}" tmp="$AGENTS_FILE.tmp"
     [[ -n "$id" && -f "$AGENTS_FILE" ]] || return 0
-    grep -Ev "^${id}\\|" "$AGENTS_FILE" > "$tmp" || true
-    mv "$tmp" "$AGENTS_FILE"
+    grep -Ev "^${id}\\|" "$AGENTS_FILE" > "$tmp" || true; mv "$tmp" "$AGENTS_FILE"
     if [[ "$AI_AGENT" == "$id" ]]; then AI_AGENT="agy"; save_state; fi
 }
 
@@ -144,24 +146,23 @@ is_special_ai_open() { hyprctl monitors -j 2>/dev/null | jq -e '.[] | select(.fo
 
 spawn_quake() {
     resolve_agent "$AI_AGENT"
-    local runner="$STATE_DIR/quake-ai-runner.sh"
-    cat > "$runner" <<EOF
-#!/usr/bin/env bash
-export PATH="\$HOME/.local/bin:\$HOME/.cargo/bin:\$HOME/.minimax-code/bin:\$HOME/.grok/bin:\$HOME/.npm-global/bin:/usr/local/bin:/usr/bin:/bin:\$PATH"
-export OLLAMA_HOST="$OLLAMA_HOST" OLLAMA_MODEL="$OLLAMA_MODEL"
+    local runner="$STATE_DIR/quake-ai-runner.sh" safe_title="${AI_LABEL//[\'\"]/}"
+    {
+        printf '#!/usr/bin/env bash\nexport PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.minimax-code/bin:$HOME/.minimax/bin:$HOME/.grok/bin:$HOME/.npm-global/bin:/usr/local/bin:/usr/bin:/bin:$PATH"\n'
+        printf 'export AI_AGENT=%q AI_LABEL=%q AI_BIN=%q AI_CMD=%q OLLAMA_HOST=%q OLLAMA_MODEL=%q\n' \
+            "$AI_AGENT" "$AI_LABEL" "$AI_BIN" "$AI_CMD" "$OLLAMA_HOST" "$OLLAMA_MODEL"
+        cat <<'EOF'
 clear
 if [[ "$AI_AGENT" == "ollama" ]]; then
     if command -v ollama >/dev/null 2>&1; then OLLAMA_HOST="$OLLAMA_HOST" ollama run "$OLLAMA_MODEL"
     else printf '\033[1;33m[!]\033[0m ollama CLI is not installed yet (sudo dnf install -y ollama). Host: %s (%s)\n' "$OLLAMA_HOST" "$OLLAMA_MODEL"; fi
-elif command -v "$AI_BIN" >/dev/null 2>&1; then
-    $AI_CMD
-else
-    printf '\033[1;33m[!]\033[0m %s (%s) is not installed yet. Configure via Top Bar AI menu or: sf ai configure\n' "$AI_LABEL" "$AI_BIN"
-fi
-exec "\${SHELL:-/bin/bash}"
+elif command -v "$AI_BIN" >/dev/null 2>&1; then eval "$AI_CMD"
+else printf '\033[1;33m[!]\033[0m %s (%s) is not installed yet. Configure via Top Bar AI menu or: sf ai configure\n' "$AI_LABEL" "$AI_BIN"; fi
+exec "${SHELL:-/bin/bash}"
 EOF
+    } > "$runner"
     chmod +x "$runner"
-    hyprctl dispatch exec "[workspace special:ai silent; float; size $Q_W $Q_H; move $Q_X $Q_Y] kitty --class quake-ai -o 'map escape launch --type=background $SELF hide' -o 'map shift+escape send_text all \x1b' --title 'Quake AI — $AI_LABEL' -e $runner" >/dev/null
+    hyprctl dispatch exec "[workspace special:ai silent; float; size $Q_W $Q_H; move $Q_X $Q_Y] kitty --class quake-ai -o 'map escape launch --type=background $SELF hide' -o 'map shift+escape send_text all \x1b' --title 'Quake AI — $safe_title' -e $runner" >/dev/null
     for _ in {1..30}; do has_quake_client && break; sleep 0.04; done
 }
 
@@ -172,13 +173,17 @@ show_quake() {
 }
 
 hide_quake() { is_special_ai_open && hyprctl dispatch togglespecialworkspace ai >/dev/null || true; }
-relaunch_quake() { pkill -f "kitty --class quake-ai" 2>/dev/null || true; sleep 0.1; show_quake; }
+relaunch_quake() {
+    pkill -f "kitty --class quake-ai" 2>/dev/null || true
+    for _ in {1..25}; do has_quake_client || break; sleep 0.04; done
+    show_quake
+}
 
 prompt_ollama() {
     local host model tags
     host="$(printf '%s\n127.0.0.1:11434\nlocalhost:11434\n' "$OLLAMA_HOST" | awk '!seen[$0]++' | fuzzel --dmenu --prompt 'Ollama IP:Port > ' --width 44)" || return 0
     [[ -n "${host// /}" ]] || return 0
-    set_ollama "$host" ""
+    set_ollama "$host" "$OLLAMA_MODEL"
     tags="$(curl -fsSL --max-time 1 "http://$OLLAMA_HOST/api/tags" 2>/dev/null | jq -r '.models[]?.name // empty' 2>/dev/null || true)"
     model="$(printf '%s\n%s\nllama3.2\nqwen2.5-coder\ndeepseek-r1\nmistral\n' "$OLLAMA_MODEL" "$tags" | awk 'NF && !seen[$0]++' | fuzzel --dmenu --prompt "Model ($OLLAMA_HOST) > " --width 44)" || return 0
     [[ -n "${model// /}" ]] && set_ollama "$OLLAMA_HOST" "$model"

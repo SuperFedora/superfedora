@@ -75,6 +75,7 @@ Scope {
                     Layout.fillWidth: true
                     implicitHeight: content.implicitHeight + 24
                     color: Theme.bg
+                    radius: Theme.radius
                     border.width: 2
                     border.color: modelData.urgency === NotificationUrgency.Critical ? Theme.red : Theme.blue
 
@@ -139,6 +140,7 @@ Scope {
                                         required property NotificationAction modelData
                                         width: actText.implicitWidth + 16
                                         height: 22
+                                        radius: Theme.radiusSm
                                         color: actMouse.containsMouse ? Theme.bgHover : Theme.bgAlt
                                         Text {
                                             id: actText

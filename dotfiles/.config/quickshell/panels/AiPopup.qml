@@ -37,10 +37,15 @@ PanelWindow {
     implicitWidth: 320
     implicitHeight: box.implicitHeight
 
-    onOpenChanged: { if (pop.open) pop.refresh(); }
-    Component.onCompleted: pop.refresh()
+    property string pendingCmd: ""
+    onOpenChanged: { if (pop.open) pop.refresh(""); }
+    Component.onCompleted: pop.refresh("")
 
-    function refresh() { agentProc.running = true; }
+    function refresh(preCmd) {
+        pop.pendingCmd = preCmd ? (preCmd + "; ") : "";
+        agentProc.running = false;
+        agentProc.running = true;
+    }
 
     function runCmd(cmd, closeAfter) {
         if (closeAfter) pop.closeRequested();
@@ -49,9 +54,10 @@ PanelWindow {
 
     Process {
         id: agentProc
-        command: ["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh list-agents 2>/dev/null"]
+        command: ["sh", "-c", pop.pendingCmd + "~/.config/hypr/scripts/quake-ai.sh list-agents 2>/dev/null"]
         stdout: StdioCollector {
             onStreamFinished: {
+                pop.pendingCmd = "";
                 const list = [];
                 for (const line of text.trim().split("\n")) {
                     const p = line.split("|");
@@ -206,10 +212,7 @@ PanelWindow {
                                     id: rmMouse; anchors.fill: parent
                                     enabled: rowCol.isCustom; hoverEnabled: rowCol.isCustom
                                     cursorShape: rowCol.isCustom ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                    onClicked: {
-                                        pop.runCmd("~/.config/hypr/scripts/quake-ai.sh remove-agent '" + rowCol.ag.id + "'", false);
-                                        pop.refresh();
-                                    }
+                                    onClicked: pop.refresh("~/.config/hypr/scripts/quake-ai.sh remove-agent '" + rowCol.ag.id + "'")
                                 }
                             }
                         }

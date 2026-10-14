@@ -133,7 +133,7 @@ Scope {
             id: surface
             anchors.fill: parent
             color: Theme.bg
-            radius: scope.span === "full" ? 0 : 4
+            radius: scope.span === "full" ? 0 : Theme.radius
             border.width: scope.span === "full" ? 0 : 2
             border.color: Theme.blue
 

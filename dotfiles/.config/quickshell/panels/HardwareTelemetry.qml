@@ -82,7 +82,7 @@ GridLayout {
 
             implicitWidth: card.boxW
             implicitHeight: card.boxH
-            radius: 3
+            radius: Theme.radiusSm
             color: cardMouse.containsMouse ? Theme.bgHover : Theme.bgAlt
             border.width: 1
             border.color: cardMouse.containsMouse ? card.modelData.color : Theme.border

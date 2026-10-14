@@ -21,6 +21,7 @@ Item {
         anchors.fill: parent
         anchors.topMargin: 3
         anchors.bottomMargin: 3
+        radius: Theme.radiusSm
         color: mouse.containsMouse ? Theme.bgHover : "transparent"
     }
 

@@ -79,6 +79,7 @@ PanelWindow {
         width: parent.width
         implicitHeight: (cal.mode === "date" ? dateCol.implicitHeight : timeCol.implicitHeight) + 24
         color: Theme.bg
+        radius: Theme.radius
         border.width: 2
         border.color: Theme.blue
 
@@ -128,7 +129,7 @@ PanelWindow {
                     model: cal.cells
                     Rectangle {
                         required property var modelData
-                        Layout.fillWidth: true; implicitHeight: 28; radius: 4
+                        Layout.fillWidth: true; implicitHeight: 28; radius: Theme.radiusSm
                         color: modelData.isToday ? Theme.blue : "transparent"
                         Text {
                             anchors.centerIn: parent; text: String(parent.modelData.day)
@@ -168,7 +169,7 @@ PanelWindow {
                     }
                     Rectangle {
                         visible: parent.modelData.label !== undefined
-                        Layout.fillWidth: true; implicitHeight: 26; radius: 3
+                        Layout.fillWidth: true; implicitHeight: 26; radius: Theme.radiusSm
                         color: tmMouse.containsMouse ? Theme.bgHover : "transparent"
                         Text {
                             anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 6
@@ -194,7 +195,7 @@ PanelWindow {
                 model: Status.worldClocks
                 Rectangle {
                     required property var modelData
-                    Layout.fillWidth: true; implicitHeight: 26; radius: 3
+                    Layout.fillWidth: true; implicitHeight: 26; radius: Theme.radiusSm
                     color: wcMouse.containsMouse ? Theme.bgHover : Theme.bgAlt
                     RowLayout {
                         anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
@@ -230,7 +231,7 @@ PanelWindow {
                 ]
                 Rectangle {
                     required property var modelData
-                    Layout.fillWidth: true; implicitHeight: 28; radius: 3
+                    Layout.fillWidth: true; implicitHeight: 28; radius: Theme.radiusSm
                     color: actM.containsMouse ? Theme.bgHover : (modelData.accent ? Theme.bgAlt : "transparent")
                     Text {
                         anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 6

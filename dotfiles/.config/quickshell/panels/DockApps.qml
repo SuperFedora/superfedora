@@ -122,7 +122,7 @@ GridLayout {
 
             implicitWidth: tile.boxSize
             implicitHeight: tile.boxSize
-            radius: 3
+            radius: Theme.radiusSm
             scale: tile.isBeingDragged ? 1.08 : 1.0
             color: tile.isBeingDragged
                 ? Theme.bgHover
