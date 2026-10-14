@@ -237,7 +237,11 @@ Item {
                 Layout.fillWidth: true; implicitHeight: 88; radius: Theme.radius; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
                 ColumnLayout {
                     anchors { fill: parent; margins: 12 } spacing: 8
-                    Text { text: "DEFAULT AI HARNESS / CLI AGENT (Used by Quick AI & Quake Terminal)"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "DEFAULT AI HARNESS / CLI AGENT (Used by SuperDock [1] AI & Quake Terminal)"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true; Layout.fillWidth: true }
+                        Rectangle { implicitWidth: 158; implicitHeight: 24; radius: Theme.radiusSm; color: Theme.bg; border.width: 1; border.color: Theme.cyan; Text { anchors.centerIn: parent; text: "[ OLLAMA SERVER & MODEL ]"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: pg.executeCommand("~/.config/hypr/scripts/quake-ai.sh prompt-ollama", false) } }
+                    }
                     RowLayout {
                         Layout.fillWidth: true; Layout.fillHeight: true; spacing: 6
                         Repeater { model: pg.aiAgents; Rectangle { required property var modelData; readonly property bool isCur: Status.aiAgent === modelData.id; Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; color: isCur ? Theme.blue : Theme.bg; border.width: 1; border.color: isCur ? Theme.cyan : Theme.border; Text { anchors.centerIn: parent; text: parent.modelData.label; color: parent.isCur ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.selectAiAgent(parent.modelData.id) } } }

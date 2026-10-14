@@ -4,51 +4,17 @@ import Quickshell
 import Quickshell.Services.Pipewire
 import ".."
 
-// SuperDesk 16-Bit Quick Actions: [1] AI Inline Harness Selector + [4] AUDIO (Privacy & PipeWire) + [5] DISPLAY (Brightness, Kbd & Idle).
+// SuperDesk 16-Bit Quick Actions: [4] AUDIO (Privacy & PipeWire) + [5] DISPLAY (Brightness, Kbd & Idle).
 ColumnLayout {
     id: audioDeck
-    property string activeTab: "ai"
-    property bool agentBarOpen: false
+    property string activeTab: "audio"
     signal executeCommand(string cmd, bool closeAfter)
-    signal agentSelected()
     Layout.fillWidth: true; Layout.fillHeight: true; spacing: 6
 
     readonly property var sink: Pipewire.defaultAudioSink; readonly property bool audioReady: sink !== null && sink.audio !== null
     readonly property real vol: audioReady ? sink.audio.volume : Status.spkVol; readonly property bool muted: audioReady ? sink.audio.muted : Status.spkMuted
     readonly property var source: Pipewire.defaultAudioSource; readonly property bool micReady: source !== null && source.audio !== null
     readonly property real micVol: micReady ? source.audio.volume : Status.micVol; readonly property bool micMuted: micReady ? source.audio.muted : Status.micMuted
-
-    readonly property var agentList: [
-        { id: "agy", label: "AGY" }, { id: "mcode", label: "MCODE" }, { id: "grok", label: "GROK" },
-        { id: "vibe", label: "VIBE" }, { id: "claude", label: "CLAUDE" }, { id: "chatgpt", label: "CODEX" },
-        { id: "ollama", label: "OLLAMA (PI)" }
-    ]
-
-    // ---------------- [1] AI: Inline 16-Bit Harness Picker Bar (Above Live Terminal Harness) ----------------
-    Rectangle {
-        visible: audioDeck.activeTab === "ai" && audioDeck.agentBarOpen
-        Layout.fillWidth: true; implicitHeight: 36; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 2; border.color: Theme.cyan
-        RowLayout {
-            anchors { fill: parent; leftMargin: 8; rightMargin: 8 } spacing: 6
-            Text { text: "HARNESS ▸"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
-            Repeater {
-                model: audioDeck.agentList
-                Rectangle {
-                    required property var modelData; readonly property bool isCur: Status.aiAgent === modelData.id
-                    Layout.fillWidth: true; implicitHeight: 24; radius: Theme.radiusSm
-                    color: agM.containsMouse ? Theme.blue : (isCur ? Theme.blue : Theme.bg)
-                    border.width: isCur ? 2 : 1; border.color: isCur ? Theme.cyan : Theme.border
-                    Text { anchors.centerIn: parent; text: (parent.isCur ? "▸ " : "") + parent.modelData.label; color: (agM.containsMouse || parent.isCur) ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
-                    MouseArea { id: agM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Status.selectAiAgent(parent.modelData.id); audioDeck.agentSelected(); } }
-                }
-            }
-            Rectangle {
-                implicitWidth: 112; implicitHeight: 24; radius: Theme.radiusSm; color: olM.containsMouse ? Theme.cyan : Theme.bg; border.width: 1; border.color: Theme.cyan
-                Text { anchors.centerIn: parent; text: "[ OLLAMA CFG ]"; color: olM.containsMouse ? Theme.bg : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
-                MouseArea { id: olM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { audioDeck.agentSelected(); audioDeck.executeCommand("~/.config/hypr/scripts/quake-ai.sh prompt-ollama", true); } }
-            }
-        }
-    }
 
     // ---------------- [4] AUDIO: Hardware Privacy Gates & PipeWire Routing ----------------
     ColumnLayout {
