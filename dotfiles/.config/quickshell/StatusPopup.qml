@@ -7,7 +7,7 @@ import Quickshell.Services.UPower
 import Quickshell.Bluetooth
 import "panels"
 
-// SuperDesk 16-Bit Quick-Action Console: Uniform size & animation across [1] AI -> [2] WI-FI -> [3] BT -> [4] AUDIO -> [5] DISPLAY -> [6] THEME -> [7] DOCK -> [8] FORGE -> [9] STATE -> [0] POWER.
+// SuperDesk 16-Bit Quick-Action Console: Live LLM Harness ([1] AI, using Pi for Ollama) + Uniform Size & Animation across [1]..[0].
 PanelWindow {
     id: pop
     property var targetScreen: Quickshell.screens[0]
@@ -16,14 +16,15 @@ PanelWindow {
     readonly property string activeTab: Status.normalizeDeckTab(Status.superDeckSection)
     readonly property int fullW: Math.max(960, Math.min(1080, Math.round(pop.targetScreen.width * 0.62)))
     readonly property int fullH: Math.max(410, Math.min(460, Math.round(pop.targetScreen.height * 0.43)))
-    property string confirmCmd: ""; property string confirmLabel: ""
+    property bool agentBarOpen: false; property string confirmCmd: ""; property string confirmLabel: ""
     property int wifiIdx: 0; property string wifiPassSsid: ""; property int btIdx: 0
 
     visible: Status.superDeckOpen && pop.isTargetMon; screen: pop.targetScreen; color: "transparent"
     WlrLayershell.namespace: "superfedora-superdeck"; WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: pop.visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    anchors { top: true; bottom: true; left: true; right: true }
-    margins.top: Theme.barHeight; exclusionMode: ExclusionMode.Ignore
+    WlrLayershell.keyboardFocus: (pop.visible && pop.activeTab !== "ai") ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    anchors.top: true; anchors.bottom: pop.activeTab !== "ai"; anchors.left: pop.activeTab !== "ai"; anchors.right: pop.activeTab !== "ai"
+    margins.top: pop.activeTab === "ai" ? (Theme.barHeight + 6) : Theme.barHeight; exclusionMode: ExclusionMode.Ignore
+    implicitWidth: pop.fullW; implicitHeight: pop.activeTab === "ai" ? (pop.agentBarOpen ? 82 : 40) : pop.fullH
 
     readonly property var btAdapter: Bluetooth.defaultAdapter; readonly property bool btEnabled: btAdapter !== null && btAdapter.enabled
     readonly property var btList: btAdapter ? Bluetooth.devices.values.slice(0, 7) : []
@@ -38,10 +39,8 @@ PanelWindow {
         { id: "power", label: "[0] POWER" }
     ]
 
-    NumberAnimation { id: fadeAnim; target: box; property: "opacity"; from: 0.82; to: 1.0; duration: 60; easing.type: Easing.OutQuad }
-
-    function focusActiveTab() { if (pop.activeTab === "ai") aiAndAudioView.focusInput(); else if (pop.activeTab === "wifi" && pop.wifiPassSsid !== "") wifiPassInput.forceActiveFocus(); else if (pop.activeTab === "forge") catalogView.focusSearch(); else box.forceActiveFocus(); }
-    function selectTab(idx) { if (idx < 0 || idx >= pop.tabs.length) return; pop.confirmCmd = ""; pop.wifiPassSsid = ""; Status.superDeckPowerHighlight = (pop.tabs[idx].id === "power"); Status.superDeckSection = pop.tabs[idx].id; Status.playSfx("click"); pop.focusActiveTab(); }
+    function focusActiveTab() { if (pop.activeTab === "wifi" && pop.wifiPassSsid !== "") wifiPassInput.forceActiveFocus(); else if (pop.activeTab === "forge") catalogView.focusSearch(); else if (pop.activeTab !== "ai") box.forceActiveFocus(); }
+    function selectTab(idx) { if (idx < 0 || idx >= pop.tabs.length) return; pop.confirmCmd = ""; pop.agentBarOpen = false; pop.wifiPassSsid = ""; Status.superDeckPowerHighlight = (pop.tabs[idx].id === "power"); Status.superDeckSection = pop.tabs[idx].id; Status.playSfx("click"); pop.focusActiveTab(); }
     function stepTab(back) { const cur = pop.tabs.findIndex(t => t.id === pop.activeTab); pop.selectTab((Math.max(0, cur) + (back ? (pop.tabs.length - 1) : 1)) % pop.tabs.length); }
     function runCmd(cmd, closeAfter) { if (closeAfter) Status.superDeckOpen = false; Status.playSfx("confirm"); Quickshell.execDetached(["sh", "-c", cmd]); Status.refresh(); }
     function askConfirm(label, cmd) { pop.confirmLabel = label; pop.confirmCmd = cmd; Status.playSfx("alert"); }
@@ -50,14 +49,16 @@ PanelWindow {
     function submitWifiPass() { if (!pop.wifiPassSsid) return; const s = pop.escSh(pop.wifiPassSsid), p = pop.escSh(wifiPassInput.text); pop.wifiPassSsid = ""; wifiPassInput.text = ""; box.forceActiveFocus(); pop.runCmd("nmcli device wifi connect '" + s + "' password '" + p + "'; sleep 0.9 && qs ipc call status refresh", false); }
     function btTrigger(d) { if (!d) return; const m = d.address; pop.runCmd(d.connected ? ("bluetoothctl disconnect " + m) : (d.paired ? ("bluetoothctl connect " + m) : ("bluetoothctl pair " + m + " && bluetoothctl trust " + m + " && bluetoothctl connect " + m)), false); }
 
-    onVisibleChanged: if (pop.visible) { pop.confirmCmd = ""; pop.wifiPassSsid = ""; fadeAnim.restart(); pop.focusActiveTab(); }
-    onActiveTabChanged: if (pop.visible) { pop.confirmCmd = ""; pop.wifiPassSsid = ""; fadeAnim.restart(); pop.focusActiveTab(); }
+    onVisibleChanged: if (pop.visible) { pop.confirmCmd = ""; pop.agentBarOpen = false; pop.wifiPassSsid = ""; pop.focusActiveTab(); }
+    onActiveTabChanged: if (pop.visible) { pop.confirmCmd = ""; pop.agentBarOpen = false; pop.wifiPassSsid = ""; pop.focusActiveTab(); }
+    onAgentBarOpenChanged: if (pop.visible && pop.activeTab === "ai") Status.syncQuakeAi(pop.agentBarOpen ? 82 : 40)
 
-    MouseArea { anchors.fill: parent; onClicked: Status.superDeckOpen = false }
+    MouseArea { visible: pop.activeTab !== "ai"; anchors.fill: parent; onClicked: Status.superDeckOpen = false }
 
     Rectangle {
-        id: box; width: pop.fullW; height: pop.fullH
-        anchors { top: parent.top; topMargin: 6; horizontalCenter: parent.horizontalCenter }
+        id: box
+        width: pop.fullW; height: pop.activeTab === "ai" ? (pop.agentBarOpen ? 82 : 40) : pop.fullH
+        anchors { top: parent.top; topMargin: pop.activeTab === "ai" ? 0 : 6; horizontalCenter: parent.horizontalCenter }
         color: Theme.bg; radius: Theme.radius; border.width: 2; focus: true
         border.color: pop.activeTab === "power" ? Theme.red : Theme.blue
         MouseArea { anchors.fill: parent }
@@ -88,10 +89,10 @@ PanelWindow {
         }
 
         ColumnLayout {
-            anchors { fill: parent; leftMargin: 10; rightMargin: 10; topMargin: 6; bottomMargin: 10 }
-            spacing: 8
+            anchors { fill: parent; leftMargin: 8; rightMargin: 8; topMargin: 4; bottomMargin: pop.activeTab === "ai" ? 4 : 10 }
+            spacing: 6
 
-            // ---------------- 16-Bit Top Tab Bar (1 2 3 4 5 6 7 8 9 0 + SETTINGS + ESC) ----------------
+            // ---------------- 16-Bit Top Tab Bar (1 2 3 4 5 6 7 8 9 0 + HARNESS + SETTINGS + ESC) ----------------
             RowLayout {
                 Layout.fillWidth: true; Layout.preferredHeight: 32; spacing: 4
                 Repeater {
@@ -105,12 +106,18 @@ PanelWindow {
                     }
                 }
                 Rectangle {
-                    implicitWidth: 96; implicitHeight: 30; radius: Theme.radiusSm; color: setM.containsMouse ? Theme.cyan : Theme.bgAlt; border.width: 2; border.color: Theme.cyan
+                    visible: pop.activeTab === "ai"; implicitWidth: agPillTxt.implicitWidth + 14; implicitHeight: 30; radius: Theme.radiusSm
+                    color: agPillM.containsMouse ? Theme.blue : Theme.bgAlt; border.width: 2; border.color: Theme.cyan
+                    Text { id: agPillTxt; anchors.centerIn: parent; text: "[" + (Status.aiAgent === "ollama" ? "OLLAMA (PI)" : Status.aiAgent.toUpperCase()) + (pop.agentBarOpen ? " ▴]" : " ▾]"); color: agPillM.containsMouse ? Theme.bg : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
+                    MouseArea { id: agPillM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: e => { if (e.button === Qt.RightButton) Status.nextAiAgent(); else { pop.agentBarOpen = !pop.agentBarOpen; Status.playSfx("click"); } } }
+                }
+                Rectangle {
+                    implicitWidth: 92; implicitHeight: 30; radius: Theme.radiusSm; color: setM.containsMouse ? Theme.cyan : Theme.bgAlt; border.width: 2; border.color: Theme.cyan
                     Text { anchors.centerIn: parent; text: "[ 󰒓 SETTINGS ]"; color: setM.containsMouse ? Theme.bg : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
                     MouseArea { id: setM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettings(pop.activeTab) }
                 }
                 Rectangle {
-                    implicitWidth: 50; implicitHeight: 30; radius: Theme.radiusSm; color: escM.containsMouse ? Theme.red : Theme.bgAlt; border.width: 2; border.color: escM.containsMouse ? Theme.red : Theme.border
+                    implicitWidth: 48; implicitHeight: 30; radius: Theme.radiusSm; color: escM.containsMouse ? Theme.red : Theme.bgAlt; border.width: 2; border.color: escM.containsMouse ? Theme.red : Theme.border
                     Text { anchors.centerIn: parent; text: "[ESC]"; color: escM.containsMouse ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
                     MouseArea { id: escM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.superDeckOpen = false }
                 }
@@ -118,7 +125,7 @@ PanelWindow {
 
             // Inline 16-Bit Destructive Confirmation Banner
             Rectangle {
-                visible: pop.confirmCmd !== ""
+                visible: pop.confirmCmd !== "" && pop.activeTab !== "ai"
                 Layout.fillWidth: true; implicitHeight: 38; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 2; border.color: Theme.red
                 RowLayout {
                     anchors { fill: parent; margins: 6 } spacing: 8
@@ -217,14 +224,12 @@ PanelWindow {
                 }
             }
 
-            // ---------------- TAB 1 [1] AI + TAB 4 [4] AUDIO + TAB 5 [5] DISPLAY ----------------
+            // ---------------- TAB 1 [1] AI Inline Harness Bar + TAB 4 [4] AUDIO + TAB 5 [5] DISPLAY ----------------
             AiTab {
-                id: aiAndAudioView; visible: pop.activeTab === "ai" || pop.activeTab === "audio" || pop.activeTab === "display"
-                activeTab: pop.activeTab
+                id: aiAndAudioView; visible: (pop.activeTab === "ai" && pop.agentBarOpen) || pop.activeTab === "audio" || pop.activeTab === "display"
+                activeTab: pop.activeTab; agentBarOpen: pop.agentBarOpen
                 onExecuteCommand: (cmd, closeAfter) => pop.runCmd(cmd, closeAfter)
-                onSwitchTabRequested: idx => pop.selectTab(idx)
-                onCycleTabRequested: back => pop.stepTab(back)
-                onCloseRequested: Status.superDeckOpen = false
+                onAgentSelected: pop.agentBarOpen = false
             }
 
             // ---------------- TABS 6..0: [6] THEME, [7] DOCK, [8] FORGE, [9] STATE, [0] POWER ----------------

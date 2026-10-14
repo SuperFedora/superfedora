@@ -176,6 +176,10 @@ Singleton {
         if (s === "startup" || s === "apps" || s === "autostart") return "startup"; if (s === "input" || s === "keyboard" || s === "mouse") return "input"; if (s === "forge" || s === "8") return "forge";
         return (s === "state" || s === "system" || s === "ai" || s === "1" || s === "9") ? "system" : (root.settingsPage || "wifi");
     }
+    property bool _quakeShown: false
+    function syncQuakeAi(hdrH) { const want = root.superDeckOpen && root.normalizeDeckTab(root.superDeckSection) === "ai"; if (!want && !root._quakeShown) return; root._quakeShown = want; Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh " + (want ? ("show " + (hdrH || 40)) : "hide keep-deck") + " >/dev/null 2>&1"]); }
+    onSuperDeckOpenChanged: root.syncQuakeAi()
+    onSuperDeckSectionChanged: if (root.superDeckOpen) root.syncQuakeAi()
     function openSettings(page) { root.superDeckOpen = false; if (page) root.settingsPage = root.normalizeSettingsPage(page); root.settingsOpen = true; root.refresh(); root.playSfx("click"); }
     function toggleSettings(page) {
         if (!page) { root.superDeckOpen = false; root.settingsOpen = !root.settingsOpen; }
@@ -188,7 +192,6 @@ Singleton {
         else { const t = root.normalizeDeckTab(sec); if (root.superDeckOpen && root.superDeckSection === t) root.superDeckOpen = false; else { root.superDeckSection = t; root.superDeckPowerHighlight = (t === "power"); root.superDeckOpen = true; } }
         if (root.superDeckOpen) root.refresh(); root.playSfx("click");
     }
-
     function toggleIdle() { root.idleEnabled = !root.idleEnabled; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-idle.sh"]); }
     Process { id: idleProc; command: ["sh", "-c", "[ ! -f ~/.config/superfedora/stay-awake ] && pgrep -x hypridle >/dev/null"]; onExited: code => root.idleEnabled = code === 0 }
     property bool appGridOpen: false; property var clients: []
@@ -201,7 +204,6 @@ Singleton {
     FileView { id: dockFile; path: Quickshell.env("HOME") + "/.config/superfedora/dock.json" }
     FileView { id: modesFile; path: Quickshell.env("HOME") + "/.config/superfedora/workspace-modes.json" }
     FileView { id: barIconsFile; path: Quickshell.env("HOME") + "/.config/superfedora/bar-icons.json" }
-
     function reloadBarIcons(): void {
         barIconsFile.reload(); const raw = barIconsFile.text().trim(); if (!raw) return;
         try {
@@ -242,10 +244,10 @@ Singleton {
     function wsModeFor(wsId): string { const k = String(wsId); return (root.wsModes && root.wsModes[k]) ? root.wsModes[k] : root.defaultWsMode; }
     function runDockCmd(args): void { Quickshell.execDetached(["sh", "-c", "~/.local/bin/superfedora dock " + args + " 2>/dev/null || ~/Projects/superfedora/superfedora/lib/panel-ctl.sh " + args]); }
     Process { id: clientsProc; command: ["sh", "-c", "hyprctl clients -j 2>/dev/null || echo '[]'"]; stdout: StdioCollector { onStreamFinished: { try { const arr = JSON.parse(text.trim() || "[]"); root.clients = arr.filter(c => c.mapped && c.workspace && (c.workspace.id > 0 || String(c.workspace.name || "").includes("minimized"))); } catch (e) {} } } }
-    Connections { target: Hyprland; function onRawEvent(event) { const n = String(event.name || ""); if (n.includes("window") || n.includes("workspace") || n.includes("focusedmon")) clientsProc.running = true; } }
+    Connections { target: Hyprland; function onRawEvent(event) { const n = String(event.name || ""), d = String(event.data || ""); if (n.includes("window") || n.includes("workspace") || n.includes("focusedmon")) clientsProc.running = true; if (n === "activewindow" && root._quakeShown && d !== "," && !d.startsWith("quake-ai,")) root.superDeckOpen = false; } }
     Component.onCompleted: { root.reloadBarIcons(); root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); clientsProc.running = true; rgbProbeProc.running = true; }
     IpcHandler { target: "dock"; function reload(): void { root.reloadDock(); clientsProc.running = true; } function toggleApps(): void { root.appGridOpen = !root.appGridOpen; root.playSfx("click"); } function toggle(): void { root.runDockCmd("always toggle"); } }
-    IpcHandler { target: "superdeck"; function toggle(): void { root.toggleSuperDeck(""); } function toggleAi(): void { root.toggleSuperDeck("ai"); } function open(sec: string): void { const t = root.normalizeDeckTab(sec); root.settingsOpen = false; root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; root.superDeckOpen = true; root.refresh(); } function numkey(n: string): void { if (root.superDeckOpen) { const t = root.normalizeDeckTab(n); root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; root.refresh(); root.playSfx("click"); } else Hyprland.dispatch("workspace " + (n === "0" ? "empty" : n)); } function close(): void { root.superDeckOpen = false; } }
+    IpcHandler { target: "superdeck"; function toggle(): void { root.toggleSuperDeck(""); } function toggleAi(): void { root.toggleSuperDeck("ai"); } function open(sec: string): void { const t = root.normalizeDeckTab(sec), wasOpen = root.superDeckOpen, prev = root.superDeckSection; root.settingsOpen = false; root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; root.superDeckOpen = true; if (wasOpen && prev === t) root.syncQuakeAi(); root.refresh(); } function numkey(n: string): void { if (root.superDeckOpen) { const t = root.normalizeDeckTab(n), prev = root.superDeckSection; root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; if (prev === t) root.syncQuakeAi(); root.refresh(); root.playSfx("click"); } else Hyprland.dispatch("workspace " + (n === "0" ? "empty" : n)); } function close(): void { root.superDeckOpen = false; } }
     IpcHandler { target: "settings"; function toggle(): void { root.toggleSettings(""); } function open(page: string): void { root.openSettings(page); } function close(): void { root.settingsOpen = false; } }
     IpcHandler { target: "panels"; function settings(): void { root.toggleSettings(""); } }
     IpcHandler { target: "status"; function refresh(): void { root.refresh(); } function reloadBar(): void { root.reloadBarIcons(); } }

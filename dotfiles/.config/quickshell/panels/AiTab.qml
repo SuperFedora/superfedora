@@ -4,68 +4,48 @@ import Quickshell
 import Quickshell.Services.Pipewire
 import ".."
 
-// SuperDesk 16-Bit Quick Actions: [1] AI (Quick AI Prompt & Terminal) + [4] AUDIO (Privacy & PipeWire) + [5] DISPLAY (Brightness, Kbd & Idle).
+// SuperDesk 16-Bit Quick Actions: [1] AI Inline Harness Selector + [4] AUDIO (Privacy & PipeWire) + [5] DISPLAY (Brightness, Kbd & Idle).
 ColumnLayout {
     id: audioDeck
     property string activeTab: "ai"
-    signal executeCommand(string cmd, bool closeAfter); signal switchTabRequested(int tabIndex)
-    signal cycleTabRequested(bool backward); signal closeRequested()
-    Layout.fillWidth: true; Layout.fillHeight: true; spacing: 8
-    function focusInput() { if (audioDeck.activeTab === "ai") aiPromptInput.forceActiveFocus(); }
+    property bool agentBarOpen: false
+    signal executeCommand(string cmd, bool closeAfter)
+    signal agentSelected()
+    Layout.fillWidth: true; Layout.fillHeight: true; spacing: 6
 
     readonly property var sink: Pipewire.defaultAudioSink; readonly property bool audioReady: sink !== null && sink.audio !== null
     readonly property real vol: audioReady ? sink.audio.volume : Status.spkVol; readonly property bool muted: audioReady ? sink.audio.muted : Status.spkMuted
     readonly property var source: Pipewire.defaultAudioSource; readonly property bool micReady: source !== null && source.audio !== null
     readonly property real micVol: micReady ? source.audio.volume : Status.micVol; readonly property bool micMuted: micReady ? source.audio.muted : Status.micMuted
 
-    function submitAiPrompt() { const q = String(aiPromptInput.text || "").trim(); if (!q) return; Status.askQuickAi(q); aiPromptInput.text = ""; }
+    readonly property var agentList: [
+        { id: "agy", label: "AGY" }, { id: "mcode", label: "MCODE" }, { id: "grok", label: "GROK" },
+        { id: "vibe", label: "VIBE" }, { id: "claude", label: "CLAUDE" }, { id: "chatgpt", label: "CODEX" },
+        { id: "ollama", label: "OLLAMA (PI)" }
+    ]
 
-    // ---------------- [1] AI: Quick AI Prompt & Response Console (Same Size & Animation as All Tabs) ----------------
-    ColumnLayout {
-        visible: audioDeck.activeTab === "ai"; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 8
-        Rectangle {
-            Layout.fillWidth: true; implicitHeight: 88; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: Theme.blue
-            Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
-            ColumnLayout {
-                anchors { fill: parent; margins: 12 } spacing: 8
-                RowLayout {
-                    Layout.fillWidth: true; spacing: 8
-                    Text { Layout.fillWidth: true; text: "▸ QUICK AI  —  ACTIVE HARNESS: " + Status.aiAgent.toUpperCase(); color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true }
-                    Rectangle { implicitWidth: 156; implicitHeight: 26; radius: Theme.radiusSm; color: ttyM.containsMouse ? Theme.blue : Theme.bg; border.width: 1; border.color: Theme.cyan; Text { anchors.centerIn: parent; text: "[ 󰆍 OPEN TERMINAL ]"; color: ttyM.containsMouse ? Theme.bg : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: ttyM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: audioDeck.executeCommand("~/.config/hypr/scripts/quake-ai.sh toggle", true) } }
-                }
-                RowLayout {
-                    Layout.fillWidth: true; spacing: 8
-                    Rectangle {
-                        Layout.fillWidth: true; implicitHeight: 34; radius: Theme.radiusSm; color: Theme.bg; border.width: 2; border.color: aiPromptInput.activeFocus ? Theme.cyan : Theme.border
-                        TextInput {
-                            id: aiPromptInput; anchors { fill: parent; leftMargin: 10; rightMargin: 10 } verticalAlignment: TextInput.AlignVCenter
-                            color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; clip: true; Keys.onReturnPressed: audioDeck.submitAiPrompt()
-                            Keys.onPressed: event => {
-                                if (event.key === Qt.Key_Escape) { audioDeck.closeRequested(); event.accepted = true; }
-                                else if ((event.modifiers & (Qt.MetaModifier | Qt.AltModifier | Qt.ControlModifier)) && ((event.key >= Qt.Key_1 && event.key <= Qt.Key_9) || event.key === Qt.Key_0)) { audioDeck.switchTabRequested(event.key === Qt.Key_0 ? 9 : (event.key - Qt.Key_1)); event.accepted = true; }
-                                else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { audioDeck.cycleTabRequested(event.key === Qt.Key_Backtab || Boolean(event.modifiers & Qt.ShiftModifier)); event.accepted = true; }
-                            }
-                            Text { visible: aiPromptInput.text === ""; anchors.verticalCenter: parent.verticalCenter; text: "Ask Quick AI anything and press Enter..."; color: Theme.muted; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1 }
-                        }
-                    }
-                    Rectangle { implicitWidth: 112; implicitHeight: 34; radius: Theme.radiusSm; color: askM.containsMouse ? Theme.cyan : Theme.blue; Text { anchors.centerIn: parent; text: Status.aiBusy ? "[ ... ]" : "[ ASK AI ]"; color: Theme.bg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true } MouseArea { id: askM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: audioDeck.submitAiPrompt() } }
+    // ---------------- [1] AI: Inline 16-Bit Harness Picker Bar (Above Live Terminal Harness) ----------------
+    Rectangle {
+        visible: audioDeck.activeTab === "ai" && audioDeck.agentBarOpen
+        Layout.fillWidth: true; implicitHeight: 36; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 2; border.color: Theme.cyan
+        RowLayout {
+            anchors { fill: parent; leftMargin: 8; rightMargin: 8 } spacing: 6
+            Text { text: "HARNESS ▸"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
+            Repeater {
+                model: audioDeck.agentList
+                Rectangle {
+                    required property var modelData; readonly property bool isCur: Status.aiAgent === modelData.id
+                    Layout.fillWidth: true; implicitHeight: 24; radius: Theme.radiusSm
+                    color: agM.containsMouse ? Theme.blue : (isCur ? Theme.blue : Theme.bg)
+                    border.width: isCur ? 2 : 1; border.color: isCur ? Theme.cyan : Theme.border
+                    Text { anchors.centerIn: parent; text: (parent.isCur ? "▸ " : "") + parent.modelData.label; color: (agM.containsMouse || parent.isCur) ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
+                    MouseArea { id: agM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Status.selectAiAgent(parent.modelData.id); audioDeck.agentSelected(); } }
                 }
             }
-        }
-        Rectangle {
-            Layout.fillWidth: true; Layout.fillHeight: true; clip: true; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: Theme.blue
-            Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
-            ColumnLayout {
-                anchors { fill: parent; margins: 12 } spacing: 6
-                RowLayout {
-                    Layout.fillWidth: true
-                    Text { Layout.fillWidth: true; text: Status.aiBusy ? "▸ PROCESSING PROMPT..." : "▸ RESPONSE OUTPUT"; color: Status.aiBusy ? Theme.yellow : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true }
-                    Rectangle { implicitWidth: 82; implicitHeight: 22; radius: Theme.radiusSm; color: clrM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: Theme.border; Text { anchors.centerIn: parent; text: "[ CLEAR ]"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: clrM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.aiReply = "Ready. Type a prompt above and press Enter." } }
-                }
-                Flickable {
-                    Layout.fillWidth: true; Layout.fillHeight: true; contentHeight: aiOutTxt.implicitHeight; clip: true
-                    Text { id: aiOutTxt; width: parent.width; text: Status.aiReply; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; wrapMode: Text.Wrap }
-                }
+            Rectangle {
+                implicitWidth: 112; implicitHeight: 24; radius: Theme.radiusSm; color: olM.containsMouse ? Theme.cyan : Theme.bg; border.width: 1; border.color: Theme.cyan
+                Text { anchors.centerIn: parent; text: "[ OLLAMA CFG ]"; color: olM.containsMouse ? Theme.bg : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
+                MouseArea { id: olM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { audioDeck.agentSelected(); audioDeck.executeCommand("~/.config/hypr/scripts/quake-ai.sh prompt-ollama", true); } }
             }
         }
     }

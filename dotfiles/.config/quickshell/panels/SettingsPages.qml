@@ -19,7 +19,7 @@ Item {
     readonly property int batPct: batPresent ? Math.round(batDev.percentage <= 1 ? batDev.percentage * 100 : batDev.percentage) : 0
     readonly property var aiAgents: [
         { id: "agy", label: "Antigravity (agy)" }, { id: "claude", label: "Claude Code" }, { id: "chatgpt", label: "ChatGPT / Codex" },
-        { id: "grok", label: "xAI Grok" }, { id: "vibe", label: "Mistral Vibe" }, { id: "mcode", label: "MiniMax Code" }, { id: "ollama", label: "Local Ollama" }
+        { id: "grok", label: "xAI Grok" }, { id: "vibe", label: "Mistral Vibe" }, { id: "mcode", label: "MiniMax Code" }, { id: "ollama", label: "Ollama (Pi)" }
     ]
     readonly property var forgeTargets: ["hyprland", "quickshell", "openrgb", "idlescreen", "ripgrep", "fastfetch", "btop", "fd"]
 

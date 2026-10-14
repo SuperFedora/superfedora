@@ -13,6 +13,5 @@ module_run() {
     # Activate exclusive 16-bit SuperFedora pixel art screensaver if not yet configured
     if is_install && [[ ! -f "$HOME/.config/idlescreen/config.toml" ]] && command -v idlescreen >/dev/null 2>&1; then
         idlescreen set superfedora >/dev/null 2>&1 || true
-        idlescreen text superfedora >/dev/null 2>&1 || true
     fi
 }

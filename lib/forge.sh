@@ -101,14 +101,7 @@ record_forge() {
     ver="$("$BIN_DIR/$bin" --version 2>/dev/null | head -1 || echo "native-$MARCH_TARGET")"
     printf 'component=%s\nrepo=%s\narch=%s\nbuilt_at=%s\ncflags=%s\nrustflags=%s\n' \
         "$name" "$repo" "$MARCH_TARGET" "$(date -u +%FT%TZ)" "$HOST_CFLAGS" "$HOST_RUSTFLAGS" > "$STAMP_DIR/$name.stamp"
-    python3 - "$FORGE_JSON" "$name" "$repo" "$BIN_DIR/$bin" "$sys" "$MARCH_TARGET" "$LINKER" "$ver" <<'PY'
-import datetime, json, os, re, sys
-p, name, repo, bpath, bsys, arch, lnk, ver = sys.argv[1:9]
-ver = re.sub(r"\x1b\[[0-9;]*m", "", ver).strip()
-d = json.load(open(p)) if os.path.exists(p) else {}
-d.setdefault("targets", {})[name] = {"repo": repo, "binary": bpath, "build_system": bsys, "march": arch, "linker": lnk, "version": ver, "built_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
-json.dump(d, open(p, "w"), indent=2)
-PY
+    python3 -c 'import datetime,json,os,re,sys; p,name,repo,bpath,bsys,arch,lnk,ver=sys.argv[1:9]; ver=re.sub(r"\x1b\[[0-9;]*m","",ver).strip(); d=json.load(open(p)) if os.path.exists(p) else {}; d.setdefault("targets",{})[name]={"repo":repo,"binary":bpath,"build_system":bsys,"march":arch,"linker":lnk,"version":ver,"built_at":datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}; json.dump(d,open(p,"w"),indent=2)' "$FORGE_JSON" "$name" "$repo" "$BIN_DIR/$bin" "$sys" "$MARCH_TARGET" "$LINKER" "$ver"
 }
 
 install_bin() {
@@ -132,6 +125,11 @@ forge_generic_dir() {
         [[ -x "$found" ]] || found="$dir/target/release/$bin_hint"
         [[ -x "$found" ]] || found="$(find "$dir/target/$rtarget/release" "$dir/target/release" -maxdepth 1 -type f -executable ! -name '*.so' ! -name '*.d' 2>/dev/null | head -1)"
         install_bin "$found" "$bin_hint"; record_forge "$name" "$repo" "$bin_hint" "cargo"
+        if [[ "$name" == "idlescreen" ]]; then
+            local ext_bin="$dir/target/$rtarget/release/idlescreen-extras"
+            [[ -x "$ext_bin" ]] || ext_bin="$dir/target/release/idlescreen-extras"
+            [[ -x "$ext_bin" ]] && install_bin "$ext_bin" "idlescreen-extras"
+        fi
     elif [[ -f "$dir/CMakeLists.txt" ]]; then
         echo "[+] Building CMake project $name with CFLAGS='$HOST_CFLAGS' (-j$CPU_JOBS)..."
         local gen="-G Unix Makefiles" extra_cmake="-DBUILD_TESTING=OFF -DCMAKE_PREFIX_PATH=$SYSROOT;/usr"
@@ -188,7 +186,7 @@ forge_target() {
     case "${raw,,}" in
         ripgrep|rg|burntsushi/ripgrep) name="ripgrep"; repo="https://github.com/BurntSushi/ripgrep.git"; bin="rg" ;;
         fastfetch|fastfetch-cli/fastfetch) name="fastfetch"; repo="https://github.com/fastfetch-cli/fastfetch.git"; bin="fastfetch" ;;
-        idlescreen|idlescreen/idlescreen) name="idlescreen"; repo="https://github.com/idlescreen/idlescreen.git"; bin="idlescreen"; cargo_args="-p idlescreen --bin idlescreen"; [[ -d "/home/jeryd/Projects/idlescreen/idlescreen" ]] && local_src="/home/jeryd/Projects/idlescreen/idlescreen" ;;
+        idlescreen|idlescreen/idlescreen) name="idlescreen"; repo="https://github.com/idlescreen/idlescreen.git"; bin="idlescreen"; cargo_args="--workspace"; [[ -d "$HOME/Projects/idlescreen/idlescreen" ]] && local_src="$HOME/Projects/idlescreen/idlescreen" ;;
         fd|sharkdp/fd) name="fd"; repo="https://github.com/sharkdp/fd.git"; bin="fd" ;;
         zoxide|ajeetdsouza/zoxide) name="zoxide"; repo="https://github.com/ajeetdsouza/zoxide.git"; bin="zoxide" ;;
         btop|aristocratos/btop) name="btop"; repo="https://github.com/aristocratos/btop.git"; bin="btop" ;;
