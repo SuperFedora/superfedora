@@ -8,7 +8,7 @@ ColumnLayout {
     property string activeSection: "state"
     property bool batPresent: false; property int batPct: 100; property bool batCharging: false
     signal executeCommand(string cmd, bool closeAfter); signal requestConfirm(string label, string cmd)
-    signal switchTabRequested(int tabIndex); signal closeRequested()
+    signal switchTabRequested(int tabIndex); signal cycleTabRequested(bool backward); signal closeRequested()
     Layout.fillWidth: true; Layout.fillHeight: true; spacing: 8
     function focusSearch() { forgeInput.forceActiveFocus(); }
 
@@ -137,9 +137,8 @@ ColumnLayout {
                     Text { text: "󰣪"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize }
                     TextInput {
                         id: forgeInput; Layout.fillWidth: true; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; clip: true
-                        Keys.onEscapePressed: deckBody.closeRequested()
-                        Keys.onReturnPressed: deckBody.runForgeInput()
-                        Keys.onPressed: event => { if ((event.modifiers & (Qt.AltModifier | Qt.ControlModifier)) && event.key >= Qt.Key_1 && event.key <= Qt.Key_5) { deckBody.switchTabRequested(event.key - Qt.Key_1); event.accepted = true; } }
+                        Keys.onEscapePressed: deckBody.closeRequested(); Keys.onReturnPressed: deckBody.runForgeInput()
+                        Keys.onPressed: event => { if ((event.modifiers & (Qt.AltModifier | Qt.ControlModifier)) && event.key >= Qt.Key_1 && event.key <= Qt.Key_5) { deckBody.switchTabRequested(event.key - Qt.Key_1); event.accepted = true; } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { deckBody.cycleTabRequested(event.key === Qt.Key_Backtab || Boolean(event.modifiers & Qt.ShiftModifier)); event.accepted = true; } }
                         Text { visible: forgeInput.text === ""; text: "Type GitHub owner/repo to build from source (-march=native) or filter software..."; color: Theme.muted; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2 }
                     }
                 }
@@ -154,7 +153,7 @@ ColumnLayout {
                     { title: "DEV STACK (mise / Podman DBs) & WORKSTATION APPS", rows: deckBody.filterList(deckBody.devAndAppRows) }
                 ]
                 Rectangle {
-                    id: swCol; required property var modelData; Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
+                    id: swCol; required property var modelData; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
                     ColumnLayout {
                         anchors { fill: parent; margins: 8 } spacing: 3
                         Text { text: swCol.modelData.title; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
@@ -230,14 +229,14 @@ ColumnLayout {
                 }
             }
             Rectangle {
-                Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
+                Layout.fillWidth: true; Layout.fillHeight: true; clip: true; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
                 ColumnLayout {
                     anchors { fill: parent; margins: 8 } spacing: 3
                     Text { text: "QUATTRO DOCK & COSMIC WINDOW TILING"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
                     Repeater {
                         model: deckBody.dockAndTilingRows
                         Rectangle {
-                            id: dkRow; required property var modelData; Layout.fillWidth: true; implicitHeight: 25; radius: Theme.radiusSm; color: dkM.containsMouse ? Theme.bgHover : (modelData.accent ? Theme.bg : "transparent")
+                            id: dkRow; required property var modelData; Layout.fillWidth: true; implicitHeight: 24; radius: Theme.radiusSm; color: dkM.containsMouse ? Theme.bgHover : (modelData.accent ? Theme.bg : "transparent")
                             RowLayout {
                                 anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
                                 Text { Layout.fillWidth: true; text: dkRow.modelData.label; color: dkRow.modelData.accent ? Theme.cyan : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: dkRow.modelData.accent === true; elide: Text.ElideRight }

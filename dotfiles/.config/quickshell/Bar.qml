@@ -166,7 +166,6 @@ PanelWindow {
                     color: Status.netType === "none" ? Theme.red : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
                 }
                 Text {
-                    visible: quickPill.btAdapter !== null
                     text: !quickPill.btAdapter || !quickPill.btAdapter.enabled ? "󰂲" : (quickPill.btConnected > 0 ? "󰂱" : "󰂯")
                     color: quickPill.btAdapter && quickPill.btAdapter.enabled ? Theme.fg : Theme.muted; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
                 }

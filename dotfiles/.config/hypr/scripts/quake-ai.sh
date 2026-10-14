@@ -185,10 +185,14 @@ prompt_add_agent() {
 }
 
 ask_agent() {
-    local q="${*:-}"; [[ -n "${q// /}" ]] || { echo "Please enter a prompt."; return 0; }; resolve_agent "$AI_AGENT"
-    if [[ "$AI_AGENT" == "vibe" ]] && command -v vibe >/dev/null 2>&1; then vibe -p "$q" 2>&1 || "$SF_OLLAMA" ask "$OLLAMA_HOST" "$OLLAMA_MODEL" "$q"
-    elif [[ "$AI_AGENT" == "claude" ]] && command -v claude >/dev/null 2>&1; then claude -p "$q" 2>&1 || "$SF_OLLAMA" ask "$OLLAMA_HOST" "$OLLAMA_MODEL" "$q"
-    else "$SF_OLLAMA" ask "$OLLAMA_HOST" "$OLLAMA_MODEL" "$q"; fi
+    local q="${*:-}" out=""; [[ -n "${q// /}" ]] || { echo "Please enter a prompt."; return 0; }; resolve_agent "$AI_AGENT"
+    case "$AI_AGENT" in
+        agy|grok|vibe|claude)
+            if command -v "$AI_BIN" >/dev/null 2>&1 && out="$(timeout 45 "$AI_BIN" -p "$q" </dev/null 2>&1)" && [[ -n "${out// /}" ]]; then
+                printf '%s\n' "$out"; return 0
+            fi ;;
+    esac
+    "$SF_OLLAMA" ask "$OLLAMA_HOST" "$OLLAMA_MODEL" "$q"
 }
 
 configure_tui() {

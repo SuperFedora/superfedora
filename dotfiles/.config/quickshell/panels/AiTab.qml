@@ -8,14 +8,13 @@ import ".."
 ColumnLayout {
     id: aiTab
     property bool active: false
-    signal switchTabRequested(int tabIndex)
-    signal closeRequested()
+    signal switchTabRequested(int tabIndex); signal cycleTabRequested(bool backward); signal closeRequested()
     Layout.fillWidth: true; Layout.fillHeight: true; spacing: 8
 
     property string activeAgent: "agy"; property string activeLabel: "Antigravity CLI (agy)"
     property string ollamaHost: "127.0.0.1:11434"; property string ollamaModel: "gemma4:latest"
     property bool ollamaOnline: false; property var ollamaModels: []
-    property string pendingCmd: ""; property bool queryRunning: false
+    property string pendingCmd: ""; property string lastPrompt: ""; property bool queryRunning: false
     property string responseText: "SuperDesk AI Console ready. Type a prompt above and press Return to query right inside Quickshell, or click [Launch TTY Console] for full interactive TUI."
     property var agents: [
         { id: "agy",     cat: "core",     label: "Antigravity CLI (agy)",    cmd: "agy",    installed: true,  active: true },
@@ -36,7 +35,7 @@ ColumnLayout {
     function submitPrompt() {
         const q = promptInput.text.trim();
         if (!q || aiTab.queryRunning) return;
-        Status.playSfx("confirm"); aiTab.queryRunning = true;
+        Status.playSfx("confirm"); aiTab.queryRunning = true; aiTab.lastPrompt = q; promptInput.text = "";
         aiTab.responseText = "> [" + aiTab.activeAgent.toUpperCase() + " // " + aiTab.ollamaModel + "] " + q + "\n\nQuerying agent...";
         askProc.command = ["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh ask '" + q.replace(/'/g, "'\\''") + "' 2>&1"];
         askProc.running = false; askProc.running = true;
@@ -47,8 +46,7 @@ ColumnLayout {
         stdout: StdioCollector {
             onStreamFinished: {
                 aiTab.queryRunning = false;
-                const q = promptInput.text.trim(); promptInput.text = "";
-                aiTab.responseText = (q ? ("> [" + aiTab.activeAgent.toUpperCase() + "] " + q + "\n\n") : "") + (text.trim() || "(No output returned)");
+                aiTab.responseText = (aiTab.lastPrompt ? ("> [" + aiTab.activeAgent.toUpperCase() + "] " + aiTab.lastPrompt + "\n\n") : "") + (text.trim() || "(No output returned)");
             }
         }
     }
@@ -121,6 +119,7 @@ ColumnLayout {
                     Keys.onReturnPressed: aiTab.submitPrompt()
                     Keys.onPressed: event => {
                         if ((event.modifiers & (Qt.AltModifier | Qt.ControlModifier)) && event.key >= Qt.Key_1 && event.key <= Qt.Key_5) { aiTab.switchTabRequested(event.key - Qt.Key_1); event.accepted = true; }
+                        else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { aiTab.cycleTabRequested(event.key === Qt.Key_Backtab || Boolean(event.modifiers & Qt.ShiftModifier)); event.accepted = true; }
                     }
                     Text { visible: promptInput.text === ""; text: "Ask " + aiTab.activeAgent + " / " + (aiTab.ollamaModel || "Ollama") + " (Press Return to run in SuperDesk)..."; color: Theme.muted; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2 }
                 }
@@ -150,7 +149,7 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true; Layout.fillHeight: true; spacing: 10
         Rectangle {
-            Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
+            Layout.fillWidth: true; Layout.fillHeight: true; clip: true; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
             ColumnLayout {
                 anchors { fill: parent; margins: 8 } spacing: 3
                 RowLayout {
@@ -189,7 +188,7 @@ ColumnLayout {
             }
         }
         Rectangle {
-            Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
+            Layout.fillWidth: true; Layout.fillHeight: true; clip: true; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
             ColumnLayout {
                 anchors { fill: parent; margins: 8 } spacing: 3
                 RowLayout {

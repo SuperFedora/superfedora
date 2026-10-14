@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Wayland
 import Quickshell.Services.Pipewire
 import Quickshell.Services.UPower
@@ -11,12 +12,14 @@ import "panels"
 PanelWindow {
     id: pop
     property var targetScreen: Quickshell.screens[0]
+    readonly property var hyprMon: Hyprland.monitorFor(pop.targetScreen)
+    readonly property bool isTargetMon: !Hyprland.focusedMonitor ? (pop.targetScreen === Quickshell.screens[0]) : (pop.hyprMon !== null && pop.hyprMon.id === Hyprland.focusedMonitor.id)
     readonly property string activeTab: Status.normalizeDeckTab(Status.superDeckSection)
     property string confirmCmd: ""; property string confirmLabel: ""
 
-    visible: Status.superDeckOpen; screen: pop.targetScreen; color: "transparent"
+    visible: Status.superDeckOpen && pop.isTargetMon; screen: pop.targetScreen; color: "transparent"
     WlrLayershell.namespace: "superfedora-superdeck"; WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: Status.superDeckOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: pop.visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     anchors.top: true; margins.top: Theme.barHeight + 6; exclusionMode: ExclusionMode.Ignore
     implicitWidth: Math.max(860, Math.min(1280, Math.round(pop.targetScreen.width * 0.68)))
     implicitHeight: Math.max(520, Math.min(720, Math.round(pop.targetScreen.height * 0.58)))
@@ -41,9 +44,11 @@ PanelWindow {
         if (idx < 0 || idx >= pop.tabs.length) return;
         pop.confirmCmd = ""; Status.superDeckPowerHighlight = false; Status.superDeckSection = pop.tabs[idx].id; Status.playSfx("click"); pop.focusActiveTab();
     }
+    function stepTab(back) { const cur = pop.tabs.findIndex(t => t.id === pop.activeTab); pop.selectTab((Math.max(0, cur) + (back ? (pop.tabs.length - 1) : 1)) % pop.tabs.length); }
     function runCmd(cmd, closeAfter) { if (closeAfter) Status.superDeckOpen = false; Status.playSfx("confirm"); Quickshell.execDetached(["sh", "-c", cmd]); Status.refresh(); }
     function askConfirm(label, cmd) { pop.confirmLabel = label; pop.confirmCmd = cmd; Status.playSfx("alert"); }
     onVisibleChanged: if (pop.visible) { pop.confirmCmd = ""; pop.focusActiveTab(); }
+    onActiveTabChanged: if (pop.visible) pop.focusActiveTab()
 
     Rectangle {
         id: box; anchors.fill: parent; color: Theme.bg; radius: Theme.radius; border.width: 2
@@ -54,10 +59,7 @@ PanelWindow {
             Keys.onPressed: event => {
                 if (event.key === Qt.Key_Escape) { Status.superDeckOpen = false; event.accepted = true; }
                 else if ((event.modifiers & (Qt.AltModifier | Qt.ControlModifier)) && event.key >= Qt.Key_1 && event.key <= Qt.Key_5) { pop.selectTab(event.key - Qt.Key_1); event.accepted = true; }
-                else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
-                    const cur = pop.tabs.findIndex(t => t.id === pop.activeTab), step = (event.key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier)) ? (pop.tabs.length - 1) : 1;
-                    pop.selectTab((Math.max(0, cur) + step) % pop.tabs.length); event.accepted = true;
-                }
+                else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { pop.stepTab(event.key === Qt.Key_Backtab || Boolean(event.modifiers & Qt.ShiftModifier)); event.accepted = true; }
             }
         }
 
@@ -90,7 +92,7 @@ PanelWindow {
                     Rectangle { implicitWidth: 64; implicitHeight: 22; radius: Theme.radiusSm; color: Theme.bgHover; Text { anchors.centerIn: parent; text: "Cancel"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3 } MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: pop.confirmCmd = "" } }
                 }
             }
-            AiTab { id: aiTabView; visible: pop.activeTab === "ai"; active: pop.visible && pop.activeTab === "ai"; onSwitchTabRequested: idx => pop.selectTab(idx); onCloseRequested: Status.superDeckOpen = false }
+            AiTab { id: aiTabView; visible: pop.activeTab === "ai"; active: pop.visible && pop.activeTab === "ai"; onSwitchTabRequested: idx => pop.selectTab(idx); onCycleTabRequested: back => pop.stepTab(back); onCloseRequested: Status.superDeckOpen = false }
 
             // TAB 2: [2] ZERO TRUST & I/O (Layer 0: Physical Sensor Kill-Switches, Radio Gates & Session Perimeter)
             RowLayout {
@@ -192,7 +194,7 @@ PanelWindow {
 
                 // Right Column: Radio & Network Perimeter Gates (Wi-Fi & Bluetooth)
                 Rectangle {
-                    Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
+                    Layout.fillWidth: true; Layout.fillHeight: true; clip: true; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
                     ColumnLayout {
                         anchors { fill: parent; margins: 9 } spacing: 5
                         RowLayout {
@@ -221,7 +223,7 @@ PanelWindow {
                             Rectangle { implicitWidth: 82; implicitHeight: 22; radius: Theme.radiusSm; color: Theme.bg; border.width: 1; border.color: Theme.blue; Text { anchors.centerIn: parent; text: "󰂯 bluetui TUI"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 4; font.bold: true } MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: pop.runCmd("PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" kitty --class floating-term -e bluetui", true) } }
                         }
                         Repeater {
-                            model: Bluetooth.defaultAdapter ? Bluetooth.devices.values.filter(d => d.connected || d.paired) : []
+                            model: Bluetooth.defaultAdapter ? Bluetooth.devices.values.filter(d => d.connected || d.paired).slice(0, 5) : []
                             Rectangle {
                                 id: btRow; required property var modelData; Layout.fillWidth: true; implicitHeight: 24; radius: Theme.radiusSm; color: btM.containsMouse ? Theme.bgHover : (modelData.connected ? Theme.bg : "transparent")
                                 RowLayout {
@@ -243,6 +245,7 @@ PanelWindow {
                 onExecuteCommand: (cmd, closeAfter) => pop.runCmd(cmd, closeAfter)
                 onRequestConfirm: (label, cmd) => pop.askConfirm(label, cmd)
                 onSwitchTabRequested: idx => pop.selectTab(idx)
+                onCycleTabRequested: back => pop.stepTab(back)
                 onCloseRequested: Status.superDeckOpen = false
             }
         }

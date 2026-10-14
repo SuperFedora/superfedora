@@ -217,14 +217,16 @@ def cmd_chat(host: str, model: str):
             print(f"\033[0m\n  \033[1;31m[Error]\033[0m http://{host}/api/chat ({model}): {exc}")
             history.pop()
 
-
 def cmd_ask(host: str, model: str, prompt: str):
     info = probe_server(host, model)
     host, model = info["host"], info["best"]
+    if not info["online"]:
+        print(f"[Offline] Cannot reach Ollama server at http://{host}. Start Ollama or switch active agent.")
+        return
     payload = json.dumps({"model": model, "messages": [{"role": "user", "content": prompt}], "stream": False}).encode("utf-8")
     req = urllib.request.Request(f"http://{host}/api/chat", data=payload, headers={"Content-Type": "application/json"}, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=90) as resp:
+        with urllib.request.urlopen(req, timeout=60) as resp:
             data = json.loads(resp.read().decode("utf-8", errors="replace"))
         msg = data.get("message") or {}
         print((msg.get("content") or msg.get("thinking") or "(empty response)").strip())
