@@ -24,6 +24,9 @@ Singleton {
     readonly property int iconSize: 18
     readonly property int barHeight: 36
     readonly property int pad: 14
+    property string corners: "square"
+    property int radius: 0
+    property int radiusSm: 0
 
     FileView {
         id: themeFile
@@ -45,6 +48,9 @@ Singleton {
             if (d.muted) root.muted = d.muted;
             if (d.blue) root.blue = d.blue;
             if (d.cyan) root.cyan = d.cyan;
+            if (d.corners) root.corners = d.corners;
+            if (d.radius !== undefined) root.radius = Number(d.radius);
+            if (d.radiusSm !== undefined) root.radiusSm = Number(d.radiusSm);
         } catch (e) {}
     }
 

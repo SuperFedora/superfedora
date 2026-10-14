@@ -29,7 +29,6 @@ ShellRoot {
         EdgePanel { edge: "right" }
     }
 
-    QuakeAi {}
     PanelSettingsPopup {}
     Notifications {}
     Osd {}
@@ -38,5 +37,11 @@ ShellRoot {
     IpcHandler {
         target: "bar"
         function toggle(): void { root.barVisible = !root.barVisible; }
+    }
+
+    IpcHandler {
+        target: "ai"
+        function toggle(): void { Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh toggle"]); }
+        function setAgent(agent: string): void { Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh set-agent '" + agent + "'"]); }
     }
 }

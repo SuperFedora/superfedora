@@ -32,7 +32,7 @@ PanelWindow {
 
     readonly property var items: [
         { section: "LAUNCH" },
-        { label: "Quake AI (agy)",     hint: "SUPER+`", cmd: "~/.config/hypr/scripts/quake-ai.sh toggle" },
+        { label: "Quake AI Console",   hint: "SUPER+`", cmd: "~/.config/hypr/scripts/quake-ai.sh toggle" },
         { label: "App Launcher",       hint: "SUPER+A", cmd: "fuzzel" },
         { label: "Terminal",           hint: "SUPER+T", cmd: "xdg-terminal-exec" },
         { label: "Web Browser",        hint: "SUPER+B", cmd: "gtk-launch \"$(xdg-settings get default-web-browser)\"" },
@@ -41,6 +41,7 @@ PanelWindow {
         { label: "Panels & Dock Studio",hint: "Layout", cmd: "qs ipc call panels settings" },
         { label: "Next 16-Bit Color",  hint: "Cycle",   cmd: "~/.config/hypr/scripts/wallpaper.sh next" },
         { label: "Dark / Light Mode",  hint: "Toggle",  cmd: "~/.config/hypr/scripts/wallpaper.sh toggle" },
+        { label: "Corner Style (90°/Round)", hint: "Toggle", cmd: "~/.config/hypr/scripts/wallpaper.sh corners toggle" },
         { label: "Pick Theme Palette", hint: "Menu",    cmd: "~/.config/hypr/scripts/wallpaper.sh pick" },
         { label: "Toggle Window Gaps", hint: "SUPER+BS",cmd: "~/.config/hypr/scripts/toggle-gaps.sh" },
         { section: "CAPTURE" },
@@ -63,6 +64,7 @@ PanelWindow {
         width: parent.width
         implicitHeight: col.implicitHeight + 20
         color: Theme.bg
+        radius: Theme.radius
         border.width: 2
         border.color: Theme.blue
 
@@ -98,7 +100,7 @@ PanelWindow {
                     Rectangle {
                         visible: !parent.isHeader
                         anchors.fill: parent
-                        radius: 3
+                        radius: Theme.radiusSm
                         color: rowMouse.containsMouse ? Theme.bgHover : "transparent"
 
                         RowLayout {

@@ -181,7 +181,7 @@
 | Super + Shift + T | Activity monitor (btop) |
 | Super + Shift + B | Private browser window |
 | Super + P | Pin floating window |
-| Super + ` | Quake AI drop-down (Antigravity) |
+| Super + ` | Quake AI drop-down console |
 | Super + Shift + ` | Switch Quake AI agent |
 | Super + Ctrl + ` | Toggle scratchpad |
 | Super + Alt + Tab | Next tab in stack |

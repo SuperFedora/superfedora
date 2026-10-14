@@ -11,7 +11,7 @@ The full keybinding reference is generated from the config: **[keybindings.md](k
 | Component | Role | Package source | Config (in `dotfiles/`) |
 | :--- | :--- | :--- | :--- |
 | **Hyprland** | Wayland tiling compositor | COPR `lionheartp/Hyprland` | `.config/hypr/hyprland.conf` + `conf/*.conf` |
-| **Quickshell** | Bar, multi-edge docks, Quake AI HUD, notifications, OSD | Fedora | `.config/quickshell/*.qml` + `panels/*.qml` |
+| **Quickshell** | Bar, multi-edge docks, Top-Bar AI Agent Popover, notifications, OSD | Fedora | `.config/quickshell/*.qml` + `panels/*.qml` |
 | **Hypridle** | Idle -> screensaver -> lock -> DPMS -> suspend | COPR | `.config/hypr/hypridle.conf` |
 | **Hyprlock** | Lock screen | COPR | `.config/hypr/hyprlock.conf` |
 | **Hyprpaper** 0.8 | Wallpaper (block config + IPC) | Fedora | `.config/hypr/hyprpaper.conf` |
@@ -50,7 +50,7 @@ Helpers used by bindings and the bar: `grim`, `slurp`, `wl-clipboard`, `hyprpick
 | Script | Used by |
 | :--- | :--- |
 | `menu.sh` | Fuzzel menus: main, capture, toggles, style, setup, system/power, plus `restart-shell` and `toggle-screenreader` |
-| `quake-ai.sh` | Super+\` Quake-style drop-down AI console (`agy`, `grok`, `mcode`, `vibe`) |
+| `quake-ai.sh` | Super+\` (or `Esc` to hide) Quake-style drop-down AI console (`agy`, `mcode`, `grok`, `vibe`, `claude`, `chatgpt`, `ollama` `ip:port`, and custom agents) |
 | `keybindings.sh` | Super+F1 searchable binding list (from `hyprctl binds`) |
 | `focus.sh` | Stack-aware focus: walks tabs in a group before moving to the next window |
 | `windows.sh` | Super+W window switcher |
@@ -68,7 +68,7 @@ Bindings mirror `pop-os/cosmic-comp` `data/keybindings.ron` entry for entry. Hig
 
 | Keys | Action |
 | :--- | :--- |
-| Super + \` | Quake AI drop-down console (`agy` / Antigravity CLI) |
+| Super + \` (or `Esc` when open) | Quake AI drop-down console |
 | Super + T / B / F | Terminal / browser / file manager |
 | Super + Q, Alt + F4 | Close window |
 | Tap Super, Super + A, Super + / | Launcher |
@@ -111,10 +111,10 @@ Hypridle owns `org.freedesktop.ScreenSaver` on Hyprland and drives IdleScreen:
 
 | File | Purpose |
 | :--- | :--- |
-| `shell.qml` | Multi-edge bars/docks per screen, Quake AI HUD, Panel Studio, notifications, OSD |
-| `Bar.qml` | Menu button, workspaces, submap indicator, clock, tray, Quake AI button, Panel Studio, stay-awake, Bluetooth, network, audio, CPU, battery, power |
+| `shell.qml` | Multi-edge bars/docks per screen, Panel Studio, notifications, OSD |
+| `Bar.qml` | Menu button, workspaces, submap indicator, clock, tray, Quake AI icon (`󰚩`), Panel Studio, stay-awake, Bluetooth, network, audio, CPU, battery, power |
 | `Workspaces.qml` | COSMIC dynamic workspace compaction |
-| `panels/QuakeAi.qml` | Top drop-down Quake AI control bar & agent switcher (`qs ipc call ai ...`) |
+| `panels/AiPopup.qml` | Top-bar AI agent selector (`agy`, `mcode`, `grok`, `vibe`, `claude`, `chatgpt`, `ollama` `ip:port`, and custom agents) |
 | `panels/EdgePanel.qml`, `panels/DockApps.qml`, `panels/HardwareTelemetry.qml`, `panels/PanelSettingsPopup.qml` | Bottom/Left/Right docks, hardware telemetry, and Panel Studio |
 | `Notifications.qml` | Notification server and popups; IPC `notifications` (`dismiss`, `dismissAll`, `toggleDnd`) |
 | `Osd.qml` | Volume popup |

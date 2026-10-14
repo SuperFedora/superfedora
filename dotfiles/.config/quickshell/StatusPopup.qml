@@ -13,7 +13,7 @@ PanelWindow {
     property int rightOffset: 6
     property var targetScreen: Quickshell.screens[0]
 
-    visible: pop.tab !== ""
+    visible: pop.tab !== "" && pop.tab !== "ai"
     screen: pop.targetScreen
     color: "transparent"
 
@@ -141,6 +141,7 @@ PanelWindow {
         width: parent.width
         implicitHeight: col.implicitHeight + 20
         color: Theme.bg
+        radius: Theme.radius
         border.width: 2
         border.color: pop.tab === "power" ? Theme.red : Theme.blue
 
@@ -179,13 +180,13 @@ PanelWindow {
                         visible: parent.modelData.barValue !== undefined
                         Layout.fillWidth: true
                         height: 8
-                        radius: 2
+                        radius: Theme.radiusSm
                         color: Theme.bgAlt
 
                         Rectangle {
                             width: parent.width * Math.max(0, Math.min(1, parent.parent.modelData.barValue || 0))
                             height: parent.height
-                            radius: 2
+                            radius: Theme.radiusSm
                             color: Theme.blue
                         }
 
@@ -203,7 +204,7 @@ PanelWindow {
                         visible: parent.modelData.label !== undefined
                         Layout.fillWidth: true
                         implicitHeight: 28
-                        radius: 3
+                        radius: Theme.radiusSm
                         color: btnMouse.containsMouse ? Theme.bgHover : (parent.modelData.accent ? Theme.bgAlt : "transparent")
 
                         Text {

@@ -5,6 +5,7 @@ import Quickshell.Hyprland
 import Quickshell.Services.Pipewire
 import Quickshell.Services.UPower
 import Quickshell.Bluetooth
+import "panels"
 
 // Omarchy-style top bar: menu + workspaces | clock | tray + status.
 PanelWindow {
@@ -76,6 +77,7 @@ PanelWindow {
     LauncherMenu { id: launcherMenu; targetScreen: bar.modelData }
     Calendar { id: calendarPopup; targetScreen: bar.modelData }
     StatusPopup { id: statusPopup; targetScreen: bar.modelData }
+    AiPopup { id: aiPopup; targetScreen: bar.modelData; open: statusPopup.tab === "ai"; rightOffset: statusPopup.rightOffset; onCloseRequested: statusPopup.tab = "" }
 
     // ---------------- Left ----------------
     RowLayout {
@@ -150,10 +152,11 @@ PanelWindow {
         Tray { bar: bar; Layout.rightMargin: 6 }
 
         BarLabel {
+            id: aiBtn
             text: "󰚩"
-            color: Theme.cyan
-            onClicked: bar.run("~/.config/hypr/scripts/quake-ai.sh toggle")
-            onRightClicked: bar.run("~/.config/hypr/scripts/quake-ai.sh next-agent")
+            color: statusPopup.tab === "ai" ? Theme.blue : Theme.cyan
+            onClicked: bar.toggleStatus("ai", aiBtn)
+            onRightClicked: bar.run("~/.config/hypr/scripts/quake-ai.sh toggle")
         }
 
         BarLabel {

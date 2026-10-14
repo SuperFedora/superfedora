@@ -119,3 +119,42 @@ This document chronicles the installation, origin, configuration, and environmen
   exit 1
   ```
 - **User Data**: `~/.local/share/MstyStudio`
+
+---
+
+## 3. Quake AI Drop-Down Console & Extensible Agent Framework
+
+SuperFedora includes a Quake-style drop-down AI terminal (`SUPER + \`` to toggle, `Esc` or `SUPER + \`` to hide when open, `SUPER + Shift + \`` to cycle agents) integrated with the **Top Bar AI icon (`󰚩`)** popover (`panels/AiPopup.qml`).
+
+### 3.1 Built-In Agent Support
+- **Core Stack**:
+  - `agy` — **Antigravity CLI** (`agy`, default)
+  - `mcode` — **MiniMax Code** (`mcode`)
+  - `grok` — **xAI Grok CLI** (`grok`)
+  - `vibe` — **Mistral Vibe** (`vibe`)
+- **Standard Agents**:
+  - `claude` — **Claude Code** (`claude`)
+  - `chatgpt` — **ChatGPT / OpenAI Codex CLI** (`chatgpt` or `codex`)
+- **Ollama Connection (`ip:port` + model)**:
+  - `ollama` — **Ollama** (`OLLAMA_HOST=<ip:port> ollama run <model>`)
+
+### 3.2 Ollama (`ip:port`) & Custom Agent CLI / TUI Configuration
+All settings persist in `~/.config/superfedora/quake-ai.env` and `~/.config/superfedora/ai-agents.conf` (`id|label|command` lines):
+
+```bash
+# Switch active Quake AI agent
+sf ai set-agent mcode
+sf ai set-agent claude
+sf ai set-agent chatgpt
+
+# Configure Ollama connection with any local or LAN ip:port and model
+sf ai set-ollama 192.168.1.50:11434 qwen2.5-coder
+sf ai set-agent ollama
+
+# Register or remove any custom AI agent CLI
+sf ai add-agent aider "Aider Pair Programmer" "aider"
+sf ai remove-agent aider
+
+# Launch interactive TUI configurator
+sf ai configure
+```

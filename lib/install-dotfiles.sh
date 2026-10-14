@@ -114,6 +114,20 @@ for rel in "${FILES[@]}"; do
     [[ "$rel" == .config/systemd/user/* ]] && units_changed=1
 done
 
+if [[ -d "$TARGET_HOME/.config/quickshell" ]]; then
+    while IFS= read -r -d '' f; do
+        rel="${f#"$TARGET_HOME"/}"
+        case "$rel" in *.bak|*~) continue ;; esac
+        if [[ ! -e "$SRC/$rel" ]]; then
+            mkdir -p "$BACKUP/$(dirname "$rel")"
+            mv "$f" "$BACKUP/$rel"
+            echo "  removed   ~/$rel"
+            changed=$((changed + 1))
+            shell_changed=1
+        fi
+    done < <(find "$TARGET_HOME/.config/quickshell" -type f -print0)
+fi
+
 if [[ -f "$STATE_DIR/theme.env" && -x "$REPO_DIR/lib/apply-theme.sh" && $EUID -ne 0 ]]; then
     "$REPO_DIR/lib/apply-theme.sh" reload || true
 fi
