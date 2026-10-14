@@ -1,23 +1,45 @@
 #!/usr/bin/env bash
-# Capture & Omarchy center-bar tools: screenshot, screen recording, color picker, vox dictation, weather.
-# Usage: screenshot.sh [region|window|screen|record|record-region|color|vox|weather]
+# Capture & Omarchy center-bar tools: screenshot, screen recording (start/pause/stop), and color picker.
+# Usage: screenshot.sh [region|window|screen|record|record-region|record-pause|record-stop|color]
 set -u
 export PATH="$HOME/.local/bin:$PATH"
+state="$HOME/.config/superfedora/recording-file"
+pflag="$HOME/.config/superfedora/recording-paused"
 
 case "${1:-region}" in
-    record|record-region)
-        vdir="$(xdg-user-dir VIDEOS 2>/dev/null || echo "$HOME/Videos")/Recordings"
-        mkdir -p "$vdir"
-        state="$HOME/.config/superfedora/recording-file"
+    record-pause)
         if pgrep -x wf-recorder >/dev/null || pgrep -f '^gpu-screen-recorder' >/dev/null; then
+            if [ -f "$pflag" ]; then
+                rm -f "$pflag"
+                pkill -CONT -x wf-recorder 2>/dev/null || pkill -CONT -f '^gpu-screen-recorder' 2>/dev/null || true
+                notify-send -a SuperFedora "Screen Recording Resumed" "Recording active."
+            else
+                mkdir -p "$HOME/.config/superfedora" && touch "$pflag"
+                pkill -STOP -x wf-recorder 2>/dev/null || pkill -STOP -f '^gpu-screen-recorder' 2>/dev/null || true
+                notify-send -a SuperFedora "Screen Recording Paused" "Click START/RESUME in the top bar to continue."
+            fi
+            qs ipc call status refresh >/dev/null 2>&1 || true
+        fi
+        exit 0 ;;
+    record-stop)
+        rm -f "$pflag"
+        if pgrep -x wf-recorder >/dev/null || pgrep -f '^gpu-screen-recorder' >/dev/null; then
+            pkill -CONT -x wf-recorder 2>/dev/null || pkill -CONT -f '^gpu-screen-recorder' 2>/dev/null || true
             pkill -INT -x wf-recorder 2>/dev/null || pkill -INT -f '^gpu-screen-recorder' 2>/dev/null || true
             sleep 0.4
-            f="$(cat "$state" 2>/dev/null || echo "$vdir")"
+            f="$(cat "$state" 2>/dev/null || echo "$HOME/Videos/Recordings")"
             rm -f "$state"
             qs ipc call status refresh >/dev/null 2>&1 || true
             notify-send -a SuperFedora "Screen Recording Saved" "$(basename "$f")"
-            exit 0
         fi
+        exit 0 ;;
+    record|record-region)
+        vdir="$(xdg-user-dir VIDEOS 2>/dev/null || echo "$HOME/Videos")/Recordings"
+        mkdir -p "$vdir"
+        if pgrep -x wf-recorder >/dev/null || pgrep -f '^gpu-screen-recorder' >/dev/null; then
+            exec "$0" record-stop
+        fi
+        rm -f "$pflag"
         out="$vdir/recording-$(date +%Y%m%d-%H%M%S).mp4"
         mkdir -p "$HOME/.config/superfedora"
         echo "$out" > "$state"
@@ -30,7 +52,7 @@ case "${1:-region}" in
         fi
         sleep 0.25
         qs ipc call status refresh >/dev/null 2>&1 || true
-        notify-send -a SuperFedora "Screen Recording Started" "Click the red recording icon in the top bar to stop."
+        notify-send -a SuperFedora "Screen Recording Started" "Use the PAUSE / STOP controls in the top bar."
         exit 0 ;;
     color)
         sleep 0.15

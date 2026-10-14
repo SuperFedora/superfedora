@@ -9,6 +9,7 @@ Item {
     property bool bold: false
     property int pixelSize: Theme.iconSize
     property string tooltip: ""
+    readonly property bool hovered: mouse.containsMouse
 
     signal clicked()
     signal rightClicked()

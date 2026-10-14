@@ -9,17 +9,12 @@ import Quickshell.Bluetooth
 // Omarchy Quattro + GNOME Top Bar: [SF] + Workspaces | Clock | Collapsible System Tray (◂/▸) + Clean Status Pill.
 PanelWindow {
     id: bar
-    required property var modelData
-    screen: modelData
-
+    required property var modelData; screen: modelData
     readonly property var hyprMonitor: Hyprland.monitorFor(modelData)
-    readonly property int activeWsId: hyprMonitor && hyprMonitor.activeWorkspace
-        ? hyprMonitor.activeWorkspace.id : (Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1)
+    readonly property int activeWsId: hyprMonitor && hyprMonitor.activeWorkspace ? hyprMonitor.activeWorkspace.id : (Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1)
 
-    visible: true
-    anchors { top: true; left: true; right: true }
-    exclusionMode: ExclusionMode.Auto
-    implicitWidth: modelData.width; implicitHeight: Theme.barHeight
+    visible: true; anchors { top: true; left: true; right: true }
+    exclusionMode: ExclusionMode.Auto; implicitWidth: modelData.width; implicitHeight: Theme.barHeight
     color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, Theme.barOpacity)
 
     function run(cmd) { Quickshell.execDetached(["sh", "-c", cmd]); }
@@ -33,59 +28,38 @@ PanelWindow {
         Status.playSfx("click");
     }
 
+    property string hoverTip: ""
+    function setTip(txt, on) { if (on) bar.hoverTip = txt; else if (bar.hoverTip === txt) bar.hoverTip = ""; }
+
     Calendar { id: calendarPopup; targetScreen: bar.modelData }
     StatusPopup { id: statusPopup; targetScreen: bar.modelData }
 
-    // Omarchy Quattro: click empty bar space to close popups; double-click to toggle bar transparency
-    MouseArea {
-        anchors.fill: parent; z: -1
-        onClicked: { Status.superDeckOpen = false; calendarPopup.mode = ""; }
-        onDoubleClicked: { Theme.barOpacity = Theme.barOpacity < 0.99 ? 1.0 : 0.82; Status.playSfx("toggle"); }
+    PanelWindow {
+        visible: bar.hoverTip !== "" && !Status.superDeckOpen && calendarPopup.mode === ""
+        screen: bar.modelData; color: "transparent"; exclusionMode: ExclusionMode.Ignore; anchors.top: true; margins.top: Theme.barHeight + 4
+        implicitWidth: tipText.implicitWidth + 20; implicitHeight: 24
+        Rectangle { anchors.fill: parent; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 1; border.color: Theme.cyan; Text { id: tipText; anchors.centerIn: parent; text: bar.hoverTip; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true } }
     }
+
+    MouseArea { anchors.fill: parent; z: -1; onClicked: { Status.superDeckOpen = false; calendarPopup.mode = ""; } onDoubleClicked: { Theme.barOpacity = Theme.barOpacity < 0.99 ? 1.0 : 0.82; Status.playSfx("toggle"); } }
 
     // ---------------- Left ----------------
     RowLayout {
-        id: leftRow
-        anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: 4 }
-        spacing: 0
-
-        BarLabel {
-            text: "󰣛"
-            color: Status.superDeckOpen ? Theme.cyan : Theme.blue
-            pixelSize: Theme.iconSize + 2
-            onClicked: bar.openDeck("")
-            onRightClicked: bar.openDeck("ai")
-        }
-
+        id: leftRow; anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: 4 } spacing: 0
+        BarLabel { text: "󰣛"; color: Status.superDeckOpen ? Theme.cyan : Theme.blue; pixelSize: Theme.iconSize + 2; onHoveredChanged: bar.setTip("SuperDock Quick Actions (Super+Space)", hovered); onClicked: bar.openDeck(""); onRightClicked: bar.openDeck("ai") }
         Workspaces { monitor: bar.hyprMonitor; thickness: bar.implicitHeight }
-
-        BarLabel {
-            id: modeLabel
-            property string mode: ""
-            visible: mode !== ""
-            text: "󰌌 " + mode.toUpperCase() + "  ·  Esc to exit"
-            color: Theme.yellow; pixelSize: Theme.fontSize; bold: true
-            onClicked: Hyprland.dispatch("submap reset")
-            Connections { target: Hyprland; function onRawEvent(event) { if (event.name === "submap") modeLabel.mode = event.data; } }
-        }
+        BarLabel { id: modeLabel; property string mode: ""; visible: mode !== ""; text: "󰌌 " + mode.toUpperCase() + "  ·  Esc to exit"; color: Theme.yellow; pixelSize: Theme.fontSize; bold: true; onClicked: Hyprland.dispatch("submap reset"); Connections { target: Hyprland; function onRawEvent(event) { if (event.name === "submap") modeLabel.mode = event.data; } } }
     }
 
     // ---------------- Center: Collapsible Left Tool Expander (◂/▸) + Centered Combined Date/Time Button ----------------
-    Connections {
-        target: Status
-        function onCenterToggleSeqChanged() { if (bar.modelData === Quickshell.screens[0]) bar.toggleCenter("date"); }
-    }
+    Connections { target: Status; function onCenterToggleSeqChanged() { if (bar.modelData === Quickshell.screens[0]) bar.toggleCenter("date"); } }
 
     BarLabel {
-        id: centerClock
-        anchors.centerIn: parent
-        property date now: new Date()
+        id: centerClock; anchors.centerIn: parent; property date now: new Date()
         Timer { interval: Status.clockSeconds ? 1000 : 5000; running: true; repeat: true; triggeredOnStart: true; onTriggered: centerClock.now = new Date() }
-        pixelSize: Theme.fontSize; bold: true
-        color: calendarPopup.mode !== "" ? Theme.cyan : Theme.fg
+        pixelSize: Theme.fontSize; bold: true; color: calendarPopup.mode !== "" ? Theme.cyan : Theme.fg
         text: Qt.formatDateTime(centerClock.now, "ddd, MMM d   " + (Status.clock24h ? (Status.clockSeconds ? "HH:mm:ss" : "HH:mm") : (Status.clockSeconds ? "h:mm:ss AP" : "h:mm AP")))
-        onClicked: bar.toggleCenter("date")
-        onRightClicked: bar.toggleCenter("time")
+        onHoveredChanged: bar.setTip("Calendar & Notifications  ·  Right-click: Clock & World Time", hovered); onClicked: bar.toggleCenter("date"); onRightClicked: bar.toggleCenter("time")
     }
 
     RowLayout {
@@ -94,46 +68,63 @@ PanelWindow {
         spacing: 3
 
         readonly property var tools: [
-            { id: "color",  active: false, col: Theme.purple, txt: "󰈊" },
-            { id: "shot",   active: false, col: Theme.cyan,   txt: "󰹑" },
-            { id: "record", active: Status.screenRecording, col: Theme.red, txt: Status.screenRecording ? "󰻂 REC" : "󰻂" },
-            { id: "dnd",    active: Status.dnd || Status.notifUnread > 0, col: Status.dnd ? Theme.yellow : Theme.cyan, txt: Status.dnd ? "󰂛" : (Status.notifUnread > 0 ? ("󰂞 " + Status.notifUnread) : "󰂚") },
-            { id: "idle",   active: !Status.idleEnabled, col: Theme.yellow, txt: !Status.idleEnabled ? "󰅶" : "󰒲" }
+            { id: "color",  active: false, col: Theme.purple, txt: "󰈊", tip: "Color Picker  ·  Copy screen pixel hex to clipboard" },
+            { id: "shot",   active: false, col: Theme.cyan,   txt: "󰹑", tip: "Screenshot  ·  Left-click: Region  ·  Right-click: Full Screen" },
+            { id: "record", active: Status.recorderOpen || Status.screenRecording, col: Theme.red, txt: "󰻂", tip: "Screen Recorder  ·  Toggle Start / Pause recording controls" },
+            { id: "dnd",    active: Status.dnd || Status.notifUnread > 0, col: Status.dnd ? Theme.yellow : Theme.cyan, txt: Status.dnd ? "󰂛" : (Status.notifUnread > 0 ? ("󰂞 " + Status.notifUnread) : "󰂚"), tip: Status.dnd ? "Do Not Disturb: ON (Click to allow notifications)" : "Do Not Disturb: OFF (Click to silence notifications)" },
+            { id: "idle",   active: !Status.idleEnabled, col: Theme.yellow, txt: !Status.idleEnabled ? "󰅶" : "󰒲", tip: !Status.idleEnabled ? "Hot Coffee (Keep Screen On): ON  ·  Screen never locks or sleeps" : "Hot Coffee (Keep Screen On): OFF  ·  Click to keep screen awake" }
         ]
 
         function triggerTool(id, rightBtn) {
             if (id === "idle") { if (rightBtn) bar.openDeck("power"); else Status.toggleIdle(); }
             else if (id === "dnd") { if (rightBtn) bar.toggleCenter("date"); else if (Status.notifAction) Status.notifAction("toggleDnd"); }
-            else if (id === "record") Status.toggleScreenRecord(rightBtn);
+            else if (id === "record") { if (rightBtn) Status.startScreenRecord(true); else { Status.recorderOpen = !Status.recorderOpen; Status.playSfx("click"); } }
             else if (id === "shot") bar.run("~/.config/hypr/scripts/screenshot.sh " + (rightBtn ? "screen" : "region"));
             else if (id === "color") bar.run("~/.config/hypr/scripts/screenshot.sh color");
         }
 
-        RowLayout {
-            visible: Status.centerToolsOpen; spacing: 2
-            Repeater {
-                model: centerLeftTools.tools
-                Rectangle {
-                    id: ctChip; required property var modelData
-                    implicitWidth: ctTxt.implicitWidth + 12; implicitHeight: Theme.barHeight - 8; radius: Theme.radiusSm
-                    color: ctChipM.pressed ? Theme.bgAlt : (ctChipM.containsMouse ? Theme.bgHover : "transparent")
-                    border.width: modelData.active ? 1 : 0; border.color: modelData.col
-                    Text { id: ctTxt; anchors.centerIn: parent; text: ctChip.modelData.txt; color: ctChip.modelData.active ? ctChip.modelData.col : (ctChipM.containsMouse ? Theme.cyan : Theme.fgDim); font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: ctChip.modelData.active }
-                    MouseArea { id: ctChipM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: e => centerLeftTools.triggerTool(ctChip.modelData.id, e.button === Qt.RightButton) }
-                }
+        Repeater {
+            model: centerLeftTools.tools
+            Rectangle {
+                id: ctChip; required property var modelData
+                readonly property bool shown: Status.centerToolsOpen || (modelData.active && (modelData.id === "idle" || modelData.id === "dnd"))
+                visible: shown; implicitWidth: shown ? ctTxt.implicitWidth + 12 : 0; implicitHeight: Theme.barHeight - 8; radius: Theme.radiusSm
+                color: ctChipM.pressed ? Theme.bgAlt : (ctChipM.containsMouse ? Theme.bgHover : "transparent"); border.width: modelData.active ? 1 : 0; border.color: modelData.col
+                Text { id: ctTxt; anchors.centerIn: parent; text: ctChip.modelData.txt; color: ctChip.modelData.active ? ctChip.modelData.col : (ctChipM.containsMouse ? Theme.cyan : Theme.fgDim); font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: ctChip.modelData.active }
+                MouseArea { id: ctChipM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton; onContainsMouseChanged: bar.setTip(ctChip.modelData.tip, containsMouse); onClicked: e => centerLeftTools.triggerTool(ctChip.modelData.id, e.button === Qt.RightButton) }
             }
         }
 
         Rectangle {
-            implicitWidth: 22; implicitHeight: Theme.barHeight - 8; radius: Theme.radiusSm
-            color: ctMouse.containsMouse ? Theme.bgHover : "transparent"
-            Text {
-                anchors.centerIn: parent
-                text: Status.centerToolsOpen ? "▸" : "◂"
-                color: Status.screenRecording ? Theme.red : ((!Status.idleEnabled || Status.dnd) ? Theme.yellow : (Status.centerToolsOpen || ctMouse.containsMouse ? Theme.cyan : Theme.fgDim))
-                font.family: Theme.font; font.pixelSize: Theme.fontSize
+            implicitWidth: 22; implicitHeight: Theme.barHeight - 8; radius: Theme.radiusSm; color: ctMouse.containsMouse ? Theme.bgHover : "transparent"
+            Text { anchors.centerIn: parent; text: Status.centerToolsOpen ? "▸" : "◂"; color: Status.centerToolsOpen || ctMouse.containsMouse ? Theme.cyan : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize }
+            MouseArea { id: ctMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onContainsMouseChanged: bar.setTip(Status.centerToolsOpen ? "Hide Quick Tools" : "Expand Quick Tools (Hot Coffee, DND, Record, Screenshot, Color Picker)", containsMouse); onClicked: { Status.centerToolsOpen = !Status.centerToolsOpen; Status.playSfx("click"); } }
+        }
+    }
+
+    // ---------------- Between Clock & Top-Right Icons: Screen Recording Control Deck ----------------
+    Rectangle {
+        id: recorderDeck
+        visible: Status.recorderOpen || Status.screenRecording
+        anchors { left: centerClock.right; leftMargin: 12; verticalCenter: parent.verticalCenter }
+        implicitWidth: visible ? recRow.implicitWidth + 12 : 0; implicitHeight: Theme.barHeight - 6; radius: Theme.radiusSm
+        color: Theme.bgAlt; border.width: 1; border.color: Status.screenRecording ? (Status.screenPaused ? Theme.yellow : Theme.red) : Theme.cyan
+        RowLayout {
+            id: recRow; anchors.centerIn: parent; spacing: 4
+            Text { text: Status.screenRecording ? (Status.screenPaused ? "󰏤 PAUSED" : "󰻂 REC") : "󰻂 RECORDER"; color: Status.screenRecording ? (Status.screenPaused ? Theme.yellow : Theme.red) : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true }
+            Rectangle {
+                implicitWidth: recStartTxt.implicitWidth + 10; implicitHeight: Theme.barHeight - 10; radius: Theme.radiusSm
+                color: recStartM.containsMouse ? (Status.screenRecording && !Status.screenPaused ? Theme.yellow : Theme.green) : Theme.bg
+                border.width: 1; border.color: Status.screenRecording && !Status.screenPaused ? Theme.yellow : Theme.green
+                Text { id: recStartTxt; anchors.centerIn: parent; text: !Status.screenRecording ? "󰐊 START" : (Status.screenPaused ? "󰐊 START" : "󰏤 PAUSE"); color: recStartM.containsMouse ? Theme.bg : (Status.screenRecording && !Status.screenPaused ? Theme.yellow : Theme.green); font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
+                MouseArea { id: recStartM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton; onContainsMouseChanged: bar.setTip(!Status.screenRecording ? "Start Screen Recording (Left: Full Screen · Right: Select Region)" : (Status.screenPaused ? "Resume Screen Recording" : "Pause Screen Recording"), containsMouse); onClicked: e => { if (!Status.screenRecording) Status.startScreenRecord(e.button === Qt.RightButton); else Status.pauseScreenRecord(); } }
             }
-            MouseArea { id: ctMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Status.centerToolsOpen = !Status.centerToolsOpen; Status.playSfx("click"); } }
+            Rectangle {
+                implicitWidth: recStopTxt.implicitWidth + 10; implicitHeight: Theme.barHeight - 10; radius: Theme.radiusSm
+                color: recStopM.containsMouse ? (Status.screenRecording ? Theme.red : Theme.bgHover) : Theme.bg; border.width: 1; border.color: Status.screenRecording ? Theme.red : Theme.border
+                Text { id: recStopTxt; anchors.centerIn: parent; text: Status.screenRecording ? "󰓛 STOP" : "×"; color: recStopM.containsMouse && Status.screenRecording ? Theme.bg : (Status.screenRecording ? Theme.red : Theme.fgDim); font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
+                MouseArea { id: recStopM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onContainsMouseChanged: bar.setTip(Status.screenRecording ? "Stop & Save Recording to ~/Videos/Recordings" : "Close Screen Recorder Controls", containsMouse); onClicked: { if (Status.screenRecording) Status.stopScreenRecord(); else { Status.recorderOpen = false; Status.playSfx("click"); } } }
+            }
         }
     }
 
@@ -152,25 +143,19 @@ PanelWindow {
         Rectangle {
             id: pocketToggle; implicitWidth: 26; implicitHeight: Theme.barHeight - 8; radius: Theme.radiusSm; color: ptMouse.containsMouse ? Theme.bgHover : "transparent"
             Text { anchors.centerIn: parent; text: Status.pocketOpen ? "▸" : "◂"; color: Status.pocketOpen || ptMouse.containsMouse ? Theme.cyan : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize }
-            MouseArea { id: ptMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Status.pocketOpen = !Status.pocketOpen; Status.playSfx("click"); } }
+            MouseArea { id: ptMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onContainsMouseChanged: bar.setTip(Status.pocketOpen ? "Hide System Tray" : "Expand System Tray", containsMouse); onClicked: { Status.pocketOpen = !Status.pocketOpen; Status.playSfx("click"); } }
         }
 
         Rectangle { implicitWidth: 1; implicitHeight: 14; color: Theme.border }
 
         Rectangle {
             id: quickPill
-            readonly property var sink: Pipewire.defaultAudioSink
-            readonly property bool audioReady: sink !== null && sink.audio !== null
-            readonly property real vol: audioReady ? sink.audio.volume : Status.spkVol
-            readonly property bool muted: audioReady ? sink.audio.muted : Status.spkMuted
-            readonly property var source: Pipewire.defaultAudioSource
-            readonly property bool micReady: source !== null && source.audio !== null
-            readonly property real micVol: micReady ? source.audio.volume : Status.micVol
-            readonly property bool micMuted: micReady ? source.audio.muted : Status.micMuted
-            readonly property var btAdapter: Bluetooth.defaultAdapter
-            readonly property int btConnected: Bluetooth.devices.values.filter(d => d.connected).length
-            readonly property var batDev: UPower.displayDevice
-            readonly property bool batPresent: batDev !== null && batDev.isLaptopBattery
+            readonly property var sink: Pipewire.defaultAudioSink; readonly property bool audioReady: sink !== null && sink.audio !== null
+            readonly property real vol: audioReady ? sink.audio.volume : Status.spkVol; readonly property bool muted: audioReady ? sink.audio.muted : Status.spkMuted
+            readonly property var source: Pipewire.defaultAudioSource; readonly property bool micReady: source !== null && source.audio !== null
+            readonly property real micVol: micReady ? source.audio.volume : Status.micVol; readonly property bool micMuted: micReady ? source.audio.muted : Status.micMuted
+            readonly property var btAdapter: Bluetooth.defaultAdapter; readonly property int btConnected: Bluetooth.devices.values.filter(d => d.connected).length
+            readonly property var batDev: UPower.displayDevice; readonly property bool batPresent: batDev !== null && batDev.isLaptopBattery
             readonly property int batPct: batPresent ? Math.round(batDev.percentage <= 1 ? batDev.percentage * 100 : batDev.percentage) : 0
             readonly property bool batCharging: batPresent && (batDev.state === UPowerDeviceState.Charging || batDev.state === UPowerDeviceState.FullyCharged)
 
@@ -182,6 +167,15 @@ PanelWindow {
                 if (id === "camera") return Status.webcamEnabled ? "󰄀" : "󰗟";
                 if (id === "battery") return quickPill.batCharging ? "󰂄" : (quickPill.batPct <= 15 ? "󰁺" : quickPill.batPct <= 40 ? "󰁼" : quickPill.batPct <= 75 ? "󰂀" : "󰁹");
                 return "󰐥";
+            }
+            function iconTip(id) {
+                if (id === "wifi") return "Wi-Fi: " + (!Status.wifiEnabled ? "Off" : (Status.ssid || Status.netType)) + " (Right-click: Toggle Radio)";
+                if (id === "bluetooth") return "Bluetooth (Right-click: Toggle Power)";
+                if (id === "speaker") return "Speaker: " + (quickPill.muted ? "Muted" : Math.round(quickPill.vol * 100) + "%") + " (Scroll: Volume · Right-click: Mute)";
+                if (id === "mic") return "Microphone: " + (quickPill.micMuted ? "Muted" : Math.round(quickPill.micVol * 100) + "%") + " (Right-click: Mute)";
+                if (id === "camera") return "Webcam Driver: " + (Status.webcamEnabled ? "Enabled" : "Disabled") + " (Right-click: Toggle)";
+                if (id === "battery") return "Battery: " + quickPill.batPct + "% (" + (quickPill.batCharging ? "Charging" : "Discharging") + ")";
+                return "Power & Session Menu";
             }
             function iconSection(id) { return (id === "wifi" || id === "bluetooth") ? id : ((id === "battery" || id === "power") ? "power" : "audio"); }
             function iconColor(id, hovered) {
@@ -226,12 +220,9 @@ PanelWindow {
                             MouseArea {
                                 id: slotMouse; property real dragStartX: 0; property bool didDrag: false
                                 anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                onContainsMouseChanged: if (!slotItem.isDiv) bar.setTip(quickPill.iconTip(slotItem.modelData), containsMouse)
                                 onPressed: e => { dragStartX = e.x; didDrag = false; }
-                                onPositionChanged: e => {
-                                    if (!(pressedButtons & Qt.LeftButton)) return;
-                                    const dx = e.x - dragStartX;
-                                    if (Math.abs(dx) >= 24) { didDrag = true; Status.moveBarIcon(slotItem.modelData, dx > 0 ? 1 : -1); dragStartX = e.x; }
-                                }
+                                onPositionChanged: e => { if (pressedButtons & Qt.LeftButton) { const dx = e.x - dragStartX; if (Math.abs(dx) >= 24) { didDrag = true; Status.moveBarIcon(slotItem.modelData, dx > 0 ? 1 : -1); dragStartX = e.x; } } }
                                 onClicked: e => { if (!didDrag) { if (e.button === Qt.RightButton) quickPill.toggleHardware(slotItem.modelData); else bar.openDeck(quickPill.iconSection(slotItem.modelData)); } }
                                 onWheel: wheel => {
                                     const step = wheel.angleDelta.y > 0 ? 0.05 : -0.05;
