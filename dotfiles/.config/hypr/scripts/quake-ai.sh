@@ -68,15 +68,15 @@ all_agents() {
 }
 
 resolve_agent() {
-    local target cid ccat clabel ccmd cbin found=0
+    local target cid clabel ccmd cbin found=0
     target="$(normalize_id "${1:-$AI_AGENT}")"
-    while IFS='|' read -r cid ccat clabel ccmd cbin; do
+    while IFS='|' read -r cid _ clabel ccmd cbin; do
         if [[ "$cid" == "$target" ]]; then
-            AI_AGENT="$cid"; AI_CATEGORY="$ccat"; AI_LABEL="$clabel"; AI_CMD="$ccmd"; AI_BIN="$cbin"; found=1; break
+            AI_AGENT="$cid"; AI_LABEL="$clabel"; AI_CMD="$ccmd"; AI_BIN="$cbin"; found=1; break
         fi
     done < <(all_agents)
     if [[ $found -eq 0 ]]; then
-        AI_AGENT="agy"; AI_CATEGORY="core"; AI_LABEL="Antigravity CLI (agy)"; AI_CMD="agy"; AI_BIN="agy"
+        AI_AGENT="agy"; AI_LABEL="Antigravity CLI (agy)"; AI_CMD="agy"; AI_BIN="agy"
     fi
     save_state
 }
