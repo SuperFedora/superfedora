@@ -125,7 +125,7 @@ PanelWindow {
         if (pop.tab === "power") {
             return [
                 { header: "SESSION & POWER" },
-                { label: "Lock Screen",       cmd: "loginctl lock-session", close: true },
+                { label: "Lock Screen",       cmd: "qs ipc call lock activate >/dev/null 2>&1 || loginctl lock-session", close: true },
                 { label: "Start IdleScreen",  cmd: "idlescreen start",      close: true },
                 { label: "Suspend",           cmd: "systemctl suspend",     close: true },
                 { label: "Log Out",           cmd: "hyprctl dispatch exit", close: true },

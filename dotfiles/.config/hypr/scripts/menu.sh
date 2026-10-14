@@ -75,7 +75,7 @@ menu_setup() {
 
 menu_system() {
     case "$(pick "System" "  Lock" "󰤄  Suspend" "󰍃  Log out" "󰜉  Restart" "󰐥  Shut down")" in
-        *Lock*)     loginctl lock-session ;;
+        *Lock*)     qs ipc call lock activate >/dev/null 2>&1 || loginctl lock-session ;;
         *Suspend*)  systemctl suspend ;;
         *Log*)      hyprctl dispatch exit ;;
         *Restart*)  systemctl reboot ;;

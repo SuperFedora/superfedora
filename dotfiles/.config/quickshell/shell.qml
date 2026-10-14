@@ -32,6 +32,7 @@ ShellRoot {
     PanelSettingsPopup {}
     Notifications {}
     Osd {}
+    LockScreen {}
 
     // `qs ipc call bar toggle` (bound to SUPER+SHIFT+Space)
     IpcHandler {
