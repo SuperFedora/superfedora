@@ -57,6 +57,8 @@ CMD="${1:-}"; [[ $# -gt 0 ]] && shift
 [[ "$CMD" == "tui" || "$CMD" == "welcome" || "$CMD" == "deck" ]] && exec "$SF_ROOT/lib/tui.sh" "$CMD" "$@"
 [[ "$CMD" == "rollback" || "$CMD" == "snapshots" ]] && exec "$SF_ROOT/lib/tui.sh" rollback "$@"
 [[ "$CMD" == "ai" || "$CMD" == "quake" ]] && exec "$SF_ROOT/dotfiles/.config/hypr/scripts/quake-ai.sh" "$@"
+[[ "$CMD" == "webcam" || "$CMD" == "camera" || "$CMD" == "mic" || "$CMD" == "speaker" ]] && exec "$SF_ROOT/dotfiles/.config/hypr/scripts/toggle-touchpad.sh" "$CMD" "$@"
+[[ "$CMD" == "io" ]] && exec "$SF_ROOT/dotfiles/.config/hypr/scripts/toggle-touchpad.sh" "$@"
 
 SF_BUILD_MODE="${SUPERFEDORA_BUILD_MODE:-}"
 ONLY="" SKIP="" DRY=0

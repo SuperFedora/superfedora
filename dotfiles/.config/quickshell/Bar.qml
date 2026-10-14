@@ -25,7 +25,7 @@ PanelWindow {
     color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, Theme.barOpacity)
 
     function run(cmd) { Quickshell.execDetached(["sh", "-c", cmd]); }
-    PwObjectTracker { objects: [Pipewire.defaultAudioSink] }
+    PwObjectTracker { objects: [Pipewire.defaultAudioSink, Pipewire.defaultAudioSource] }
 
     function openDeck(sec, alignLeft) {
         calendarPopup.mode = ""; bar.aiOpen = false;
@@ -203,8 +203,8 @@ PanelWindow {
                 }
                 Text {
                     visible: quickPill.batPresent
-                    text: (quickPill.batCharging ? "󰂄 " : "󰁹 ") + quickPill.batPct + "%"
-                    color: quickPill.batCharging ? Theme.green : (quickPill.batPct <= 15 ? Theme.red : Theme.fg); font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true
+                    text: quickPill.batCharging ? "󰂄" : (quickPill.batPct <= 15 ? "󰁺" : quickPill.batPct <= 40 ? "󰁼" : quickPill.batPct <= 75 ? "󰂀" : "󰁹")
+                    color: quickPill.batCharging ? Theme.green : (quickPill.batPct <= 15 ? Theme.red : Theme.fg); font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
                 }
                 Text { text: "󰐥"; color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2 }
             }

@@ -73,7 +73,10 @@ ColumnLayout {
         add("style", "󰏘  07 Flame Orange", "Jewel 07", "~/.local/bin/sf theme 07-flame-orange", false);
         add("style", "󰏘  08 Neon Coral", "Jewel 08", "~/.local/bin/sf theme 08-neon-coral", false);
 
-        // 4. Sound & Network
+        // 4. Input / Output, Sound & Network
+        add("net", (Status.spkMuted ? "󰝟  Speakers (Output): Muted -> Unmute" : "󰕾  Speakers (Output): Active -> Mute"), Math.round(Status.spkVol * 100) + "%", "~/.config/hypr/scripts/toggle-touchpad.sh speaker toggle", false, !Status.spkMuted);
+        add("net", (Status.micMuted ? "󰍭  Microphone (Input): Muted -> Unmute" : "󰍬  Microphone (Input): Active -> Mute"), Math.round(Status.micVol * 100) + "%", "~/.config/hypr/scripts/toggle-touchpad.sh mic toggle", false, !Status.micMuted);
+        add("net", (Status.webcamEnabled ? "󰄀  Web Camera: ON -> Turn OFF" : "󰗟  Web Camera: OFF -> Turn ON"), Status.webcamEnabled ? "Active" : "Disabled", "~/.config/hypr/scripts/toggle-touchpad.sh webcam toggle", false, Status.webcamEnabled);
         add("net", "󰕾  Audio Mixer TUI (wiremix)", "PipeWire", "PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" kitty --class floating-term -e wiremix", true, true);
         add("net", "󰤨  Wi-Fi Manager TUI (wlctl)", Status.ssid || Status.netType, "PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" kitty --class floating-term -e wlctl", true, true);
         add("net", "󰂯  Bluetooth Manager TUI (bluetui)", "BlueZ", "PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" kitty --class floating-term -e bluetui", true, true);

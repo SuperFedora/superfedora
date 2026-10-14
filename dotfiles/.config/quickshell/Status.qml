@@ -13,6 +13,7 @@ Singleton {
     property real netRxKbps: 0; property real netTxKbps: 0
     property string netType: "none"; property string ssid: ""; property int signal: 0; property var wifiList: []
     property real brightness: 1.0; property bool idleEnabled: true; property bool sfxEnabled: true
+    property real spkVol: 0.6; property bool spkMuted: false; property real micVol: 1.0; property bool micMuted: false; property bool webcamEnabled: true
     property bool pocketOpen: false; property bool superDeckOpen: false; property string superDeckSection: "quick"
     property bool clock24h: true; property bool clockSeconds: false; property string localTz: "Local"; property bool autoTz: true
     property var worldClocks: []; property bool dnd: false; property bool sessionLocked: false
@@ -80,7 +81,10 @@ Singleton {
         command: ["sh", "-c",
             "nmcli -t -f TYPE,STATE device 2>/dev/null | grep -m1 ':connected$' | cut -d: -f1 || echo none; " +
             "nmcli -t -f ACTIVE,SIGNAL,SSID device wifi list --rescan no 2>/dev/null; " +
-            "b=$(brightnessctl -m 2>/dev/null | cut -d, -f4 | tr -d '%'); echo \"BRI|${b:-100}\""]
+            "b=$(brightnessctl -m 2>/dev/null | cut -d, -f4 | tr -d '%'); echo \"BRI|${b:-100}\"; " +
+            "echo \"SPK|$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null)\"; " +
+            "echo \"MIC|$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null)\"; " +
+            "echo \"CAM|$(cat ~/.config/superfedora/webcam-enabled 2>/dev/null || echo on)\""]
         stdout: StdioCollector {
             onStreamFinished: {
                 const lines = text.trim().split("\n"), type = lines[0] || "none", seen = {}, list = [];
@@ -89,6 +93,23 @@ Singleton {
                     if (lines[i].startsWith("BRI|")) {
                         const bv = Number(lines[i].split("|")[1] || 100);
                         if (!isNaN(bv) && bv > 0) root.brightness = Math.max(0.05, Math.min(1.0, bv / 100.0));
+                        continue;
+                    }
+                    if (lines[i].startsWith("SPK|")) {
+                        const sm = lines[i].match(/Volume:\s*([0-9.]+)/);
+                        if (sm) root.spkVol = Math.max(0, Math.min(1, Number(sm[1])));
+                        root.spkMuted = lines[i].includes("[MUTED]");
+                        continue;
+                    }
+                    if (lines[i].startsWith("MIC|")) {
+                        const mm = lines[i].match(/Volume:\s*([0-9.]+)/);
+                        if (mm) root.micVol = Math.max(0, Math.min(1, Number(mm[1])));
+                        root.micMuted = lines[i].includes("[MUTED]");
+                        continue;
+                    }
+                    if (lines[i].startsWith("CAM|")) {
+                        const cv = (lines[i].split("|")[1] || "on").trim().toLowerCase();
+                        root.webcamEnabled = (cv !== "off" && cv !== "0" && cv !== "false");
                         continue;
                     }
                     const parts = lines[i].split(":"); if (parts.length < 3) continue;
@@ -142,8 +163,14 @@ Singleton {
     }
 
     function reloadSfx() { sfxFile.reload(); root.sfxEnabled = !sfxFile.text().trim().includes("SFX_ENABLED=0"); }
+    function reloadWebcam() { netProc.running = true; }
     function playSfx(name) { if (root.sfxEnabled) Quickshell.execDetached(["sh", "-c", "(~/.local/bin/sf sfx play " + name + " || ~/Projects/superfedora/superfedora/lib/sfx.sh play " + name + ") >/dev/null 2>&1"]); }
     function toggleSfx() { root.sfxEnabled = !root.sfxEnabled; Quickshell.execDetached(["sh", "-c", "(~/.local/bin/sf sfx toggle || ~/Projects/superfedora/superfedora/lib/sfx.sh toggle) >/dev/null 2>&1"]); }
+    function toggleSpeakerMute() { root.spkMuted = !root.spkMuted; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh speaker toggle"]); }
+    function setSpeakerVolume(val) { const c = Math.max(0, Math.min(1, val)); root.spkVol = c; Quickshell.execDetached(["sh", "-c", "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ " + Math.round(c * 100) + "%"]); }
+    function toggleMicMute() { root.micMuted = !root.micMuted; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh mic toggle"]); }
+    function setMicVolume(val) { const c = Math.max(0, Math.min(1, val)); root.micVol = c; Quickshell.execDetached(["sh", "-c", "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SOURCE@ " + Math.round(c * 100) + "%"]); }
+    function toggleWebcam() { root.webcamEnabled = !root.webcamEnabled; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh webcam toggle"]); }
 
     function toggleSuperDeck(sec) {
         const target = sec || "quick";
@@ -193,7 +220,7 @@ Singleton {
     }
 
     Timer { interval: 3500; running: true; repeat: true; triggeredOnStart: true; onTriggered: clientsProc.running = true }
-    Component.onCompleted: { root.reloadDock(); root.reloadSfx(); }
+    Component.onCompleted: { root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); }
 
     IpcHandler {
         target: "dock"
@@ -211,7 +238,7 @@ Singleton {
 
     Timer {
         interval: 6000; running: true; repeat: true; triggeredOnStart: true
-        onTriggered: { netProc.running = true; idleProc.running = true; tzProc.running = true; root.reloadSfx(); }
+        onTriggered: { netProc.running = true; idleProc.running = true; tzProc.running = true; root.reloadSfx(); root.reloadWebcam(); }
     }
-    function refresh() { netProc.running = true; idleProc.running = true; tzProc.running = true; clientsProc.running = true; root.reloadDock(); root.reloadSfx(); }
+    function refresh() { netProc.running = true; idleProc.running = true; tzProc.running = true; clientsProc.running = true; root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); }
 }

@@ -28,8 +28,12 @@ PanelWindow {
 
     readonly property var sink: Pipewire.defaultAudioSink
     readonly property bool audioReady: sink !== null && sink.audio !== null
-    readonly property real vol: audioReady ? sink.audio.volume : 0
-    readonly property bool muted: audioReady ? sink.audio.muted : true
+    readonly property real vol: audioReady ? sink.audio.volume : Status.spkVol
+    readonly property bool muted: audioReady ? sink.audio.muted : Status.spkMuted
+    readonly property var source: Pipewire.defaultAudioSource
+    readonly property bool micReady: source !== null && source.audio !== null
+    readonly property real micVol: micReady ? source.audio.volume : Status.micVol
+    readonly property bool micMuted: micReady ? source.audio.muted : Status.micMuted
     readonly property var btAdapter: Bluetooth.defaultAdapter
     readonly property bool btEnabled: btAdapter !== null && btAdapter.enabled
     readonly property var batDev: UPower.displayDevice
@@ -105,36 +109,85 @@ PanelWindow {
                         }
                     }
                 }
-                Text {
-                    visible: pop.batPresent; text: (pop.batCharging ? "󰂄 " : "󰁹 ") + pop.batPct + "%"
-                    color: pop.batCharging ? Theme.green : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true
+                Rectangle {
+                    visible: pop.batPresent; implicitWidth: batHdrTxt.implicitWidth + 12; implicitHeight: 28; radius: Theme.radiusSm
+                    color: Theme.bgAlt; border.width: 1; border.color: pop.batCharging ? Theme.green : Theme.border
+                    Text {
+                        id: batHdrTxt; anchors.centerIn: parent
+                        text: (pop.batCharging ? "󰂄 " : (pop.batPct <= 15 ? "󰁺 " : pop.batPct <= 40 ? "󰁼 " : pop.batPct <= 75 ? "󰂀 " : "󰁹 ")) + pop.batPct + "%"
+                        color: pop.batCharging ? Theme.green : (pop.batPct <= 15 ? Theme.red : Theme.fg); font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true
+                    }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { Status.superDeckSection = "power"; Status.playSfx("click"); } }
                 }
             }
 
+            // Input / Output Section (Speakers, Microphone, Web Camera, Brightness)
             ColumnLayout {
-                Layout.fillWidth: true; spacing: 6
+                Layout.fillWidth: true; spacing: 5
+
+                RowLayout {
+                    Layout.fillWidth: true; spacing: 6
+                    Text { text: "INPUT / OUTPUT"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 4; font.bold: true }
+                    Item { Layout.fillWidth: true }
+                    Rectangle {
+                        implicitWidth: spkBtnTxt.implicitWidth + 12; implicitHeight: 22; radius: Theme.radiusSm
+                        color: !pop.muted ? Theme.bgAlt : Theme.bg; border.width: 1; border.color: !pop.muted ? Theme.blue : Theme.red
+                        Text { id: spkBtnTxt; anchors.centerIn: parent; text: pop.muted ? "󰝟 Spk: Muted" : ("󰕾 Spk: " + Math.round(pop.vol * 100) + "%"); color: pop.muted ? Theme.red : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 4; font.bold: true }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (pop.audioReady) pop.sink.audio.muted = !pop.sink.audio.muted; Status.toggleSpeakerMute(); } }
+                    }
+                    Rectangle {
+                        implicitWidth: micBtnTxt.implicitWidth + 12; implicitHeight: 22; radius: Theme.radiusSm
+                        color: !pop.micMuted ? Theme.bgAlt : Theme.bg; border.width: 1; border.color: !pop.micMuted ? Theme.green : Theme.red
+                        Text { id: micBtnTxt; anchors.centerIn: parent; text: pop.micMuted ? "󰍭 Mic: Muted" : ("󰍬 Mic: " + Math.round(pop.micVol * 100) + "%"); color: pop.micMuted ? Theme.red : Theme.green; font.family: Theme.font; font.pixelSize: Theme.fontSize - 4; font.bold: true }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (pop.micReady) pop.source.audio.muted = !pop.source.audio.muted; Status.toggleMicMute(); } }
+                    }
+                    Rectangle {
+                        implicitWidth: camBtnTxt.implicitWidth + 12; implicitHeight: 22; radius: Theme.radiusSm
+                        color: Status.webcamEnabled ? Theme.bgAlt : Theme.bg; border.width: 1; border.color: Status.webcamEnabled ? Theme.green : Theme.red
+                        Text { id: camBtnTxt; anchors.centerIn: parent; text: Status.webcamEnabled ? "󰄀 Cam: ON" : "󰗟 Cam: OFF"; color: Status.webcamEnabled ? Theme.green : Theme.red; font.family: Theme.font; font.pixelSize: Theme.fontSize - 4; font.bold: true }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.toggleWebcam() }
+                    }
+                }
 
                 RowLayout {
                     Layout.fillWidth: true; spacing: 8
                     Text {
-                        text: pop.muted ? "󰝟" : (pop.vol >= 0.5 ? "󰕾" : "󰖀"); color: pop.muted ? Theme.muted : Theme.cyan; font.family: Theme.font; font.pixelSize: 16
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (pop.audioReady) pop.sink.audio.muted = !pop.sink.audio.muted }
+                        text: pop.muted ? "󰝟" : (pop.vol >= 0.5 ? "󰕾" : "󰖀"); color: pop.muted ? Theme.red : Theme.cyan; font.family: Theme.font; font.pixelSize: 16; Layout.preferredWidth: 18
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (pop.audioReady) pop.sink.audio.muted = !pop.sink.audio.muted; Status.toggleSpeakerMute(); } }
                     }
                     Rectangle {
                         Layout.fillWidth: true; height: 10; radius: Theme.radiusSm; color: Theme.bgAlt
                         Rectangle { width: parent.width * Math.max(0, Math.min(1, pop.vol)); height: parent.height; radius: Theme.radiusSm; color: pop.muted ? Theme.muted : Theme.blue }
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onPressed: e => { if (pop.audioReady) pop.sink.audio.volume = Math.max(0, Math.min(1, e.x / width)); }
-                            onPositionChanged: e => { if (pressed && pop.audioReady) pop.sink.audio.volume = Math.max(0, Math.min(1, e.x / width)); }
+                            onPressed: e => { const v = Math.max(0, Math.min(1, e.x / width)); if (pop.audioReady) pop.sink.audio.volume = v; Status.setSpeakerVolume(v); }
+                            onPositionChanged: e => { if (pressed) { const v = Math.max(0, Math.min(1, e.x / width)); if (pop.audioReady) pop.sink.audio.volume = v; Status.setSpeakerVolume(v); } }
                         }
                     }
-                    Text { text: Math.round(pop.vol * 100) + "%"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; Layout.preferredWidth: 34; horizontalAlignment: Text.AlignRight }
+                    Text { text: pop.muted ? "MUTE" : (Math.round(pop.vol * 100) + "%"); color: pop.muted ? Theme.red : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; Layout.preferredWidth: 38; horizontalAlignment: Text.AlignRight }
                 }
 
                 RowLayout {
                     Layout.fillWidth: true; spacing: 8
-                    Text { text: "󰃠"; color: Theme.yellow; font.family: Theme.font; font.pixelSize: 16 }
+                    Text {
+                        text: pop.micMuted ? "󰍭" : "󰍬"; color: pop.micMuted ? Theme.red : Theme.green; font.family: Theme.font; font.pixelSize: 16; Layout.preferredWidth: 18
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (pop.micReady) pop.source.audio.muted = !pop.source.audio.muted; Status.toggleMicMute(); } }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true; height: 10; radius: Theme.radiusSm; color: Theme.bgAlt
+                        Rectangle { width: parent.width * Math.max(0, Math.min(1, pop.micVol)); height: parent.height; radius: Theme.radiusSm; color: pop.micMuted ? Theme.muted : Theme.green }
+                        MouseArea {
+                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                            onPressed: e => { const v = Math.max(0, Math.min(1, e.x / width)); if (pop.micReady) pop.source.audio.volume = v; Status.setMicVolume(v); }
+                            onPositionChanged: e => { if (pressed) { const v = Math.max(0, Math.min(1, e.x / width)); if (pop.micReady) pop.source.audio.volume = v; Status.setMicVolume(v); } }
+                        }
+                    }
+                    Text { text: pop.micMuted ? "MUTE" : (Math.round(pop.micVol * 100) + "%"); color: pop.micMuted ? Theme.red : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; Layout.preferredWidth: 38; horizontalAlignment: Text.AlignRight }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true; spacing: 8
+                    Text { text: "󰃠"; color: Theme.yellow; font.family: Theme.font; font.pixelSize: 16; Layout.preferredWidth: 18 }
                     Rectangle {
                         Layout.fillWidth: true; height: 10; radius: Theme.radiusSm; color: Theme.bgAlt
                         Rectangle { width: parent.width * Math.max(0, Math.min(1, Status.brightness)); height: parent.height; radius: Theme.radiusSm; color: Theme.yellow }
@@ -144,7 +197,7 @@ PanelWindow {
                             onPositionChanged: e => { if (pressed) Status.setBrightness(e.x / width); }
                         }
                     }
-                    Text { text: Math.round(Status.brightness * 100) + "%"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; Layout.preferredWidth: 34; horizontalAlignment: Text.AlignRight }
+                    Text { text: Math.round(Status.brightness * 100) + "%"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; Layout.preferredWidth: 38; horizontalAlignment: Text.AlignRight }
                 }
             }
 
