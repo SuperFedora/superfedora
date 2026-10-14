@@ -91,6 +91,9 @@ need_rpmfusion() {
     _rf_t() { rpm -q --quiet rpmfusion-free-release && rpm -q --quiet rpmfusion-nonfree-release; }
     _rf_i() {
         as_root dnf install -y \
+            "https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-${ver}.noarch.rpm" \
+            "https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${ver}.noarch.rpm" \
+        || as_root dnf install -y \
             "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${ver}.noarch.rpm" \
             "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${ver}.noarch.rpm"
     }
