@@ -85,6 +85,7 @@ menu_system() {
 
 restart_shell() {
     pkill -x quickshell || true
+    pkill -x qs || true
     sleep 0.3
     hyprctl dispatch exec quickshell >/dev/null
 }

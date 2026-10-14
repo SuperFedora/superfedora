@@ -164,8 +164,9 @@ if [[ $RELOAD -eq 1 && $changed -gt 0 && -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]
         exit 1
     fi
     echo "Hyprland reloaded (no config errors)"
-    if [[ $shell_changed -eq 1 ]] && pgrep -x quickshell >/dev/null; then
+    if [[ $shell_changed -eq 1 ]] && { pgrep -x quickshell >/dev/null || pgrep -x qs >/dev/null; }; then
         pkill -x quickshell || true
+        pkill -x qs || true
         sleep 0.5
         hyprctl dispatch exec quickshell >/dev/null
         echo "Quickshell restarted"
