@@ -1,6 +1,6 @@
 # SuperFedora Keybindings
 
-> Generated from [`bindings.conf`](../dotfiles/.config/hypr/conf/bindings.conf) for **SuperFedora v0.4.0** by `scripts/gen-keybindings-doc.py`. Do not edit by hand.
+> Generated from [`bindings.conf`](../dotfiles/.config/hypr/conf/bindings.conf) for **SuperFedora v0.5.0** by `scripts/gen-keybindings-doc.py`. Do not edit by hand.
 >
 > Bindings mirror Pop!_OS COSMIC defaults. Press **Super + F1** on the desktop for a searchable list.
 
@@ -179,7 +179,10 @@
 | :--- | :--- |
 | Super + F1 | Show all keybindings |
 | Super + Enter | Terminal |
-| Super + Alt + Space | System menu |
+| Super + Alt + Space | Unified SuperDeck (Menu & Quick Settings) |
+| Super + Shift + , | Unified SuperDeck Settings |
+| Super + Alt + Home | Save workspace window layout |
+| Super + Home | Restore workspace window layout |
 | Ctrl + Alt + Delete | Power menu |
 | Super + Shift + T | Activity monitor (btop) |
 | Super + Shift + B | Private browser window |

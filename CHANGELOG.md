@@ -5,6 +5,17 @@ All notable changes to SuperFedora. Every change ships as a tagged release
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-10-14
+
+### Added
+- **Hardware-Tuned Source Installer (`sf forge`, `lib/forge.sh`):** Added an ergonomic source compiler that clones any `<owner>/<repo>` or preset (`ripgrep`, `fastfetch`, `idlescreen`, `fd`, `zoxide`, `btop`, `wlctl`, `bluetui`, `wiremix`, `fuzzel`, `hyprland`, `quickshell`), detects localhost CPU microarchitecture (`-march=native -mtune=native -O3 -pipe -flto=auto`, `RUSTFLAGS="-C opt-level=3 -C target-cpu=native -C codegen-units=1 -C strip=symbols"`), fast linkers (`mold`/`lld`), and GPU vendor, stages missing `-devel` headers, compiles in parallel (`-j$(nproc)`), atomically installs into `~/.local/bin`, and tracks builds in `~/.config/superfedora/forge.json`.
+- **Day / Night + Square / Rounded Theme Engine & Named Presets (`sf theme`, `lib/apply-theme.sh`):** Added `--mode night|day|dark|light|toggle`, `--corners square|rounded|toggle`, `--nightlight on|off|toggle` (`wlsunset`/`hyprsunset` blue-light filter), and named presets (`snes`, `tokyo-night`, `catppuccin`, `nord`) alongside `01-super-blue`..`08-neon-coral`, live-syncing Hyprland, Quickshell, Fuzzel, Kitty, Ghostty, Tmux, Neovim, and GTK/Portal.
+- **Top Bar Collapsible Pocket, Unified Quick Settings Pill & 16-Bit SNES OSD (`Bar.qml`, `Status.qml`, `Osd.qml`):** Decluttered the top bar with a collapsible Pocket Drawer (`Tray`, `CPU %`, `AI`, `Caffeine`, `AppGrid`), a single unified GNOME-style Quick Settings pill (`Wi-Fi + Bluetooth + Audio + Battery + Power`), consolidated polling with event-driven Hyprland client updates (`Hyprland.onRawEvent`), and a 16-bit SNES segmented HUD bar for volume/mute and brightness changes.
+- **Unified SuperDeck (`LauncherMenu.qml`, `StatusPopup.qml`):** Merged Launcher, Control Center, Style Studio, Forge, Dock Studio, Snapshots, and Power menu into a single SuperDeck with instant app search and direct `owner/repo` source forging, interactive Volume and Brightness sliders, 6 Quick Tiles, and inline power confirmation.
+- **Omarchy Quattro Dock Drag-to-Edge, Layout Snapshots & Two-Speed Resize (`Dock.qml`, `toggle-tiling.sh`, `bindings.conf`):** Added grab-and-drag dock edge repositioning with live ghost slab preview, double-click transparency toggle, hover app-name pill tooltips, 1..3 multi-window pip indicators, `Super + Alt + Home` / `Super + Home` workspace window geometry save/restore, and `CTRL` (`10px` fine) / `ALT` (`80px` coarse) resize tiers while preserving 100% of Pop!_OS COSMIC bindings.
+- **16-Bit SNES Sound Engine & Cartridge Control Deck TUI (`sf sfx`, `sf tui`, `sf welcome`, `lib/sfx.sh`, `lib/tui.sh`):** Added synthesized 16-bit SNES WAV sound effects (`startup`, `click`, `confirm`, `toggle`, `volume`, `alert`) via `pw-play` and an interactive 16-bit SNES startup/workstation TUI.
+- **`grub-btrfs` Boot Menu & Automatic Boot-Guard Rollback (`sf rollback`, `lib/setup-btrfs-snapper.sh`):** Added `/etc/grub.d/41_snapshots-btrfs`, DNF5 post-transaction GRUB snapshot refresh, and `superfedora-boot-guard.service` (`/usr/local/libexec/superfedora-boot-guard`) to automatically revert to the last known-good Btrfs snapshot after 3 consecutive failed boots.
+
 ## [0.4.0] — 2026-10-14
 
 ### Added

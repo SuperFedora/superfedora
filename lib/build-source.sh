@@ -225,6 +225,9 @@ case "$ACTION" in
     wlctl|bluetui|wiremix|tuigreet|fuzzel|btop)
         build_target "$ACTION" "$FORCE" ;;
     *)
+        if [[ -x "$SF_ROOT/lib/forge.sh" ]]; then
+            exec "$SF_ROOT/lib/forge.sh" "$@"
+        fi
         echo "unknown build command: $ACTION" >&2
         sed -n '7,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
         exit 2 ;;

@@ -5,6 +5,10 @@ import Quickshell.Io
 
 Singleton {
     id: root
+    property string theme: "01-super-blue"
+    property string themeName: "Super Blue"
+    property string mode: "dark"
+    property bool nightlight: false
     property color bg: "#1a1b26"
     property color bgAlt: "#24283b"
     property color bgHover: "#292e42"
@@ -20,13 +24,14 @@ Singleton {
     readonly property color red: "#f7768e"
     readonly property color magenta: "#bb9af7"
     readonly property string font: "JetBrainsMono Nerd Font"
-    readonly property int fontSize: 14
+    property int fontSize: 14
     readonly property int iconSize: 18
     readonly property int barHeight: 36
     readonly property int pad: 14
     property string corners: "square"
     property int radius: 0
     property int radiusSm: 0
+    property real barOpacity: 1.0
 
     FileView {
         id: themeFile
@@ -39,6 +44,10 @@ Singleton {
         if (!raw) return;
         try {
             const d = JSON.parse(raw);
+            if (d.theme) root.theme = d.theme;
+            if (d.name) root.themeName = d.name;
+            if (d.mode) root.mode = d.mode;
+            if (d.nightlight !== undefined) root.nightlight = Boolean(d.nightlight);
             if (d.bg) root.bg = d.bg;
             if (d.bgAlt) root.bgAlt = d.bgAlt;
             if (d.bgHover) root.bgHover = d.bgHover;

@@ -7,7 +7,7 @@ import Quickshell.Services.UPower
 import Quickshell.Bluetooth
 import "panels"
 
-// Omarchy-style top bar: menu + workspaces | clock | tray + status.
+// Omarchy Quattro + GNOME Top Bar: [SF] + Workspaces | Clock | Collapsible Pocket (◂/▸) + Unified Quick Settings Pill.
 PanelWindow {
     id: bar
     required property var modelData
@@ -15,53 +15,43 @@ PanelWindow {
 
     readonly property var hyprMonitor: Hyprland.monitorFor(modelData)
     readonly property int activeWsId: hyprMonitor && hyprMonitor.activeWorkspace
-        ? hyprMonitor.activeWorkspace.id
-        : (Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1)
+        ? hyprMonitor.activeWorkspace.id : (Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1)
+    property bool aiOpen: false
 
     visible: true
     anchors { top: true; left: true; right: true }
     exclusionMode: ExclusionMode.Auto
-    implicitWidth: modelData.width
-    implicitHeight: Theme.barHeight
-    color: Theme.bg
+    implicitWidth: modelData.width; implicitHeight: Theme.barHeight
+    color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, Theme.barOpacity)
 
     function run(cmd) { Quickshell.execDetached(["sh", "-c", cmd]); }
     PwObjectTracker { objects: [Pipewire.defaultAudioSink] }
 
-    function toggleLauncher() {
-        const next = !launcherMenu.open;
-        calendarPopup.mode = "";
-        statusPopup.tab = "";
-        launcherMenu.open = next;
+    function openDeck(sec, alignLeft) {
+        calendarPopup.mode = ""; bar.aiOpen = false;
+        statusPopup.leftAligned = alignLeft === true;
+        Status.toggleSuperDeck(sec || "quick");
     }
 
     function toggleCenter(targetMode) {
-        launcherMenu.open = false;
-        statusPopup.tab = "";
+        Status.superDeckOpen = false; bar.aiOpen = false;
         if (calendarPopup.mode === targetMode) calendarPopup.mode = "";
         else {
-            if (targetMode === "date") calendarPopup.resetToToday();
-            else Status.refresh();
+            if (targetMode === "date") calendarPopup.resetToToday(); else Status.refresh();
             calendarPopup.mode = targetMode;
         }
+        Status.playSfx("click");
     }
 
-    function toggleStatus(tabName, item) {
-        launcherMenu.open = false;
-        calendarPopup.mode = "";
-        if (statusPopup.tab === tabName) statusPopup.tab = "";
-        else {
-            const pt = item.mapToItem(null, 0, 0);
-            statusPopup.rightOffset = Math.max(6, Math.round(bar.width - (pt.x + item.width)));
-            Status.refresh();
-            statusPopup.tab = tabName;
-        }
-    }
-
-    LauncherMenu { id: launcherMenu; targetScreen: bar.modelData }
     Calendar { id: calendarPopup; targetScreen: bar.modelData }
     StatusPopup { id: statusPopup; targetScreen: bar.modelData }
-    AiPopup { id: aiPopup; targetScreen: bar.modelData; open: statusPopup.tab === "ai"; rightOffset: statusPopup.rightOffset; onCloseRequested: statusPopup.tab = "" }
+    AiPopup { id: aiPopup; targetScreen: bar.modelData; open: bar.aiOpen; rightOffset: 90; onCloseRequested: bar.aiOpen = false }
+
+    // Omarchy Quattro: double-click empty bar space to toggle bar transparency
+    MouseArea {
+        anchors.fill: parent; z: -1
+        onDoubleClicked: { Theme.barOpacity = Theme.barOpacity < 0.99 ? 1.0 : 0.82; Status.playSfx("toggle"); }
+    }
 
     // ---------------- Left ----------------
     RowLayout {
@@ -71,9 +61,9 @@ PanelWindow {
 
         BarLabel {
             text: "󰣛"
-            color: launcherMenu.open ? Theme.cyan : Theme.blue
+            color: (Status.superDeckOpen && statusPopup.leftAligned) ? Theme.cyan : Theme.blue
             pixelSize: Theme.iconSize + 2
-            onClicked: bar.toggleLauncher()
+            onClicked: bar.openDeck("quick", true)
             onRightClicked: bar.run("fuzzel")
         }
 
@@ -84,39 +74,30 @@ PanelWindow {
             property string mode: ""
             visible: mode !== ""
             text: "󰌌 " + mode.toUpperCase() + "  ·  Esc to exit"
-            color: Theme.yellow
-            pixelSize: Theme.fontSize
-            bold: true
+            color: Theme.yellow; pixelSize: Theme.fontSize; bold: true
             onClicked: Hyprland.dispatch("submap reset")
-            Connections {
-                target: Hyprland
-                function onRawEvent(event) { if (event.name === "submap") modeLabel.mode = event.data; }
-            }
+            Connections { target: Hyprland; function onRawEvent(event) { if (event.name === "submap") modeLabel.mode = event.data; } }
         }
     }
 
     // ---------------- Center ----------------
     Connections {
         target: Status
-        function onCenterToggleSeqChanged() {
-            if (bar.modelData === Quickshell.screens[0]) bar.toggleCenter("date");
-        }
+        function onCenterToggleSeqChanged() { if (bar.modelData === Quickshell.screens[0]) bar.toggleCenter("date"); }
     }
 
     RowLayout {
         id: centerClock
-        anchors.centerIn: parent
-        spacing: 4
+        anchors.centerIn: parent; spacing: 4
         property date now: new Date()
-
-        Timer { interval: 1000; running: true; repeat: true; onTriggered: centerClock.now = new Date() }
+        Timer { interval: Status.clockSeconds ? 1000 : 5000; running: true; repeat: true; triggeredOnStart: true; onTriggered: centerClock.now = new Date() }
 
         BarLabel {
             pixelSize: Theme.fontSize; bold: true
             color: calendarPopup.mode === "date" ? Theme.blue : Theme.fg
             text: Qt.formatDateTime(centerClock.now, "ddd, MMM d")
             onClicked: bar.toggleCenter("date")
-            onRightClicked: { if (Status.notifAction) Status.notifAction("toggleDnd"); }
+            onRightClicked: if (Status.notifAction) Status.notifAction("toggleDnd")
         }
 
         BarLabel {
@@ -132,107 +113,108 @@ PanelWindow {
             color: Status.dnd ? Theme.yellow : (Status.notifUnread > 0 ? Theme.cyan : (calendarPopup.mode === "date" ? Theme.blue : Theme.fgDim))
             text: Status.dnd ? ("󰂛" + (Status.notifUnread > 0 ? " " + Status.notifUnread : "")) : (Status.notifUnread > 0 ? ("󰂞 " + Status.notifUnread) : "󰂚")
             onClicked: bar.toggleCenter("date")
-            onRightClicked: { if (Status.notifAction) Status.notifAction("toggleDnd"); }
+            onRightClicked: if (Status.notifAction) Status.notifAction("toggleDnd")
         }
     }
 
-    // ---------------- Right ----------------
+    // ---------------- Right: Collapsible Pocket Drawer + Unified Quick Settings Pill ----------------
     RowLayout {
         id: rightRow
         anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: 6 }
-        spacing: 0
+        spacing: 6
 
-        Tray { bar: bar; Layout.rightMargin: 6 }
+        Rectangle {
+            id: pocketDrawer
+            visible: Status.pocketOpen
+            implicitWidth: pocketLayout.implicitWidth + 10; implicitHeight: Theme.barHeight - 8
+            radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
 
-        BarLabel {
-            id: aiBtn
-            text: "󰚩"
-            color: statusPopup.tab === "ai" ? Theme.blue : Theme.cyan
-            onClicked: bar.toggleStatus("ai", aiBtn)
-            onRightClicked: { statusPopup.tab = ""; bar.run("~/.config/hypr/scripts/quake-ai.sh toggle"); }
-        }
+            RowLayout {
+                id: pocketLayout; anchors.centerIn: parent; spacing: 2
+                Tray { bar: bar; Layout.rightMargin: 4 }
 
-        BarLabel {
-            text: "󰀻"
-            color: Status.appGridOpen ? Theme.cyan : Theme.fgDim
-            onClicked: Status.appGridOpen = !Status.appGridOpen
-            onRightClicked: Status.runDockCmd("always toggle")
-        }
+                BarLabel {
+                    text: "󰍛 " + Status.cpu + "%"; pixelSize: Theme.fontSize - 2
+                    color: Status.cpu >= 80 ? Theme.red : Theme.fgDim
+                    onClicked: bar.openDeck("snapshots", false)
+                    onRightClicked: bar.run("kitty --class floating-term -e btop")
+                }
 
-        BarLabel {
-            visible: !Status.idleEnabled
-            text: "󰅶"
-            color: Theme.yellow
-            onClicked: { bar.run("~/.config/hypr/scripts/toggle-idle.sh"); Status.refresh(); }
-        }
+                BarLabel {
+                    id: aiBtn; text: "󰚩"; color: bar.aiOpen ? Theme.blue : Theme.cyan
+                    onClicked: { Status.superDeckOpen = false; calendarPopup.mode = ""; bar.aiOpen = !bar.aiOpen; }
+                    onRightClicked: { bar.aiOpen = false; bar.run("~/.config/hypr/scripts/quake-ai.sh toggle"); }
+                }
 
-        BarLabel {
-            id: btBtn
-            readonly property var adapter: Bluetooth.defaultAdapter
-            readonly property int connected: Bluetooth.devices.values.filter(d => d.connected).length
-            visible: adapter !== null
-            text: !adapter || !adapter.enabled ? "󰂲" : (connected > 0 ? "󰂱" : "󰂯")
-            color: statusPopup.tab === "bluetooth" ? Theme.blue : (adapter && adapter.enabled ? Theme.fg : Theme.muted)
-            onClicked: bar.toggleStatus("bluetooth", btBtn)
-            onRightClicked: bar.run("PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" kitty --class floating-term -e bluetui")
-        }
+                BarLabel {
+                    text: Status.idleEnabled ? "󰒲" : "󰅶"; color: Status.idleEnabled ? Theme.fgDim : Theme.yellow
+                    onClicked: { bar.run("~/.config/hypr/scripts/toggle-idle.sh"); Status.refresh(); }
+                }
 
-        BarLabel {
-            id: netBtn
-            text: {
-                if (Status.netType === "ethernet") return "󰀂";
-                if (Status.netType !== "wifi") return "󰤮";
-                const s = Status.signal;
-                return s >= 80 ? "󰤨" : s >= 60 ? "󰤥" : s >= 40 ? "󰤢" : s >= 20 ? "󰤟" : "󰤯";
+                BarLabel {
+                    text: "󰀻"; color: Status.appGridOpen ? Theme.cyan : Theme.fgDim
+                    onClicked: Status.appGridOpen = !Status.appGridOpen
+                    onRightClicked: Status.runDockCmd("always toggle")
+                }
             }
-            color: statusPopup.tab === "network" ? Theme.blue : (Status.netType === "none" ? Theme.muted : Theme.fg)
-            onClicked: bar.toggleStatus("network", netBtn)
-            onRightClicked: bar.run("PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" kitty --class floating-term -e wlctl")
         }
 
         BarLabel {
-            id: audioBtn
+            id: pocketToggle
+            text: Status.pocketOpen ? "▸" : "◂"
+            color: Status.pocketOpen ? Theme.cyan : Theme.fgDim
+            pixelSize: Theme.fontSize
+            onClicked: { Status.pocketOpen = !Status.pocketOpen; Status.playSfx("click"); }
+        }
+
+        Rectangle {
+            id: quickPill
             readonly property var sink: Pipewire.defaultAudioSink
-            readonly property bool ready: sink !== null && sink.audio !== null
-            readonly property real vol: ready ? sink.audio.volume : 0
-            readonly property bool muted: ready ? sink.audio.muted : true
-            text: muted ? "󰝟" : vol >= 0.66 ? "󰕾" : vol >= 0.33 ? "󰖀" : "󰕿"
-            color: statusPopup.tab === "audio" ? Theme.blue : (muted ? Theme.muted : Theme.fg)
-            onClicked: bar.toggleStatus("audio", audioBtn)
-            onRightClicked: bar.run("PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" kitty --class floating-term -e wiremix")
-            onScrolled: delta => {
-                if (ready) sink.audio.volume = Math.max(0, Math.min(1, vol + (delta > 0 ? 0.05 : -0.05)));
+            readonly property bool audioReady: sink !== null && sink.audio !== null
+            readonly property real vol: audioReady ? sink.audio.volume : 0
+            readonly property bool muted: audioReady ? sink.audio.muted : true
+            readonly property var btAdapter: Bluetooth.defaultAdapter
+            readonly property int btConnected: Bluetooth.devices.values.filter(d => d.connected).length
+            readonly property var batDev: UPower.displayDevice
+            readonly property bool batPresent: batDev !== null && batDev.isLaptopBattery
+            readonly property int batPct: batPresent ? Math.round(batDev.percentage <= 1 ? batDev.percentage * 100 : batDev.percentage) : 0
+            readonly property bool batCharging: batPresent && (batDev.state === UPowerDeviceState.Charging || batDev.state === UPowerDeviceState.FullyCharged)
+
+            implicitWidth: pillRow.implicitWidth + 18; implicitHeight: Theme.barHeight - 8
+            radius: Theme.radiusSm
+            color: (Status.superDeckOpen && !statusPopup.leftAligned) || pillMouse.containsMouse ? Theme.bgHover : Theme.bgAlt
+            border.width: (Status.superDeckOpen && !statusPopup.leftAligned) ? 2 : 1
+            border.color: (Status.superDeckOpen && !statusPopup.leftAligned) ? Theme.blue : Theme.border
+
+            RowLayout {
+                id: pillRow; anchors.centerIn: parent; spacing: 8
+                Text {
+                    text: Status.netType === "ethernet" ? "󰀂" : (Status.netType !== "wifi" ? "󰤮" : (Status.signal >= 80 ? "󰤨" : Status.signal >= 60 ? "󰤥" : Status.signal >= 40 ? "󰤢" : Status.signal >= 20 ? "󰤟" : "󰤯"))
+                    color: Status.netType === "none" ? Theme.muted : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                }
+                Text {
+                    visible: quickPill.btAdapter !== null
+                    text: !quickPill.btAdapter || !quickPill.btAdapter.enabled ? "󰂲" : (quickPill.btConnected > 0 ? "󰂱" : "󰂯")
+                    color: quickPill.btAdapter && quickPill.btAdapter.enabled ? Theme.fg : Theme.muted; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                }
+                Text {
+                    text: quickPill.muted ? "󰝟" : quickPill.vol >= 0.66 ? "󰕾" : quickPill.vol >= 0.33 ? "󰖀" : "󰕿"
+                    color: quickPill.muted ? Theme.muted : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                }
+                Text {
+                    visible: quickPill.batPresent
+                    text: (quickPill.batCharging ? "󰂄 " : "󰁹 ") + quickPill.batPct + "%"
+                    color: quickPill.batCharging ? Theme.green : (quickPill.batPct <= 15 ? Theme.red : Theme.fg); font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true
+                }
+                Text { text: "󰐥"; color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2 }
             }
-        }
 
-        BarLabel {
-            id: cpuBtn
-            text: "󰍛"
-            color: statusPopup.tab === "cpu" ? Theme.blue : (Status.cpu >= 80 ? Theme.red : Theme.fg)
-            onClicked: bar.toggleStatus("cpu", cpuBtn)
-            onRightClicked: bar.run("kitty --class floating-term -e btop")
-        }
-
-        BarLabel {
-            id: batBtn
-            readonly property var dev: UPower.displayDevice
-            readonly property bool present: dev !== null && dev.isLaptopBattery
-            readonly property int pct: present ? Math.round(dev.percentage <= 1 ? dev.percentage * 100 : dev.percentage) : 0
-            readonly property bool charging: present
-                && (dev.state === UPowerDeviceState.Charging || dev.state === UPowerDeviceState.FullyCharged)
-            visible: present
-            text: charging ? "󰂄" : ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"][Math.min(10, Math.floor(pct / 10))]
-            color: statusPopup.tab === "battery" ? Theme.blue : (charging ? Theme.green : pct <= 15 ? Theme.red : pct <= 30 ? Theme.yellow : Theme.fg)
-            onClicked: bar.toggleStatus("battery", batBtn)
-            onRightClicked: bar.run("kitty --class floating-term -e btop")
-        }
-
-        BarLabel {
-            id: powerBtn
-            text: "󰐥"
-            color: statusPopup.tab === "power" ? Theme.orange : Theme.red
-            onClicked: bar.toggleStatus("power", powerBtn)
-            onRightClicked: bar.run("~/.config/hypr/scripts/menu.sh system")
+            MouseArea {
+                id: pillMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onClicked: e => bar.openDeck(e.button === Qt.RightButton ? "power" : "quick", false)
+                onWheel: wheel => { if (quickPill.audioReady) quickPill.sink.audio.volume = Math.max(0, Math.min(1, quickPill.vol + (wheel.angleDelta.y > 0 ? 0.05 : -0.05))); }
+            }
         }
     }
 }

@@ -12,14 +12,17 @@
 #   status             Report what is present / missing (changes nothing)
 #   update             Fetch the latest release, then run install
 #   build [action]     Compile & tune from source for localhost CPU (-march=native)
+#   forge [target]     Build & install GitHub repos or presets from source (-march=native)
 #   dotfiles [--check] Deploy desktop configs (or list drift from this release)
-#   theme [action]     Switch 16-bit theme (set, next, prev, toggle, corners, pick)
+#   theme [action]     Switch 16-bit theme (set, next, prev, toggle, corners, nightlight, pick)
 #   dock [action]      Omarchy dock, Launchpad app grid & workspace layout (position, autohide, always, pin, layout)
 #   notify [action]    Notification Center, DND, clear & history (status, dnd, clear, history)
 #   session [action]   Select or switch Desktop Environment (DE) session
+#   sfx [action]       16-bit SNES sound effects engine (status, on, off, toggle, play)
+#   tui | welcome      Launch 16-bit SNES Startup & Workstation Control Deck TUI
 #   ai [action]        Quake AI console, Ollama ip:port & custom agents
 #   modules            List modules in run order
-#   rollback           Revert to the pre-install Btrfs snapshot
+#   rollback [action]  Btrfs snapshot manager, grub-btrfs & Boot-Guard rollback
 #   version            Print the SuperFedora version
 #
 # Options:
@@ -41,7 +44,7 @@ PAGES_URL="https://superfedora.github.io/install.sh"
 # Detection must see user-level installs (rustup, uv, vendor CLIs)
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.minimax-code/bin:$HOME/.grok/bin:$PATH"
 
-usage() { sed -n '6,32p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '6,35p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 CMD="${1:-}"; [[ $# -gt 0 ]] && shift
 [[ "$CMD" == "theme" || "$CMD" == "themes" ]] && exec "$SF_ROOT/lib/apply-theme.sh" "$@"
@@ -49,6 +52,10 @@ CMD="${1:-}"; [[ $# -gt 0 ]] && shift
 [[ "$CMD" == "notify" || "$CMD" == "notifications" || "$CMD" == "notif" ]] && exec "$SF_ROOT/lib/notify-ctl.sh" "$@"
 [[ "$CMD" == "session" || "$CMD" == "de" ]] && exec "$SF_ROOT/lib/session-ctl.sh" "$@"
 [[ "$CMD" == "build" || "$CMD" == "source" ]] && exec "$SF_ROOT/lib/build-source.sh" "$@"
+[[ "$CMD" == "forge" ]] && exec "$SF_ROOT/lib/forge.sh" "$@"
+[[ "$CMD" == "sfx" || "$CMD" == "sound" ]] && exec "$SF_ROOT/lib/sfx.sh" "$@"
+[[ "$CMD" == "tui" || "$CMD" == "welcome" || "$CMD" == "deck" ]] && exec "$SF_ROOT/lib/tui.sh" "$CMD" "$@"
+[[ "$CMD" == "rollback" || "$CMD" == "snapshots" ]] && exec "$SF_ROOT/lib/tui.sh" rollback "$@"
 [[ "$CMD" == "ai" || "$CMD" == "quake" ]] && exec "$SF_ROOT/dotfiles/.config/hypr/scripts/quake-ai.sh" "$@"
 
 SF_BUILD_MODE="${SUPERFEDORA_BUILD_MODE:-}"

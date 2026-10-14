@@ -1,12 +1,14 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Pipewire
 
-// Volume OSD (like Omarchy's swayosd): shows on volume/mute changes.
+// 16-Bit SNES On-Screen Display (OSD) for Volume, Mute & Brightness changes.
 Scope {
     id: root
     property bool shown: false
+    property string mode: "volume" // "volume" | "brightness"
 
     PwObjectTracker {
         objects: [Pipewire.defaultAudioSink]
@@ -15,69 +17,100 @@ Scope {
     readonly property var sink: Pipewire.defaultAudioSink
     readonly property real vol: sink && sink.audio ? sink.audio.volume : 0
     readonly property bool muted: sink && sink.audio ? sink.audio.muted : false
+    readonly property real bri: Status.brightness
+    readonly property real activeVal: root.mode === "brightness" ? root.bri : root.vol
 
     property bool _armed: false
-    onVolChanged: show()
-    onMutedChanged: show()
+    onVolChanged: show("volume")
+    onMutedChanged: show("volume")
+    onBriChanged: show("brightness")
 
-    function show() {
-        if (!_armed) return;   // ignore the initial value on startup
-        shown = true;
+    function show(kind) {
+        if (!_armed) return;
+        root.mode = kind || "volume";
+        root.shown = true;
+        Status.playSfx("volume");
         hide.restart();
     }
 
     Timer { interval: 1500; running: true; onTriggered: root._armed = true }
-    Timer { id: hide; interval: 1200; onTriggered: root.shown = false }
+    Timer { id: hide; interval: 1350; onTriggered: root.shown = false }
+
+    IpcHandler {
+        target: "osd"
+        function volume(): void { root._armed = true; root.show("volume"); }
+        function brightness(): void { root._armed = true; root.show("brightness"); }
+    }
 
     PanelWindow {
         visible: root.shown
         screen: Quickshell.screens[0]
         color: "transparent"
         anchors.bottom: true
-        margins.bottom: 80
+        margins.bottom: 84
         exclusionMode: ExclusionMode.Ignore
-        implicitWidth: 260
-        implicitHeight: 44
+        implicitWidth: 296
+        implicitHeight: 54
 
         Rectangle {
             anchors.fill: parent
             color: Theme.bg
             radius: Theme.radius
             border.width: 2
-            border.color: Theme.blue
+            border.color: root.mode === "brightness" ? Theme.yellow : Theme.blue
 
             RowLayout {
                 anchors.fill: parent
                 anchors.margins: 12
-                spacing: 12
+                spacing: 10
 
                 Text {
-                    text: root.muted ? "󰝟" : root.vol >= 0.66 ? "󰕾" : root.vol >= 0.33 ? "󰖀" : "󰕿"
-                    color: Theme.fg
+                    text: root.mode === "brightness"
+                        ? (root.bri >= 0.66 ? "󰃠" : root.bri >= 0.33 ? "󰃟" : "󰃞")
+                        : (root.muted ? "󰝟" : root.vol >= 0.66 ? "󰕾" : root.vol >= 0.33 ? "󰖀" : "󰕿")
+                    color: root.mode === "brightness" ? Theme.yellow : (root.muted ? Theme.muted : Theme.cyan)
                     font.family: Theme.font
-                    font.pixelSize: 18
+                    font.pixelSize: 20
                 }
 
-                Rectangle {
+                ColumnLayout {
                     Layout.fillWidth: true
-                    height: 6
-                    radius: Theme.radiusSm
-                    color: Theme.bgAlt
-                    Rectangle {
-                        width: parent.width * Math.min(1, root.vol)
-                        height: parent.height
-                        radius: Theme.radiusSm
-                        color: root.muted ? Theme.muted : Theme.blue
-                    }
-                }
+                    spacing: 3
 
-                Text {
-                    text: Math.round(root.vol * 100)
-                    color: Theme.fgDim
-                    font.family: Theme.font
-                    font.pixelSize: 12
-                    Layout.preferredWidth: 26
-                    horizontalAlignment: Text.AlignRight
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: root.mode === "brightness" ? "DISPLAY LUMEN" : (root.muted ? "AUDIO MUTED" : "MASTER AUDIO")
+                            color: Theme.fgDim
+                            font.family: Theme.font
+                            font.pixelSize: 10
+                            font.bold: true
+                        }
+                        Item { Layout.fillWidth: true }
+                        Text {
+                            text: Math.round(root.activeVal * 100) + "%"
+                            color: Theme.fg
+                            font.family: Theme.font
+                            font.pixelSize: 11
+                            font.bold: true
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Repeater {
+                            model: 16
+                            Rectangle {
+                                required property int index
+                                Layout.fillWidth: true
+                                height: 8
+                                radius: Theme.radiusSm > 0 ? 2 : 0
+                                readonly property bool lit: (index + 1) / 16.0 <= root.activeVal + 0.02
+                                color: !lit ? Theme.bgAlt : (root.mode === "brightness" ? Theme.yellow : (root.muted ? Theme.muted : (index >= 13 ? Theme.cyan : Theme.blue)))
+                            }
+                        }
+                    }
                 }
             }
         }

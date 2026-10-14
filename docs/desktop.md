@@ -107,26 +107,30 @@ Hypridle owns `org.freedesktop.ScreenSaver` on Hyprland and drives IdleScreen:
 
 ---
 
-## 5. Quickshell bar & panels
+## 5. Quickshell bar, Unified SuperDeck & Omarchy Quattro Dock
 
 | File | Purpose |
 | :--- | :--- |
-| `shell.qml` | Omarchy-style Top Bar + Dock per screen, Launchpad App Grid, notifications, OSD, LockScreen |
-| `Bar.qml` | Menu button, workspaces, submap indicator, clock, tray, Quake AI icon (`󰚩`), App Grid / Dock toggle (`󰀻`), stay-awake, Bluetooth, network, audio, CPU, battery, power |
+| `shell.qml` | Omarchy-style Top Bar + Quattro Dock per screen, Launchpad App Grid, notifications, 16-bit SNES OSD, LockScreen |
+| `Bar.qml` | SuperDeck button, dynamic workspaces, submap indicator, centered clock/notifs, collapsible Pocket Drawer (`Tray`, `CPU %`, `AI`, `Caffeine`, `AppGrid`), and unified GNOME-style Quick Settings pill (`Wi-Fi + BT + Audio + Battery + Power`) |
 | `Workspaces.qml` | COSMIC dynamic workspace compaction + Omarchy per-workspace layout cycling (Tiling / Scrolling / Floating) |
+| `LauncherMenu.qml` & `StatusPopup.qml` | Unified **SuperDeck** (`Apps`, `Forge`, `Style`, `Net/Snd`, `Dock`, `Snaps`, `Power`) with instant app filter, `owner/repo` source forging, interactive Volume/Brightness sliders, 6 Quick Tiles, and inline power confirmation |
+| `panels/Dock.qml`, `panels/AppGrid.qml` | Omarchy **Quattro** Dock (`bottom`/`left`/`right`/`top`, grab-and-drag empty dock space with ghost preview slab, double-click transparency toggle, hover app pill tooltip, 1..3 running-window pips, minimize-to-dock) and Launchpad App Grid |
 | `panels/AiPopup.qml` | Top-bar AI agent selector (`agy`, `mcode`, `grok`, `vibe`, `claude`, `chatgpt`, `ollama` `ip:port`, and custom agents) |
-| `panels/Dock.qml`, `panels/AppGrid.qml` | Omarchy-style repositionable Dock (`bottom`/`left`/`right`/`top`, `autohide`, `.desktop` icons, window cycling, minimize-to-dock) and fullscreen Launchpad App Grid |
 | `Notifications.qml` | Notification server and popups; IPC `notifications` (`dismiss`, `dismissAll`, `toggleDnd`) |
-| `Osd.qml` | Volume popup |
-| `Status.qml`, `Theme.qml`, `BarLabel.qml`, `Tray.qml`, `LauncherMenu.qml`, `Calendar.qml`, `StatusPopup.qml` | Shared state, 16-bit palette tokens, widgets, and popovers |
+| `Osd.qml` | 16-bit SNES segmented HUD bar for volume/mute and brightness |
+| `Status.qml`, `Theme.qml`, `BarLabel.qml`, `Tray.qml`, `Calendar.qml` | Consolidated polling + event-driven Hyprland IPC (`Hyprland.onRawEvent`), 16-bit palette tokens, and calendar popover |
 
 ---
 
-## 6. Updating a running system
+## 6. CLI & Workstation Utilities (`sf`)
 
 ```bash
-cd superfedora
-git pull
-./lib/install-dotfiles.sh          # copies changed files, backs up the old ones, reloads Hyprland
-./lib/install-dotfiles.sh --check  # lists anything that differs from the repo
+sf theme [snes|tokyo-night|catppuccin|nord|01..08] --mode night|day --corners square|rounded --nightlight on|off
+sf forge <owner/repo|ripgrep|fastfetch|idlescreen|fd|zoxide|btop|hyprland|quickshell>
+sf dock [position bottom|top|left|right | autohide toggle | layout cycle]
+sf sfx [status|on|off|toggle|play startup|click|confirm|toggle|volume|alert]
+sf tui                             # Launch 16-bit SNES Cartridge Control Deck TUI
+sf rollback [--list|--create|--setup|--baseline|<id>] # Snapper + grub-btrfs + Boot-Guard
+sf dotfiles                        # Deploy desktop configs & reload Hyprland
 ```
