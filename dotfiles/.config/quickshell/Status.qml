@@ -33,40 +33,28 @@ Singleton {
     Timer {
         interval: 3000; running: true; repeat: true; triggeredOnStart: true
         onTriggered: {
-            const nowMs = Date.now();
-            procStat.reload();
+            const nowMs = Date.now(); procStat.reload();
             const v = procStat.text().split("\n")[0].trim().split(/\s+/).slice(1).map(Number);
             if (v.length >= 4) {
                 const idle = v[3] + (v[4] || 0), total = v.reduce((a, b) => a + b, 0);
-                if (root._lastCpu) {
-                    const dt = total - root._lastCpu.total;
-                    root.cpu = dt > 0 ? Math.round(100 * (1 - (idle - root._lastCpu.idle) / dt)) : 0;
-                }
+                if (root._lastCpu) { const dt = total - root._lastCpu.total; root.cpu = dt > 0 ? Math.round(100 * (1 - (idle - root._lastCpu.idle) / dt)) : 0; }
                 root._lastCpu = { total, idle };
             }
-            procMem.reload();
-            const mtext = procMem.text(), mt = mtext.match(/MemTotal:\s+(\d+)/), ma = mtext.match(/MemAvailable:\s+(\d+)/);
+            procMem.reload(); const mtext = procMem.text(), mt = mtext.match(/MemTotal:\s+(\d+)/), ma = mtext.match(/MemAvailable:\s+(\d+)/);
             if (mt && ma && Number(mt[1]) > 0) root.mem = Math.round(100 * (1 - Number(ma[1]) / Number(mt[1])));
-            pkgTemp.reload();
-            let rawT = Number(pkgTemp.text().trim() || "0");
+            pkgTemp.reload(); let rawT = Number(pkgTemp.text().trim() || "0");
             if (!rawT || rawT <= 0) { fallbackTemp.reload(); rawT = Number(fallbackTemp.text().trim() || "40000"); }
             root.tempC = Math.round(rawT > 1000 ? rawT / 1000 : rawT);
-            gpuRc6.reload();
-            const rc6Txt = gpuRc6.text().trim();
+            gpuRc6.reload(); const rc6Txt = gpuRc6.text().trim();
             if (rc6Txt !== "") {
                 const rc6 = Number(rc6Txt);
-                if (root._lastGpu && nowMs > root._lastGpu.t) {
-                    const dtMs = nowMs - root._lastGpu.t;
-                    root.gpu = Math.max(0, Math.min(100, Math.round(100 * (1 - Math.max(0, rc6 - root._lastGpu.rc6) / dtMs))));
-                }
+                if (root._lastGpu && nowMs > root._lastGpu.t) root.gpu = Math.max(0, Math.min(100, Math.round(100 * (1 - Math.max(0, rc6 - root._lastGpu.rc6) / (nowMs - root._lastGpu.t)))));
                 root._lastGpu = { rc6: rc6, t: nowMs };
             }
-            procNet.reload();
-            let rxBytes = 0, txBytes = 0;
+            procNet.reload(); let rxBytes = 0, txBytes = 0;
             for (const nl of procNet.text().split("\n").slice(2)) {
                 const parts = nl.trim().split(/[:\s]+/);
-                if (parts.length < 10 || parts[0] === "lo" || parts[0] === "") continue;
-                rxBytes += Number(parts[1] || 0); txBytes += Number(parts[9] || 0);
+                if (parts.length >= 10 && parts[0] !== "lo" && parts[0] !== "") { rxBytes += Number(parts[1] || 0); txBytes += Number(parts[9] || 0); }
             }
             if (root._lastNet && nowMs > root._lastNet.t) {
                 const dtSec = (nowMs - root._lastNet.t) / 1000.0;
@@ -148,12 +136,7 @@ Singleton {
         Quickshell.execDetached(["sh", "-c", "mkdir -p ~/.config/superfedora && printf 'CLOCK_24H=%s\\nCLOCK_SECONDS=%s\\n' " + (use24h ? "1" : "0") + " " + (showSec ? "1" : "0") + " > ~/.config/superfedora/clock.conf"]);
         tzProc.running = true;
     }
-
-    function setBrightness(val) {
-        const clamped = Math.max(0.05, Math.min(1.0, val)); root.brightness = clamped;
-        Quickshell.execDetached(["sh", "-c", "brightnessctl -e4 -n2 set " + Math.round(clamped * 100) + "% >/dev/null 2>&1 || true"]);
-    }
-
+    function setBrightness(val) { const c = Math.max(0.05, Math.min(1.0, val)); root.brightness = c; Quickshell.execDetached(["sh", "-c", "brightnessctl -e4 -n2 set " + Math.round(c * 100) + "% >/dev/null 2>&1 || true"]); }
     function reloadSfx() { sfxFile.reload(); root.sfxEnabled = !sfxFile.text().trim().includes("SFX_ENABLED=0"); }
     function reloadWebcam() { netProc.running = true; }
     function playSfx(name) { if (root.sfxEnabled) Quickshell.execDetached(["sh", "-c", "(~/.local/bin/sf sfx play " + name + " || ~/Projects/superfedora/superfedora/lib/sfx.sh play " + name + ") >/dev/null 2>&1"]); }
@@ -210,41 +193,60 @@ Singleton {
     property bool appGridOpen: false; property var clients: []
     property var dockConfig: ({ position: "bottom", autohide: false, showAlways: true, opacity: 1.0, pinned: ["kitty", "org.mozilla.firefox", "com.google.Chrome", "org.gnome.Nautilus", "nvim", "btop"] })
     property var wsModes: ({}); property string defaultWsMode: "dwindle"
+    readonly property var defaultBarIcons: ["wifi", "bluetooth", "|", "speaker", "mic", "camera", "|", "battery", "power"]
+    readonly property var coreBarIcons: ["wifi", "bluetooth", "speaker", "mic", "camera", "battery", "power"]
+    property var barIcons: ["wifi", "bluetooth", "|", "speaker", "mic", "camera", "|", "battery", "power"]
+    property var barHiddenIcons: []
     FileView { id: dockFile; path: Quickshell.env("HOME") + "/.config/superfedora/dock.json" }
     FileView { id: modesFile; path: Quickshell.env("HOME") + "/.config/superfedora/workspace-modes.json" }
+    FileView { id: barIconsFile; path: Quickshell.env("HOME") + "/.config/superfedora/bar-icons.json" }
 
+    function reloadBarIcons(): void {
+        barIconsFile.reload(); const raw = barIconsFile.text().trim(); if (!raw) return;
+        try {
+            const d = JSON.parse(raw), seen = {}, out = [];
+            if (d && Array.isArray(d.order)) {
+                for (const id of d.order) { if (id === "|") out.push("|"); else if (root.coreBarIcons.indexOf(id) !== -1 && !seen[id]) { seen[id] = true; out.push(id); } }
+                for (const id of root.coreBarIcons) if (!seen[id]) out.push(id);
+                root.barIcons = out;
+            }
+            if (d && Array.isArray(d.hidden)) root.barHiddenIcons = d.hidden.filter(id => root.coreBarIcons.indexOf(id) !== -1);
+        } catch (e) {}
+    }
+    function saveBarIcons(): void { Quickshell.execDetached(["sh", "-c", "mkdir -p ~/.config/superfedora && printf '%s\\n' '" + JSON.stringify({ order: root.barIcons, hidden: root.barHiddenIcons }) + "' > ~/.config/superfedora/bar-icons.json"]); }
+    function swapBarIcons(fromIdx, toIdx): void {
+        const arr = root.barIcons.slice(); if (fromIdx < 0 || toIdx < 0 || fromIdx >= arr.length || toIdx >= arr.length || fromIdx === toIdx) return;
+        const tmp = arr[fromIdx]; arr[fromIdx] = arr[toIdx]; arr[toIdx] = tmp; root.barIcons = arr; root.playSfx("click"); root.saveBarIcons();
+    }
+    function moveBarIcon(id, dir): void {
+        const arr = root.barIcons.slice(), idx = arr.indexOf(id), step = dir < 0 ? -1 : 1; if (idx < 0) return;
+        let t = idx + step; while (t >= 0 && t < arr.length && arr[t] === "|") t += step;
+        if (t >= 0 && t < arr.length) root.swapBarIcons(idx, t);
+    }
+    function toggleBarIconHidden(id): void {
+        if (!id || id === "|" || root.coreBarIcons.indexOf(id) === -1) return;
+        const h = root.barHiddenIcons.slice(), i = h.indexOf(id); if (i >= 0) h.splice(i, 1); else h.push(id);
+        root.barHiddenIcons = h; root.playSfx("toggle"); root.saveBarIcons();
+    }
+    function toggleBarDividers(): void {
+        if (root.barIcons.indexOf("|") !== -1) root.barIcons = root.barIcons.filter(x => x !== "|");
+        else { const c = root.barIcons.filter(x => x !== "|"); root.barIcons = [c[0], c[1], "|", c[2], c[3], c[4], "|", c[5], c[6]].filter(Boolean); }
+        root.playSfx("toggle"); root.saveBarIcons();
+    }
+    function resetBarIcons(): void { root.barIcons = root.defaultBarIcons.slice(); root.barHiddenIcons = []; root.playSfx("toggle"); root.saveBarIcons(); }
     function reloadDock(): void {
-        dockFile.reload(); const raw = dockFile.text().trim();
-        if (raw) { try { const d = JSON.parse(raw); if (d && typeof d === "object") root.dockConfig = d; } catch (e) {} }
-        modesFile.reload(); const mraw = modesFile.text().trim();
-        if (mraw) { try { const m = JSON.parse(mraw); if (m && m.workspaces) root.wsModes = m.workspaces; if (m && m.default) root.defaultWsMode = m.default; } catch (e) {} }
+        dockFile.reload(); const raw = dockFile.text().trim(); if (raw) { try { const d = JSON.parse(raw); if (d && typeof d === "object") root.dockConfig = d; } catch (e) {} }
+        modesFile.reload(); const mraw = modesFile.text().trim(); if (mraw) { try { const m = JSON.parse(mraw); if (m && m.workspaces) root.wsModes = m.workspaces; if (m && m.default) root.defaultWsMode = m.default; } catch (e) {} }
     }
     function wsModeFor(wsId): string { const k = String(wsId); return (root.wsModes && root.wsModes[k]) ? root.wsModes[k] : root.defaultWsMode; }
     function runDockCmd(args): void { Quickshell.execDetached(["sh", "-c", "~/.local/bin/superfedora dock " + args + " 2>/dev/null || ~/Projects/superfedora/superfedora/lib/panel-ctl.sh " + args]); }
-
-    Process {
-        id: clientsProc; command: ["sh", "-c", "hyprctl clients -j 2>/dev/null || echo '[]'"]
-        stdout: StdioCollector { onStreamFinished: { try { const arr = JSON.parse(text.trim() || "[]"); root.clients = arr.filter(c => c.mapped && c.workspace && (c.workspace.id > 0 || String(c.workspace.name || "").includes("minimized"))); } catch (e) {} } }
-    }
-    Connections {
-        target: Hyprland
-        function onRawEvent(event) {
-            const n = String(event.name || "");
-            if (n.includes("window") || n.includes("workspace") || n.includes("focusedmon")) clientsProc.running = true;
-            if (n.includes("focusedmon") && root.superDeckOpen && root.normalizeDeckTab(root.superDeckSection) === "ai") root.syncQuakeAi();
-        }
-    }
-    Component.onCompleted: { root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); clientsProc.running = true; }
+    Process { id: clientsProc; command: ["sh", "-c", "hyprctl clients -j 2>/dev/null || echo '[]'"]; stdout: StdioCollector { onStreamFinished: { try { const arr = JSON.parse(text.trim() || "[]"); root.clients = arr.filter(c => c.mapped && c.workspace && (c.workspace.id > 0 || String(c.workspace.name || "").includes("minimized"))); } catch (e) {} } } }
+    Connections { target: Hyprland; function onRawEvent(event) { const n = String(event.name || ""); if (n.includes("window") || n.includes("workspace") || n.includes("focusedmon")) clientsProc.running = true; if (n.includes("focusedmon") && root.superDeckOpen && root.normalizeDeckTab(root.superDeckSection) === "ai") root.syncQuakeAi(); } }
+    Component.onCompleted: { root.reloadBarIcons(); root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); clientsProc.running = true; }
     IpcHandler { target: "dock"; function reload(): void { root.reloadDock(); clientsProc.running = true; } function toggleApps(): void { root.appGridOpen = !root.appGridOpen; root.playSfx("click"); } function toggle(): void { root.runDockCmd("always toggle"); } }
-    IpcHandler {
-        target: "superdeck"
-        function toggle(): void { root.toggleSuperDeck(""); }
-        function toggleAi(): void { root.toggleSuperDeck("ai"); }
-        function open(sec: string): void { const t = root.normalizeDeckTab(sec), wasOpen = root.superDeckOpen, prev = root.superDeckSection; root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; root.superDeckOpen = true; if (wasOpen && prev === t) root.syncQuakeAi(); root.refresh(); }
-        function close(): void { root.superDeckOpen = false; }
-    }
+    IpcHandler { target: "superdeck"; function toggle(): void { root.toggleSuperDeck(""); } function toggleAi(): void { root.toggleSuperDeck("ai"); } function open(sec: string): void { const t = root.normalizeDeckTab(sec), wasOpen = root.superDeckOpen, prev = root.superDeckSection; root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; root.superDeckOpen = true; if (wasOpen && prev === t) root.syncQuakeAi(); root.refresh(); } function close(): void { root.superDeckOpen = false; } }
     IpcHandler { target: "panels"; function settings(): void { root.toggleSuperDeck("system"); } }
-    IpcHandler { target: "status"; function refresh(): void { root.refresh(); } }
+    IpcHandler { target: "status"; function refresh(): void { root.refresh(); } function reloadBar(): void { root.reloadBarIcons(); } }
     Timer { interval: 4500; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
     function refresh() { netProc.running = true; idleProc.running = true; tzProc.running = true; clientsProc.running = true; root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); }
 }
