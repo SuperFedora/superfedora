@@ -193,7 +193,7 @@ PanelWindow {
                         visible: slot.running || slot.launching; spacing: 3; anchors { bottom: parent.bottom; bottomMargin: 2; horizontalCenter: parent.horizontalCenter }
                         Repeater {
                             model: slot.launching ? 1 : Math.min(3, slot.modelData.windows.length)
-                            Rectangle { required property int index; width: slot.modelData.focused && index === 0 ? 8 : 4; height: 3; radius: 1; color: slot.launching ? Theme.yellow : (slot.modelData.focused ? Theme.cyan : (slot.modelData.minimizedCount > 0 ? Theme.orange : Theme.blue)) }
+                            Rectangle { required property int index; width: slot.modelData.focused && index === 0 ? 8 : 4; height: 3; radius: Theme.radiusSm > 0 ? 1 : 0; color: slot.launching ? Theme.yellow : (slot.modelData.focused ? Theme.cyan : (slot.modelData.minimizedCount > 0 ? Theme.orange : Theme.blue)) }
                         }
                     }
                     MouseArea {

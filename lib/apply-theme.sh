@@ -100,9 +100,10 @@ apply_all() {
     palette_tokens "$color" "$mode"
     mkdir -p "$STATE_DIR" "$HOME/.config/hypr/conf" "$HOME/.config/quickshell" "$HOME/.config/fuzzel" "$HOME/.config/kitty" "$HOME/.config/idlescreen"
     printf 'THEME_COLOR="%s"\nTHEME_MODE="%s"\nTHEME_CORNERS="%s"\nTHEME_NIGHTLIGHT="%s"\n' "$color" "$mode" "$corners" "$nl" > "$STATE_FILE"
+    echo "$corners" > "$STATE_DIR/theme-corners"
 
     local lock_round="0" hypr_round="0" qs_rad="0" qs_rad_sm="0" fuzzel_rad="0"
-    [[ "$corners" == "rounded" ]] && { lock_round="-1"; hypr_round="10"; qs_rad="10"; qs_rad_sm="6"; fuzzel_rad="10"; }
+    [[ "$corners" == "rounded" ]] && { lock_round="10"; hypr_round="10"; qs_rad="10"; qs_rad_sm="6"; fuzzel_rad="10"; }
 
     # shellcheck disable=SC2088
     local wall_rel="~/Pictures/Wallpapers/$mode/$WALL_KEY.png"

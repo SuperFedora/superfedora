@@ -88,7 +88,7 @@ Scope {
             // 1. GNOME Top-Right System Pill & Popover Menu
             Rectangle {
                 id: sysPill; anchors { top: parent.top; right: parent.right; topMargin: 18; rightMargin: 24 }
-                width: sysRow.implicitWidth + 28; height: 38; radius: Theme.corners === "rounded" ? 19 : 0
+                width: sysRow.implicitWidth + 28; height: 38; radius: Theme.radius
                 color: (sysMouse.containsMouse || root.sysMenuOpen) ? Theme.bgHover : Theme.bg; border.width: 2; border.color: root.sysMenuOpen ? Theme.cyan : Theme.blue
                 RowLayout {
                     id: sysRow; anchors.centerIn: parent; spacing: 12
@@ -141,20 +141,20 @@ Scope {
             ColumnLayout {
                 anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottomMargin: 42; spacing: 10
                 Rectangle {
-                    Layout.alignment: Qt.AlignHCenter; width: 84; height: 84; radius: Theme.corners === "rounded" ? 42 : 0; color: Theme.bgAlt; border.width: 2; border.color: Theme.blue
+                    Layout.alignment: Qt.AlignHCenter; width: 84; height: 84; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: Theme.blue
                     Image { anchors.fill: parent; anchors.margins: 4; source: "file://" + Quickshell.env("HOME") + "/Pictures/Wallpapers/avatar.jpg"; fillMode: Image.PreserveAspectCrop }
                 }
                 Text { Layout.alignment: Qt.AlignHCenter; text: root.userName; color: Theme.fg; font.family: Theme.font; font.pixelSize: 17; font.bold: true }
                 Rectangle {
                     visible: Status.notifUnread > 0 || Status.dnd
-                    Layout.alignment: Qt.AlignHCenter; width: lockNotifTxt.implicitWidth + 24; height: 26; radius: Theme.corners === "rounded" ? 13 : 0; color: Theme.bgAlt; border.width: 1; border.color: Status.dnd ? Theme.yellow : Theme.cyan
+                    Layout.alignment: Qt.AlignHCenter; width: lockNotifTxt.implicitWidth + 24; height: 26; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 1; border.color: Status.dnd ? Theme.yellow : Theme.cyan
                     Text {
                         id: lockNotifTxt; anchors.centerIn: parent; font.family: Theme.font; font.pixelSize: 12; font.bold: true; color: Status.dnd ? Theme.yellow : Theme.cyan
                         text: (Status.dnd ? "󰂛  Do Not Disturb" : "󰂞") + (Status.notifUnread > 0 ? ((Status.dnd ? " · " : "  ") + Status.notifUnread + (Status.notifUnread === 1 ? " Unread Notification" : " Unread Notifications")) : "")
                     }
                 }
                 Rectangle {
-                    Layout.alignment: Qt.AlignHCenter; width: 300; height: 44; radius: Theme.corners === "rounded" ? 22 : 0; color: Theme.bg
+                    Layout.alignment: Qt.AlignHCenter; width: 300; height: 44; radius: Theme.radius; color: Theme.bg
                     border.width: 2; border.color: root.authError !== "" ? Theme.red : (passInput.activeFocus ? Theme.cyan : Theme.blue)
                     RowLayout {
                         anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 8; spacing: 8
@@ -167,7 +167,7 @@ Scope {
                             Text { visible: parent.text.length === 0; anchors.verticalCenter: parent.verticalCenter; text: root.authBusy ? "Verifying..." : "Password"; color: Theme.muted; font.family: Theme.font; font.pixelSize: 14 }
                         }
                         Rectangle {
-                            width: 30; height: 30; radius: Theme.corners === "rounded" ? 15 : 0; color: goMouse.containsMouse ? Theme.blue : Theme.bgAlt
+                            width: 30; height: 30; radius: Theme.radiusSm; color: goMouse.containsMouse ? Theme.blue : Theme.bgAlt
                             Text { anchors.centerIn: parent; text: "→"; color: goMouse.containsMouse ? Theme.bg : Theme.cyan; font.family: Theme.font; font.pixelSize: 15; font.bold: true }
                             MouseArea { id: goMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { const p = passInput.text; passInput.text = ""; root.submitPassword(p); } }
                         }
@@ -179,7 +179,7 @@ Scope {
             // 3. GNOME Bottom-Right Gear (Desktop Environment) Pill & Popover Menu
             Rectangle {
                 id: dePill; anchors { bottom: parent.bottom; right: parent.right; bottomMargin: 24; rightMargin: 24 }
-                width: deRow.implicitWidth + 28; height: 38; radius: Theme.corners === "rounded" ? 19 : 0
+                width: deRow.implicitWidth + 28; height: 38; radius: Theme.radius
                 color: (deMouse.containsMouse || root.deMenuOpen) ? Theme.bgHover : Theme.bg; border.width: 2; border.color: root.deMenuOpen ? Theme.cyan : Theme.blue
                 RowLayout {
                     id: deRow; anchors.centerIn: parent; spacing: 8
