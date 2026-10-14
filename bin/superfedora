@@ -13,8 +13,9 @@
 #   update             Fetch the latest release, then run install
 #   build [action]     Compile & tune from source for localhost CPU (-march=native)
 #   dotfiles [--check] Deploy desktop configs (or list drift from this release)
-#   theme [action]     Switch 16-bit theme (set, next, prev, toggle, pick)
+#   theme [action]     Switch 16-bit theme (set, next, prev, toggle, corners, pick)
 #   panel [action]     Configure Top/Bottom/Left/Right bars & docks
+#   session [action]   Select or switch Desktop Environment (DE) session
 #   ai [action]        Quake AI console, Ollama ip:port & custom agents
 #   modules            List modules in run order
 #   rollback           Revert to the pre-install Btrfs snapshot
@@ -39,11 +40,12 @@ PAGES_URL="https://superfedora.github.io/install.sh"
 # Detection must see user-level installs (rustup, uv, vendor CLIs)
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.minimax-code/bin:$HOME/.grok/bin:$PATH"
 
-usage() { sed -n '6,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '6,31p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 CMD="${1:-}"; [[ $# -gt 0 ]] && shift
 [[ "$CMD" == "theme" || "$CMD" == "themes" ]] && exec "$SF_ROOT/lib/apply-theme.sh" "$@"
 [[ "$CMD" == "panel" || "$CMD" == "panels" ]] && exec "$SF_ROOT/lib/panel-ctl.sh" "$@"
+[[ "$CMD" == "session" || "$CMD" == "de" ]] && exec "$SF_ROOT/lib/session-ctl.sh" "$@"
 [[ "$CMD" == "build" || "$CMD" == "source" ]] && exec "$SF_ROOT/lib/build-source.sh" "$@"
 [[ "$CMD" == "ai" || "$CMD" == "quake" ]] && exec "$SF_ROOT/dotfiles/.config/hypr/scripts/quake-ai.sh" "$@"
 

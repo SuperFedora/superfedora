@@ -47,13 +47,13 @@ palette_tokens() {
     if [[ "$2" == "light" ]]; then
         ACCENT="$L_ACC"; HOT="$L_HOT"; BG="e6e8f0"; BG_ALT="d8dae5"; BG_HOV="cfd2e0"; BORDER="9ea4bd"
         FG="1a1b26"; FG_DIM="343b58"; MUTED="636a8a"; SEL_BG="c5cae0"
-        LOCK_FG="26, 27, 38"; LOCK_IN="230, 232, 240"
+        LOCK_FG="26, 27, 38"; LOCK_DIM="52, 59, 88"; LOCK_IN="230, 232, 240"
         KITTY_BG="#e6e8f0"; KITTY_FG="#1a1b26"; KITTY_C0="#d8dae5"; KITTY_C7="#1a1b26"; KITTY_C8="#636a8a"; KITTY_C15="#07080b"
         PORTAL_SCHEME="prefer-light"; TUI_TEXT="black"; TUI_BG="white"
     else
         ACCENT="$D_ACC"; HOT="$D_HOT"; BG="1a1b26"; BG_ALT="24283b"; BG_HOV="292e42"; BORDER="414868"
         FG="c0caf5"; FG_DIM="a9b1d6"; MUTED="565f89"; SEL_BG="283457"
-        LOCK_FG="205, 214, 244"; LOCK_IN="26, 27, 38"
+        LOCK_FG="205, 214, 244"; LOCK_DIM="166, 173, 200"; LOCK_IN="26, 27, 38"
         KITTY_BG="#1a1b26"; KITTY_FG="#c0caf5"; KITTY_C0="#1a1b26"; KITTY_C7="#c0caf5"; KITTY_C8="#565f89"; KITTY_C15="#ffffff"
         PORTAL_SCHEME="prefer-dark"; TUI_TEXT="white"; TUI_BG="black"
     fi
@@ -68,10 +68,8 @@ load_state() {
     [[ "${THEME_CORNERS:-square}" == "rounded" ]] || THEME_CORNERS="square"
 }
 
-write_lock_btn() {
-    local x="$1" icon="$2" fg="$3" bdr="$4" cmd="$5" r="$6"
-    printf 'shape {\n    monitor =\n    size = 42, 42\n    color = rgba(%s, 0.92)\n    rounding = %s\n    border_size = 2\n    border_color = rgb(%s)\n    position = %d, -24\n    halign = right\n    valign = top\n    onclick = %s\n}\n' "$LOCK_IN" "$r" "$bdr" "$x" "$cmd"
-    printf 'label {\n    monitor =\n    text = &#160;%s&#160;\n    color = %s\n    font_size = 12\n    font_family = JetBrainsMono Nerd Font Mono\n    position = %d, -34\n    halign = right\n    valign = top\n    onclick = %s\n}\n' "$icon" "$fg" "$(( x - 6 ))" "$cmd"
+write_lock_lbl() {
+    printf 'label {\n    monitor =\n    text = %s\n    color = %s\n    font_size = %s\n    font_family = JetBrainsMono Nerd Font\n    position = %s\n    halign = %s\n    valign = %s\n%s}\n' "$1" "$2" "$3" "$4" "$5" "$6" "${7:-}"
 }
 
 apply_all() {
@@ -99,15 +97,17 @@ apply_all() {
         hyprctl hyprpaper wallpaper ",$wall_abs" >/dev/null 2>&1 || true
     fi
 
-    # 2. Lock Screen (hyprlock — GNOME layout: floating lower-third user stack + top-right action buttons)
+    # 2. Lock Screen (hyprlock — GNOME layout: boxless top-right controls, bottom-right DE selector, lower-third user stack)
     {
         printf '# Hyprlock Configuration — SuperFedora 16-Bit Theme (%s / %s / %s)\ngeneral {\n    hide_cursor = false\n    ignore_empty_input = true\n    immediate_render = true\n    fail_timeout = 1200\n}\nauth {\n    pam {\n        enabled = true\n        module = password-auth\n    }\n    fingerprint {\n        enabled = true\n    }\n}\nanimations {\n    enabled = false\n}\nbackground {\n    monitor =\n    path = %s\n    blur_passes = 0\n    blur_size = 0\n}\n' "$NAME" "$mode" "$corners" "$wall_rel"
-        write_lock_btn -180 "󰍹" "rgba($LOCK_FG, 1.0)" "$ACCENT" "hyprctl dispatch dpms off" "$lock_round"
-        write_lock_btn -128 "󰤄" "rgba($LOCK_FG, 1.0)" "$ACCENT" "systemctl suspend" "$lock_round"
-        write_lock_btn -76  "󰜉" "rgba($LOCK_FG, 1.0)" "$ACCENT" "systemctl reboot" "$lock_round"
-        write_lock_btn -24  "󰐥" "rgb(f7768e)"         "f7768e"  "systemctl poweroff" "$lock_round"
+        write_lock_lbl "<b>󰍹 Screen Off</b>" "rgba($LOCK_FG, 1.0)" "12" "-390, -24" "right" "top" $'    onclick = hyprctl dispatch dpms off\n'
+        write_lock_lbl "<b>󰤄 Suspend</b>"    "rgba($LOCK_FG, 1.0)" "12" "-276, -24" "right" "top" $'    onclick = systemctl suspend\n'
+        write_lock_lbl "<b>󰜉 Restart</b>"    "rgba($LOCK_FG, 1.0)" "12" "-162, -24" "right" "top" $'    onclick = systemctl reboot\n'
+        write_lock_lbl "<b>󰐥 Power Off</b>"  "rgb(f7768e)"         "12" "-28, -24"  "right" "top" $'    onclick = systemctl poweroff\n'
+        write_lock_lbl "cmd[update:1000] ~/.local/share/superfedora/lib/session-ctl.sh status" "rgb($ACCENT)" "12" "-28, 56" "right" "bottom" $'    onclick = ~/.local/share/superfedora/lib/session-ctl.sh next\n'
+        write_lock_lbl "<b>󰍃 Switch DE / Log Out</b>" "rgba($LOCK_DIM, 1.0)" "12" "-28, 28" "right" "bottom" $'    onclick = ~/.local/share/superfedora/lib/session-ctl.sh switch\n'
         printf 'image {\n    monitor =\n    path = ~/Pictures/Wallpapers/avatar.jpg\n    size = 88\n    rounding = %s\n    border_size = 2\n    border_color = rgb(%s)\n    position = 0, 148\n    halign = center\n    valign = bottom\n}\n' "$lock_round" "$ACCENT"
-        printf 'label {\n    monitor =\n    text = <b>$USER</b>\n    color = rgba(%s, 1.0)\n    font_size = 16\n    font_family = JetBrainsMono Nerd Font\n    position = 0, 108\n    halign = center\n    valign = bottom\n}\n' "$LOCK_FG"
+        write_lock_lbl "<b>\$USER</b>" "rgba($LOCK_FG, 1.0)" "16" "0, 108" "center" "bottom"
         printf 'input-field {\n    monitor =\n    size = 290, 44\n    outline_thickness = 2\n    rounding = %s\n    dots_size = 0.26\n    dots_spacing = 0.20\n    dots_center = true\n    fade_on_empty = false\n    font_color = rgb(%s)\n    inner_color = rgba(%s, 0.94)\n    outer_color = rgb(%s)\n    check_color = rgb(9ece6a)\n    fail_color = rgb(f7768e)\n    fail_text = <b>Incorrect password ($ATTEMPTS)</b>\n    capslock_color = rgb(e0af68)\n    placeholder_text = Password\n    position = 0, 46\n    halign = center\n    valign = bottom\n}\n' "$lock_round" "$LOCK_FG" "$LOCK_IN" "$ACCENT"
     } > "$HOME/.config/hypr/hyprlock.conf"
 
