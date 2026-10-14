@@ -28,7 +28,7 @@ detect_ollama_model() {
     [[ -x "$SF_OLLAMA" ]] && m="$("$SF_OLLAMA" best-model "$h" "$pref" 2>/dev/null || true)"
     printf '%s' "${m:-${pref:-llama3.2}}"
 }
-[[ -z "$OLLAMA_MODEL" ]] && OLLAMA_MODEL="$(detect_ollama_model "$OLLAMA_HOST" "")"
+OLLAMA_MODEL="${OLLAMA_MODEL:-llama3.2}"
 [[ -f "$AGENTS_FILE" ]] || printf '# SuperFedora Custom AI Agents (id|label|command)\n' > "$AGENTS_FILE"
 
 save_state() { printf 'AI_AGENT=%q\nOLLAMA_HOST=%q\nOLLAMA_MODEL=%q\n' "$AI_AGENT" "$OLLAMA_HOST" "$OLLAMA_MODEL" > "$STATE_FILE"; }
@@ -116,19 +116,19 @@ compute_geometry() {
     local mon_json full_h hdr_h="${1:-40}"
     [[ "$hdr_h" =~ ^[0-9]+$ ]] || hdr_h=40
     mon_json="$(hyprctl monitors -j 2>/dev/null || echo '[]')"
-    read -r MON_NAME MON_X MON_Y MON_W MON_H < <(jq -r '
+    read -r MON_NAME MON_X MON_Y MON_W MON_H SPEC_OPEN < <(jq -r '
         (.[] | select(.focused == true)) // .[0] // {name:"default", x:0, y:0, width:1920, height:1080, scale:1}
-        | "\(.name // "default") \(.x) \(.y) \((.width / (.scale // 1)) | round) \((.height / (.scale // 1)) | round)"
+        | "\(.name // "default") \(.x) \(.y) \((.width / (.scale // 1)) | round) \((.height / (.scale // 1)) | round) \(if .specialWorkspace.name == "special:ai" then 1 else 0 end)"
     ' <<<"$mon_json")
-    MON_NAME="${MON_NAME:-default}"; MON_X="${MON_X:-0}"; MON_Y="${MON_Y:-0}"; MON_W="${MON_W:-1920}"; MON_H="${MON_H:-1080}"
+    MON_NAME="${MON_NAME:-default}"; MON_X="${MON_X:-0}"; MON_Y="${MON_Y:-0}"; MON_W="${MON_W:-1920}"; MON_H="${MON_H:-1080}"; SPEC_OPEN="${SPEC_OPEN:-0}"
     Q_W=$(( (MON_W * 68 + 50) / 100 )); full_h=$(( (MON_H * 58 + 50) / 100 ))
     (( Q_W > 1280 )) && Q_W=1280; (( Q_W < 860 )) && Q_W=860; (( Q_W > MON_W - 40 )) && Q_W=$(( MON_W - 40 ))
     (( full_h > 720 )) && full_h=720; (( full_h < 520 )) && full_h=520; (( full_h > MON_H - 64 )) && full_h=$(( MON_H - 64 ))
     Q_H=$(( full_h - hdr_h )); Q_X=$(( MON_X + (MON_W - Q_W) / 2 )); Q_Y=$(( MON_Y + 42 + hdr_h ))
 }
 
-has_quake_client() { hyprctl clients -j 2>/dev/null | jq -e '.[] | select(.class == "quake-ai")' >/dev/null 2>&1; }
-is_special_ai_open() { hyprctl monitors -j 2>/dev/null | jq -e '.[] | select(.focused == true and .specialWorkspace.name == "special:ai")' >/dev/null 2>&1; }
+has_quake_client() { hyprctl clients -j 2>/dev/null | grep -q '"class": "quake-ai"'; }
+is_special_ai_open() { hyprctl monitors -j 2>/dev/null | grep -q '"special:ai"'; }
 
 spawn_quake() {
     [[ "$AI_AGENT" == "ollama" ]] && OLLAMA_MODEL="$(detect_ollama_model "$OLLAMA_HOST" "$OLLAMA_MODEL")"
@@ -156,9 +156,9 @@ EOF
 
 show_quake() {
     exec 9>"$STATE_DIR/quake-ai.lock"; flock -w 2 9 || true
-    resolve_agent "$AI_AGENT"; compute_geometry "${1:-40}"; has_quake_client || spawn_quake
-    is_special_ai_open || hyprctl dispatch togglespecialworkspace ai >/dev/null
-    hyprctl --batch "dispatch movewindowpixel exact $Q_X $Q_Y,class:^(quake-ai)$; dispatch resizewindowpixel exact $Q_W $Q_H,class:^(quake-ai)$; dispatch focuswindow class:^(quake-ai)$" >/dev/null
+    compute_geometry "${1:-40}"; has_quake_client || spawn_quake
+    local batch=""; [[ "${SPEC_OPEN:-0}" == "1" ]] || batch="dispatch togglespecialworkspace ai; "
+    hyprctl --batch "${batch}dispatch movewindowpixel exact $Q_X $Q_Y,class:^(quake-ai)$; dispatch resizewindowpixel exact $Q_W $Q_H,class:^(quake-ai)$; dispatch focuswindow class:^(quake-ai)$" >/dev/null
 }
 
 hide_quake() { exec 9>"$STATE_DIR/quake-ai.lock"; flock -w 2 9 || true; is_special_ai_open && hyprctl dispatch togglespecialworkspace ai >/dev/null || true; [[ "${1:-}" == "keep-deck" ]] || qs ipc call superdeck close >/dev/null 2>&1 || true; }

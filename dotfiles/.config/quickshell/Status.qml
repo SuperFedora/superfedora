@@ -11,9 +11,10 @@ Singleton {
 
     property int cpu: 0; property int mem: 0; property int gpu: 0; property int tempC: 40
     property real netRxKbps: 0; property real netTxKbps: 0
-    property string netType: "none"; property bool wifiEnabled: true; property string ssid: ""; property int signal: 0; property var wifiList: []
+    property string netType: "none"; property bool wifiEnabled: true; property string ssid: ""; property int signal: 0; property var wifiList: []; property var savedWifiList: []
     property real brightness: 1.0; property bool idleEnabled: true; property bool sfxEnabled: true
     property real spkVol: 0.6; property bool spkMuted: false; property real micVol: 1.0; property bool micMuted: false; property bool webcamEnabled: true
+    property var audioSinks: []; property var audioSources: []
     property int kbdBacklight: 0; property bool bat0Present: false; property string bat0Threshold: "Standard (0% - 100%)"; property string aiAgent: "agy"
     property bool pocketOpen: false; property bool superDeckOpen: false; property string superDeckSection: "ai"; property bool superDeckPowerHighlight: false
     property bool clock24h: true; property bool clockSeconds: false; property string localTz: "Local"; property bool autoTz: true
@@ -81,7 +82,9 @@ Singleton {
         command: ["sh", "-c",
             "nmcli -t -f TYPE,STATE device 2>/dev/null | grep -m1 ':connected$' | cut -d: -f1 || echo none; " +
             "echo \"WFR|$(nmcli radio wifi 2>/dev/null || echo enabled)\"; " +
-            "nmcli -t -f ACTIVE,SIGNAL,SSID device wifi list --rescan no 2>/dev/null; " +
+            "nmcli -t -f NAME,TYPE connection show 2>/dev/null | awk -F: '$2==\"802-11-wireless\"{print \"SAV|\"$1}'; " +
+            "nmcli -t -f ACTIVE,SIGNAL,SECURITY,SSID device wifi list --rescan no 2>/dev/null; " +
+            "wpctl status 2>/dev/null | awk '/^Video/{exit} /Sinks:/{s=\"SNK\";next} /Sources:/{s=\"SRC\";next} /Filters:|Streams:/{s=\"\";next} s&&match($0,/(\\*?)[[:space:]]*([0-9]+)\\.[[:space:]]+([^\\[]+)/,m){n=m[3];sub(/[[:space:]]+$/,\"\",n);sub(/^.*Audio[[:space:]]+/,\"\",n);sub(/[[:space:]]*Output.*$/,\"\",n);sub(/HDMI \\/ DisplayPort/,\"HDMI/DP\",n);sub(/Microphone/,\"Mic\",n);print s\"|\"m[2]\"|\"((m[1]==\"*\")?1:0)\"|\"n}'; " +
             "b=$(brightnessctl -m 2>/dev/null | cut -d, -f4 | tr -d '%'); echo \"BRI|${b:-100}\"; " +
             "echo \"SPK|$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null)\"; echo \"MIC|$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null)\"; " +
             "echo \"CAM|$(cat ~/.config/superfedora/webcam-enabled 2>/dev/null || echo on)\"; " +
@@ -90,10 +93,12 @@ Singleton {
             "if [ -d /sys/class/power_supply/BAT0 ]; then bs=$(cat /sys/class/power_supply/BAT0/charge_control_start_threshold /sys/class/power_supply/BAT0/charge_start_threshold 2>/dev/null | head -n1); be=$(cat /sys/class/power_supply/BAT0/charge_control_end_threshold /sys/class/power_supply/BAT0/charge_stop_threshold 2>/dev/null | head -n1); echo \"BAT0|1|${bs:-0}|${be:-100}\"; fi"]
         stdout: StdioCollector {
             onStreamFinished: {
-                const lines = text.trim().split("\n"), type = lines[0] || "none", seen = {}, list = [];
+                const lines = text.trim().split("\n"), type = lines[0] || "none", seen = {}, list = [], saved = [], sinks = [], sources = [];
                 let activeSsid = "", activeSig = 0;
                 for (let i = 1; i < lines.length; i++) {
                     if (lines[i].startsWith("WFR|")) { root.wifiEnabled = (lines[i].split("|")[1] || "enabled").trim() !== "disabled"; continue; }
+                    if (lines[i].startsWith("SAV|")) { const sv = lines[i].slice(4).trim(); if (sv && saved.indexOf(sv) === -1) saved.push(sv); continue; }
+                    if (lines[i].startsWith("SNK|") || lines[i].startsWith("SRC|")) { const p = lines[i].split("|"); (p[0] === "SNK" ? sinks : sources).push({ id: p[1], active: p[2] === "1", name: p.slice(3).join("|") }); continue; }
                     if (lines[i].startsWith("BRI|")) { const bv = Number(lines[i].split("|")[1] || 100); if (!isNaN(bv) && bv > 0) root.brightness = Math.max(0.05, Math.min(1.0, bv / 100.0)); continue; }
                     if (lines[i].startsWith("SPK|")) { const sm = lines[i].match(/Volume:\s*([0-9.]+)/); if (sm) root.spkVol = Math.max(0, Math.min(1, Number(sm[1]))); root.spkMuted = lines[i].includes("[MUTED]"); continue; }
                     if (lines[i].startsWith("MIC|")) { const mm = lines[i].match(/Volume:\s*([0-9.]+)/); if (mm) root.micVol = Math.max(0, Math.min(1, Number(mm[1]))); root.micMuted = lines[i].includes("[MUTED]"); continue; }
@@ -101,12 +106,13 @@ Singleton {
                     if (lines[i].startsWith("KBD|")) { root.kbdBacklight = Math.max(0, Math.min(2, Number(lines[i].split("|")[1] || 0))); continue; }
                     if (lines[i].startsWith("AGY|")) { root.aiAgent = (lines[i].split("|")[1] || "agy").trim(); continue; }
                     if (lines[i].startsWith("BAT0|")) { const bp = lines[i].split("|"); root.bat0Present = true; root.bat0Threshold = "Start " + (bp[2] || "0") + "% / Stop " + (bp[3] || "100") + "%"; continue; }
-                    const parts = lines[i].split(":"); if (parts.length < 3) continue;
-                    const act = parts[0] === "yes", sig = Number(parts[1] || 0), name = parts.slice(2).join(":").trim();
+                    const parts = lines[i].split(":"); if (parts.length < 4) continue;
+                    const act = parts[0] === "yes", sig = Number(parts[1] || 0), sec = (parts[2] || "").trim(), name = parts.slice(3).join(":").trim(), open = (!sec || sec === "--");
                     if (!name) continue;
                     if (act) { activeSsid = name; activeSig = sig; }
-                    if (!seen[name] && list.length < 8) { seen[name] = true; list.push({ ssid: name, signal: sig, active: act }); }
+                    if (!seen[name] && list.length < 8) { seen[name] = true; list.push({ ssid: name, signal: sig, active: act, open: open, security: open ? "OPEN" : "WPA", saved: saved.indexOf(name) !== -1 }); }
                 }
+                root.savedWifiList = saved; root.audioSinks = sinks; root.audioSources = sources;
                 root.wifiList = list; root.netType = (type === "wifi" || type === "ethernet") ? type : "none";
                 root.signal = type === "wifi" ? activeSig : 0; root.ssid = type === "wifi" ? activeSsid : "";
             }
@@ -159,24 +165,21 @@ Singleton {
     function setSpeakerVolume(val) { const c = Math.max(0, Math.min(1, val)); root.spkVol = c; Quickshell.execDetached(["sh", "-c", "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ " + Math.round(c * 100) + "%"]); }
     function toggleMicMute(m) { const next = (typeof m === "boolean") ? m : !root.micMuted; root.micMuted = next; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh mic " + (next ? "mute" : "unmute")]); }
     function setMicVolume(val) { const c = Math.max(0, Math.min(1, val)); root.micVol = c; Quickshell.execDetached(["sh", "-c", "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SOURCE@ " + Math.round(c * 100) + "%"]); }
+    function setAudioDefault(id) { root.playSfx("click"); Quickshell.execDetached(["sh", "-c", "wpctl set-default " + id + "; sleep 0.2 && qs ipc call status refresh >/dev/null 2>&1 || true"]); }
     function toggleWebcam() { root.webcamEnabled = !root.webcamEnabled; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh webcam " + (root.webcamEnabled ? "on" : "off")]); }
     function setKbdBacklight(lvl) {
         const next = (typeof lvl === "number") ? Math.max(0, Math.min(2, lvl)) : ((root.kbdBacklight + 1) % 3);
         root.kbdBacklight = next; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh kbd-backlight " + next]);
     }
     function selectAiAgent(id) { root.aiAgent = id; root.playSfx("click"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh set-agent '" + id + "'"]); }
-    function nextAiAgent() {
-        const ids = ["agy", "mcode", "grok", "vibe", "claude", "chatgpt", "ollama"];
-        const idx = ids.indexOf(root.aiAgent);
-        root.selectAiAgent(ids[(idx + 1) % ids.length]);
-    }
+    function nextAiAgent() { const ids = ["agy", "mcode", "grok", "vibe", "claude", "chatgpt", "ollama"]; root.selectAiAgent(ids[(ids.indexOf(root.aiAgent) + 1) % ids.length]); }
 
     function normalizeDeckTab(sec) {
         const s = String(sec || "").toLowerCase();
         if (s === "ai" || s === "agent" || s === "1") return "ai";
         if (s === "wifi" || s === "net" || s === "wlan" || s === "2") return "wifi";
         if (s === "bluetooth" || s === "bt" || s === "3") return "bluetooth";
-        if (s === "audio" || s === "cam" || s === "mic" || s === "speaker" || s === "io" || s === "zerotrust" || s === "4") return "audio";
+        if (s === "audio" || s === "sensors" || s === "cam" || s === "mic" || s === "speaker" || s === "io" || s === "zerotrust" || s === "4") return "audio";
         if (s === "system" || s === "state" || s === "software" || s === "surface" || s === "forge" || s === "5") return "system";
         if (s === "power" || s === "battery" || s === "session" || s === "6") return "power";
         return root.superDeckSection || "ai";
@@ -218,11 +221,7 @@ Singleton {
 
     Process {
         id: clientsProc; command: ["sh", "-c", "hyprctl clients -j 2>/dev/null || echo '[]'"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try { const arr = JSON.parse(text.trim() || "[]"); root.clients = arr.filter(c => c.mapped && c.workspace && (c.workspace.id > 0 || String(c.workspace.name || "").includes("minimized"))); } catch (e) {}
-            }
-        }
+        stdout: StdioCollector { onStreamFinished: { try { const arr = JSON.parse(text.trim() || "[]"); root.clients = arr.filter(c => c.mapped && c.workspace && (c.workspace.id > 0 || String(c.workspace.name || "").includes("minimized"))); } catch (e) {} } }
     }
     Connections {
         target: Hyprland
@@ -233,12 +232,7 @@ Singleton {
         }
     }
     Component.onCompleted: { root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); clientsProc.running = true; }
-    IpcHandler {
-        target: "dock"
-        function reload(): void { root.reloadDock(); clientsProc.running = true; }
-        function toggleApps(): void { root.appGridOpen = !root.appGridOpen; root.playSfx("click"); }
-        function toggle(): void { root.runDockCmd("always toggle"); }
-    }
+    IpcHandler { target: "dock"; function reload(): void { root.reloadDock(); clientsProc.running = true; } function toggleApps(): void { root.appGridOpen = !root.appGridOpen; root.playSfx("click"); } function toggle(): void { root.runDockCmd("always toggle"); } }
     IpcHandler {
         target: "superdeck"
         function toggle(): void { root.toggleSuperDeck(""); }
