@@ -14,7 +14,7 @@ ColumnLayout {
     function focusSearch() { if (deckBody.activeSection === "system") forgeInput.forceActiveFocus(); }
 
     property string selBarIcon: "wifi"
-    readonly property var forgeChips: ["idlescreen", "ripgrep", "fastfetch", "btop", "fd", "zoxide"]
+    readonly property var forgeChips: ["hyprland", "quickshell", "idlescreen", "ripgrep", "fastfetch", "btop", "fd", "zoxide"]
     readonly property var themePresets: [
         { id: "snes", label: "[ SNES ]" }, { id: "01-super-blue", label: "[ SUPER BLUE ]" }, { id: "tokyo-night", label: "[ TOKYO NIGHT ]" },
         { id: "catppuccin", label: "[ CATPPUCCIN ]" }, { id: "nord", label: "[ NORD ]" }, { id: "02-metroid-violet", label: "[ METROID VIOLET ]" }
