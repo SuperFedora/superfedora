@@ -120,24 +120,20 @@ PanelWindow {
         spacing: 6
 
         Rectangle {
-            id: pocketDrawer
-            visible: Status.pocketOpen
-            implicitWidth: pocketLayout.implicitWidth + 6; implicitHeight: Theme.barHeight - 8
+            id: pocketDrawer; visible: Status.pocketOpen
+            implicitWidth: visible ? trayRow.implicitWidth + 4 : 0; implicitHeight: Theme.barHeight - 8
             color: "transparent"; border.width: 0
-
-            RowLayout {
-                id: pocketLayout; anchors.centerIn: parent; spacing: 2
-                Tray { bar: bar }
-            }
+            Tray { id: trayRow; anchors.centerIn: parent; bar: bar }
         }
 
-        BarLabel {
-            id: pocketToggle
-            text: Status.pocketOpen ? "▸" : "◂"
-            color: Status.pocketOpen ? Theme.cyan : Theme.fgDim
-            pixelSize: Theme.fontSize
-            onClicked: { Status.pocketOpen = !Status.pocketOpen; Status.playSfx("click"); }
+        Rectangle {
+            id: pocketToggle; implicitWidth: 26; implicitHeight: Theme.barHeight - 8; radius: Theme.radiusSm
+            color: ptMouse.containsMouse ? Theme.bgHover : "transparent"
+            Text { anchors.centerIn: parent; text: Status.pocketOpen ? "▸" : "◂"; color: Status.pocketOpen || ptMouse.containsMouse ? Theme.cyan : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize }
+            MouseArea { id: ptMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Status.pocketOpen = !Status.pocketOpen; Status.playSfx("click"); } }
         }
+
+        Rectangle { implicitWidth: 1; implicitHeight: 14; color: Theme.border }
 
         Rectangle {
             id: quickPill

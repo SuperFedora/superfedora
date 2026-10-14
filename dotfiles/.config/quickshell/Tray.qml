@@ -12,15 +12,19 @@ Row {
     Repeater {
         model: SystemTray.items
 
-        Item {
+        Rectangle {
             id: trayItem
             required property SystemTrayItem modelData
             width: 26
-            height: Theme.barHeight
+            height: Theme.barHeight - 8
+            radius: Theme.radiusSm
+            color: trayMouse.pressed ? Theme.bgAlt : (trayMouse.containsMouse ? Theme.bgHover : "transparent")
+            border.width: trayMouse.pressed ? 1 : 0
+            border.color: Theme.cyan
 
             IconImage {
                 anchors.centerIn: parent
-                implicitSize: 20
+                implicitSize: 18
                 source: trayItem.modelData.icon
             }
 
@@ -33,7 +37,9 @@ Row {
             }
 
             MouseArea {
+                id: trayMouse
                 anchors.fill: parent
+                hoverEnabled: true
                 acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                 cursorShape: Qt.PointingHandCursor
                 onClicked: e => {
