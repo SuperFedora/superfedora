@@ -12,25 +12,20 @@
 set -euo pipefail
 
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.minimax-code/bin:$HOME/.minimax/bin:$HOME/.grok/bin:$HOME/.npm-global/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
-SELF="$(realpath "${BASH_SOURCE[0]}")"
-SF_OLLAMA="$(command -v sf-ollama 2>/dev/null || realpath -m "$(dirname "$SELF")/../../../.local/bin/sf-ollama")"
-STATE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/superfedora"
+SELF="${BASH_SOURCE[0]}"; SF_OLLAMA="$HOME/.local/bin/sf-ollama"
+[[ -x "$SF_OLLAMA" ]] || SF_OLLAMA="$(command -v sf-ollama 2>/dev/null || echo "$HOME/.local/bin/sf-ollama")"
+STATE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/superfedora"; FAST_FILE="${XDG_RUNTIME_DIR:-/tmp}/quake-ai-${HYPRLAND_INSTANCE_SIGNATURE:-0}.env"
 STATE_FILE="$STATE_DIR/quake-ai.env"; AGENTS_FILE="$STATE_DIR/ai-agents.conf"
-mkdir -p "$STATE_DIR"
+[[ -d "$STATE_DIR" ]] || mkdir -p "$STATE_DIR"
 
 AI_AGENT="agy"; OLLAMA_HOST="127.0.0.1:11434"; OLLAMA_MODEL=""
 # shellcheck disable=SC1090
 [[ -f "$STATE_FILE" ]] && source "$STATE_FILE"
 AI_AGENT="${AI_AGENT:-agy}"; OLLAMA_HOST="${OLLAMA_HOST:-127.0.0.1:11434}"
 
-detect_ollama_model() {
-    local h="${1:-$OLLAMA_HOST}" pref="${2:-}" m=""
-    [[ -x "$SF_OLLAMA" ]] && m="$("$SF_OLLAMA" best-model "$h" "$pref" 2>/dev/null || true)"
-    printf '%s' "${m:-${pref:-llama3.2}}"
-}
+detect_ollama_model() { local h="${1:-$OLLAMA_HOST}" pref="${2:-}" m=""; [[ -x "$SF_OLLAMA" ]] && m="$("$SF_OLLAMA" best-model "$h" "$pref" 2>/dev/null || true)"; printf '%s' "${m:-${pref:-llama3.2}}"; }
 OLLAMA_MODEL="${OLLAMA_MODEL:-llama3.2}"
 [[ -f "$AGENTS_FILE" ]] || printf '# SuperFedora Custom AI Agents (id|label|command)\n' > "$AGENTS_FILE"
-
 save_state() { printf 'AI_AGENT=%q\nOLLAMA_HOST=%q\nOLLAMA_MODEL=%q\n' "$AI_AGENT" "$OLLAMA_HOST" "$OLLAMA_MODEL" > "$STATE_FILE"; }
 
 normalize_id() {
@@ -106,29 +101,25 @@ add_custom_agent() {
 }
 
 remove_custom_agent() {
-    local id="${1:-}" tmp="$AGENTS_FILE.tmp"
-    [[ -n "$id" && -f "$AGENTS_FILE" ]] || return 0
+    local id="${1:-}" tmp="$AGENTS_FILE.tmp"; [[ -n "$id" && -f "$AGENTS_FILE" ]] || return 0
     grep -Ev "^${id}\\|" "$AGENTS_FILE" > "$tmp" || true; mv "$tmp" "$AGENTS_FILE"
     if [[ "$AI_AGENT" == "$id" ]]; then AI_AGENT="agy"; save_state; fi
 }
 
 compute_geometry() {
-    local mon_json full_h hdr_h="${1:-40}"
-    [[ "$hdr_h" =~ ^[0-9]+$ ]] || hdr_h=40
+    local mon_json full_h hdr_h="${1:-40}"; [[ "$hdr_h" =~ ^[0-9]+$ ]] || hdr_h=40
     mon_json="$(hyprctl monitors -j 2>/dev/null || echo '[]')"
-    read -r MON_NAME MON_X MON_Y MON_W MON_H SPEC_OPEN < <(jq -r '
-        (.[] | select(.focused == true)) // .[0] // {name:"default", x:0, y:0, width:1920, height:1080, scale:1}
-        | "\(.name // "default") \(.x) \(.y) \((.width / (.scale // 1)) | round) \((.height / (.scale // 1)) | round) \(if .specialWorkspace.name == "special:ai" then 1 else 0 end)"
-    ' <<<"$mon_json")
+    read -r MON_NAME MON_X MON_Y MON_W MON_H SPEC_OPEN < <(jq -r '(.[] | select(.focused == true)) // .[0] // {name:"default", x:0, y:0, width:1920, height:1080, scale:1} | "\(.name // "default") \(.x) \(.y) \((.width / (.scale // 1)) | round) \((.height / (.scale // 1)) | round) \(if .specialWorkspace.name == "special:ai" then 1 else 0 end)"' <<<"$mon_json")
     MON_NAME="${MON_NAME:-default}"; MON_X="${MON_X:-0}"; MON_Y="${MON_Y:-0}"; MON_W="${MON_W:-1920}"; MON_H="${MON_H:-1080}"; SPEC_OPEN="${SPEC_OPEN:-0}"
     Q_W=$(( (MON_W * 68 + 50) / 100 )); full_h=$(( (MON_H * 58 + 50) / 100 ))
     (( Q_W > 1280 )) && Q_W=1280; (( Q_W < 860 )) && Q_W=860; (( Q_W > MON_W - 40 )) && Q_W=$(( MON_W - 40 ))
     (( full_h > 720 )) && full_h=720; (( full_h < 520 )) && full_h=520; (( full_h > MON_H - 64 )) && full_h=$(( MON_H - 64 ))
-    Q_H=$(( full_h - hdr_h )); Q_X=$(( MON_X + (MON_W - Q_W) / 2 )); Q_Y=$(( MON_Y + 42 + hdr_h ))
+    Q_FULL_H="$full_h"; Q_BASE_Y=$(( MON_Y + 42 )); Q_H=$(( full_h - hdr_h )); Q_X=$(( MON_X + (MON_W - Q_W) / 2 )); Q_Y=$(( Q_BASE_Y + hdr_h ))
 }
 
 has_quake_client() { hyprctl clients -j 2>/dev/null | grep -q '"class": "quake-ai"'; }
 is_special_ai_open() { hyprctl monitors -j 2>/dev/null | grep -q '"special:ai"'; }
+save_fast() { printf 'Q_PID=%q\nQ_X=%q\nQ_BASE_Y=%q\nQ_W=%q\nQ_FULL_H=%q\nQ_HDR_H=%q\nQ_OPEN=%q\n' "${Q_PID:-}" "${Q_X:-320}" "${Q_BASE_Y:-42}" "${Q_W:-1280}" "${Q_FULL_H:-626}" "${Q_HDR_H:-40}" "${1:-0}" > "$FAST_FILE"; }
 
 spawn_quake() {
     [[ "$AI_AGENT" == "ollama" ]] && OLLAMA_MODEL="$(detect_ollama_model "$OLLAMA_HOST" "$OLLAMA_MODEL")"
@@ -136,8 +127,7 @@ spawn_quake() {
     local runner="$STATE_DIR/quake-ai-runner.sh" safe_title="${AI_LABEL//[\'\"]/}"
     {
         printf '#!/usr/bin/env bash\nexport PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.minimax-code/bin:$HOME/.minimax/bin:$HOME/.grok/bin:$HOME/.npm-global/bin:/usr/local/bin:/usr/bin:/bin:$PATH"\n'
-        printf 'export AI_AGENT=%q AI_LABEL=%q AI_BIN=%q AI_CMD=%q OLLAMA_HOST=%q OLLAMA_MODEL=%q SF_OLLAMA=%q\n' \
-            "$AI_AGENT" "$AI_LABEL" "$AI_BIN" "$AI_CMD" "$OLLAMA_HOST" "$OLLAMA_MODEL" "$SF_OLLAMA"
+        printf 'export AI_AGENT=%q AI_LABEL=%q AI_BIN=%q AI_CMD=%q OLLAMA_HOST=%q OLLAMA_MODEL=%q SF_OLLAMA=%q\n' "$AI_AGENT" "$AI_LABEL" "$AI_BIN" "$AI_CMD" "$OLLAMA_HOST" "$OLLAMA_MODEL" "$SF_OLLAMA"
         cat <<'EOF'
 clear
 if [[ "$AI_AGENT" == "ollama" ]]; then
@@ -148,21 +138,38 @@ elif command -v "$AI_BIN" >/dev/null 2>&1; then eval "$AI_CMD"
 else printf '\033[1;33m[!]\033[0m %s (%s) is not installed yet. Configure via Top Bar AI menu or: sf ai configure\n' "$AI_LABEL" "$AI_BIN"; fi
 exec "${SHELL:-/bin/bash}"
 EOF
-    } > "$runner"
-    chmod +x "$runner"
+    } > "$runner"; chmod +x "$runner"
     hyprctl dispatch exec "[workspace special:ai silent; float; size $Q_W $Q_H; move $Q_X $Q_Y] kitty --class quake-ai -o 'map escape launch --type=background $SELF hide' -o 'map shift+escape send_text all \x1b' -o 'map alt+2 launch --type=background qs ipc call superdeck open wifi' -o 'map alt+3 launch --type=background qs ipc call superdeck open bluetooth' -o 'map alt+4 launch --type=background qs ipc call superdeck open audio' -o 'map alt+5 launch --type=background qs ipc call superdeck open system' -o 'map alt+6 launch --type=background qs ipc call superdeck open power' --title 'Quake AI — $safe_title' -e $runner" >/dev/null
     for _ in {1..30}; do has_quake_client && break; sleep 0.04; done
 }
 
 show_quake() {
+    local hdr_h="${1:-40}" batch=""
     exec 9>"$STATE_DIR/quake-ai.lock"; flock -w 2 9 || true
-    compute_geometry "${1:-40}"; has_quake_client || spawn_quake
-    local batch=""; [[ "${SPEC_OPEN:-0}" == "1" ]] || batch="dispatch togglespecialworkspace ai; "
+    # shellcheck disable=SC1090
+    [[ -f "$FAST_FILE" ]] && source "$FAST_FILE"
+    if [[ -n "${Q_PID:-}" && -d "/proc/$Q_PID" && -n "${Q_W:-}" ]]; then
+        [[ "$hdr_h" == "${Q_HDR_H:-40}" ]] || { Q_H=$(( Q_FULL_H - hdr_h )); Q_Y=$(( Q_BASE_Y + hdr_h )); Q_HDR_H="$hdr_h"; batch="dispatch movewindowpixel exact $Q_X $Q_Y,class:^(quake-ai)$; dispatch resizewindowpixel exact $Q_W $Q_H,class:^(quake-ai)$; "; }
+        [[ "${Q_OPEN:-0}" == "1" ]] || batch="dispatch togglespecialworkspace ai; ${batch}"
+        [[ -n "$batch" ]] && hyprctl --batch "${batch}dispatch focuswindow class:^(quake-ai)$" >/dev/null || hyprctl dispatch focuswindow "class:^(quake-ai)$" >/dev/null
+        save_fast 1; return 0
+    fi
+    compute_geometry "$hdr_h"; has_quake_client || spawn_quake
+    Q_PID="$(pgrep -n -f 'kitty --class quake-ai' 2>/dev/null || true)"; Q_HDR_H="$hdr_h"
+    [[ "${SPEC_OPEN:-0}" == "1" ]] || batch="dispatch togglespecialworkspace ai; "
     hyprctl --batch "${batch}dispatch movewindowpixel exact $Q_X $Q_Y,class:^(quake-ai)$; dispatch resizewindowpixel exact $Q_W $Q_H,class:^(quake-ai)$; dispatch focuswindow class:^(quake-ai)$" >/dev/null
+    save_fast 1
 }
 
-hide_quake() { exec 9>"$STATE_DIR/quake-ai.lock"; flock -w 2 9 || true; is_special_ai_open && hyprctl dispatch togglespecialworkspace ai >/dev/null || true; [[ "${1:-}" == "keep-deck" ]] || qs ipc call superdeck close >/dev/null 2>&1 || true; }
-relaunch_quake() { pkill -f "kitty --class quake-ai" 2>/dev/null || true; for _ in {1..25}; do has_quake_client || break; sleep 0.04; done; show_quake "${1:-40}"; }
+hide_quake() {
+    exec 9>"$STATE_DIR/quake-ai.lock"; flock -w 2 9 || true
+    # shellcheck disable=SC1090
+    [[ -f "$FAST_FILE" ]] && source "$FAST_FILE"
+    if [[ -n "${Q_PID:-}" && -d "/proc/$Q_PID" ]]; then [[ "${Q_OPEN:-0}" == "1" ]] && { hyprctl dispatch togglespecialworkspace ai >/dev/null || true; save_fast 0; }
+    elif is_special_ai_open; then hyprctl dispatch togglespecialworkspace ai >/dev/null || true; fi
+    [[ "${1:-}" == "keep-deck" ]] || qs ipc call superdeck close >/dev/null 2>&1 || true
+}
+relaunch_quake() { rm -f "$FAST_FILE"; pkill -f "kitty --class quake-ai" 2>/dev/null || true; for _ in {1..25}; do has_quake_client || break; sleep 0.04; done; show_quake "${1:-40}"; }
 
 prompt_ollama() {
     local host model choices
@@ -187,12 +194,7 @@ prompt_add_agent() {
 
 ask_agent() {
     local q="${*:-}" out=""; [[ -n "${q// /}" ]] || { echo "Please enter a prompt."; return 0; }; resolve_agent "$AI_AGENT"
-    case "$AI_AGENT" in
-        agy|grok|vibe|claude)
-            if command -v "$AI_BIN" >/dev/null 2>&1 && out="$(timeout 45 "$AI_BIN" -p "$q" </dev/null 2>&1)" && [[ -n "${out// /}" ]]; then
-                printf '%s\n' "$out"; return 0
-            fi ;;
-    esac
+    case "$AI_AGENT" in agy|grok|vibe|claude) if command -v "$AI_BIN" >/dev/null 2>&1 && out="$(timeout 45 "$AI_BIN" -p "$q" </dev/null 2>&1)" && [[ -n "${out// /}" ]]; then printf '%s\n' "$out"; return 0; fi ;; esac
     "$SF_OLLAMA" ask "$OLLAMA_HOST" "$OLLAMA_MODEL" "$q"
 }
 
@@ -237,10 +239,8 @@ case "${1:-toggle}" in
     restart|relaunch) relaunch_quake "${2:-40}" ;;
     select-agent)  resolve_agent "${2:-agy}"; qs ipc call status refresh >/dev/null 2>&1 || true; if has_quake_client && is_special_ai_open; then relaunch_quake; fi ;;
     set-agent)     resolve_agent "${2:-agy}"; qs ipc call status refresh >/dev/null 2>&1 || true; relaunch_quake ;;
-    next-agent)
-        mapfile -t IDS < <(all_agents | cut -d'|' -f1); NEXT="${IDS[0]:-agy}"
-        for i in "${!IDS[@]}"; do [[ "${IDS[$i]}" == "$AI_AGENT" ]] && { NEXT="${IDS[$(( (i + 1) % ${#IDS[@]} ))]}"; break; }; done
-        resolve_agent "$NEXT"; qs ipc call status refresh >/dev/null 2>&1 || true; if has_quake_client && is_special_ai_open; then relaunch_quake; fi ;;
+    next-agent)    mapfile -t IDS < <(all_agents | cut -d'|' -f1); NEXT="${IDS[0]:-agy}"; for i in "${!IDS[@]}"; do [[ "${IDS[$i]}" == "$AI_AGENT" ]] && { NEXT="${IDS[$(( (i + 1) % ${#IDS[@]} ))]}"; break; }; done
+                   resolve_agent "$NEXT"; qs ipc call status refresh >/dev/null 2>&1 || true; if has_quake_client && is_special_ai_open; then relaunch_quake; fi ;;
     ask|query)     shift; ask_agent "$@" ;;
     list-agents)   list_agents ;;
     set-ollama)    set_ollama "${2:-}" "${3:-}" ;;
@@ -249,7 +249,6 @@ case "${1:-toggle}" in
     prompt-ollama) prompt_ollama ;;
     prompt-add)    prompt_add_agent ;;
     configure|tui) configure_tui ;;
-    status)        resolve_agent "$AI_AGENT"; compute_geometry "${2:-40}"
-                   printf 'Agent: %s (%s) | Ollama: %s (%s) | Geometry: %dx%d+%d+%d\n' "$AI_LABEL" "$AI_CMD" "$OLLAMA_HOST" "$OLLAMA_MODEL" "$Q_W" "$Q_H" "$Q_X" "$Q_Y" ;;
+    status)        resolve_agent "$AI_AGENT"; compute_geometry "${2:-40}"; printf 'Agent: %s (%s) | Ollama: %s (%s) | Geometry: %dx%d+%d+%d\n' "$AI_LABEL" "$AI_CMD" "$OLLAMA_HOST" "$OLLAMA_MODEL" "$Q_W" "$Q_H" "$Q_X" "$Q_Y" ;;
     *)             sed -n '7,10p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

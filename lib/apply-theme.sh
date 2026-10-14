@@ -134,14 +134,12 @@ apply_all() {
 
     # 3. Hyprland Borders, Rounding & Groupbar
     [[ -f "$HOME/.config/hypr/conf/looknfeel.conf" ]] && sed -i \
-        -e "s/col\.active_border = .*/col.active_border = rgb($ACCENT)/" \
-        -e "s/col\.inactive_border = .*/col.inactive_border = rgba(${BORDER}aa)/" \
-        -e "s/col\.border_active = .*/col.border_active = rgb($ACCENT)/" \
-        -e "s/col\.border_inactive = .*/col.border_inactive = rgba(${BORDER}aa)/" \
-        -e "s/text_color = .*/text_color = rgb($FG)/" \
-        -e "s/col\.active = .*/col.active = rgba(${ACCENT}cc)/" \
-        -e "s/col\.inactive = .*/col.inactive = rgba(${BG_ALT}cc)/" \
-        -e "s/rounding = .*/rounding = $hypr_round/" "$HOME/.config/hypr/conf/looknfeel.conf"
+        -e "s/col\.active_border = .*/col.active_border = rgb($ACCENT)/" -e "s/col\.inactive_border = .*/col.inactive_border = rgba(${BORDER}aa)/" \
+        -e "s/col\.border_active = .*/col.border_active = rgb($ACCENT)/" -e "s/col\.border_inactive = .*/col.border_inactive = rgba(${BORDER}aa)/" \
+        -e "s/text_color = .*/text_color = rgb($FG)/" -e "s/col\.active = .*/col.active = rgba(${ACCENT}cc)/" \
+        -e "s/col\.inactive = .*/col.inactive = rgba(${BG_ALT}cc)/" -e "s/rounding = .*/rounding = $hypr_round/" \
+        -e "s/animation = layers,.*/animation = layers, 1, 1.2, quick, fade/" -e "s/animation = layersIn,.*/animation = layersIn, 1, 1.2, quick, fade/" \
+        -e "s/animation = specialWorkspace,.*/animation = specialWorkspace, 1, 1.2, quick, fade/" "$HOME/.config/hypr/conf/looknfeel.conf"
     if command -v hyprctl >/dev/null 2>&1; then
         hyprctl keyword general:col.active_border "rgb($ACCENT)" >/dev/null 2>&1 || true
         hyprctl keyword general:col.inactive_border "rgba(${BORDER}aa)" >/dev/null 2>&1 || true

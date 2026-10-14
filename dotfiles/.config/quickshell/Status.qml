@@ -82,7 +82,7 @@ Singleton {
         command: ["sh", "-c",
             "nmcli -t -f TYPE,STATE device 2>/dev/null | grep -m1 ':connected$' | cut -d: -f1 || echo none; " +
             "echo \"WFR|$(nmcli radio wifi 2>/dev/null || echo enabled)\"; " +
-            "nmcli -t -f NAME,TYPE connection show 2>/dev/null | awk -F: '$2==\"802-11-wireless\"{print \"SAV|\"$1}'; " +
+            "nmcli -t -f TYPE,NAME connection show 2>/dev/null | awk '/^802-11-wireless:/{sub(/^802-11-wireless:/,\"\");gsub(/\\\\:/,\":\");print \"SAV|\"$0}'; " +
             "nmcli -t -f ACTIVE,SIGNAL,SECURITY,SSID device wifi list --rescan no 2>/dev/null; " +
             "wpctl status 2>/dev/null | awk '/^Video/{exit} /Sinks:/{s=\"SNK\";next} /Sources:/{s=\"SRC\";next} /Filters:|Streams:/{s=\"\";next} s&&match($0,/(\\*?)[[:space:]]*([0-9]+)\\.[[:space:]]+([^\\[]+)/,m){n=m[3];sub(/[[:space:]]+$/,\"\",n);sub(/^.*Audio[[:space:]]+/,\"\",n);sub(/[[:space:]]*Output.*$/,\"\",n);sub(/HDMI \\/ DisplayPort/,\"HDMI/DP\",n);sub(/Microphone/,\"Mic\",n);print s\"|\"m[2]\"|\"((m[1]==\"*\")?1:0)\"|\"n}'; " +
             "b=$(brightnessctl -m 2>/dev/null | cut -d, -f4 | tr -d '%'); echo \"BRI|${b:-100}\"; " +
@@ -93,12 +93,12 @@ Singleton {
             "if [ -d /sys/class/power_supply/BAT0 ]; then bs=$(cat /sys/class/power_supply/BAT0/charge_control_start_threshold /sys/class/power_supply/BAT0/charge_start_threshold 2>/dev/null | head -n1); be=$(cat /sys/class/power_supply/BAT0/charge_control_end_threshold /sys/class/power_supply/BAT0/charge_stop_threshold 2>/dev/null | head -n1); echo \"BAT0|1|${bs:-0}|${be:-100}\"; fi"]
         stdout: StdioCollector {
             onStreamFinished: {
-                const lines = text.trim().split("\n"), type = lines[0] || "none", seen = {}, list = [], saved = [], sinks = [], sources = [];
+                const lines = text.trim().split("\n"), type = lines[0] || "none", byName = {}, list = [], saved = [], sinks = [], sources = [];
                 let activeSsid = "", activeSig = 0;
                 for (let i = 1; i < lines.length; i++) {
                     if (lines[i].startsWith("WFR|")) { root.wifiEnabled = (lines[i].split("|")[1] || "enabled").trim() !== "disabled"; continue; }
                     if (lines[i].startsWith("SAV|")) { const sv = lines[i].slice(4).trim(); if (sv && saved.indexOf(sv) === -1) saved.push(sv); continue; }
-                    if (lines[i].startsWith("SNK|") || lines[i].startsWith("SRC|")) { const p = lines[i].split("|"); (p[0] === "SNK" ? sinks : sources).push({ id: p[1], active: p[2] === "1", name: p.slice(3).join("|") }); continue; }
+                    if (lines[i].startsWith("SNK|") || lines[i].startsWith("SRC|")) { const p = lines[i].split("|"), arr = (p[0] === "SNK" ? sinks : sources); if (arr.length < 6 || p[2] === "1") arr.push({ id: p[1], active: p[2] === "1", name: p.slice(3).join("|") }); continue; }
                     if (lines[i].startsWith("BRI|")) { const bv = Number(lines[i].split("|")[1] || 100); if (!isNaN(bv) && bv > 0) root.brightness = Math.max(0.05, Math.min(1.0, bv / 100.0)); continue; }
                     if (lines[i].startsWith("SPK|")) { const sm = lines[i].match(/Volume:\s*([0-9.]+)/); if (sm) root.spkVol = Math.max(0, Math.min(1, Number(sm[1]))); root.spkMuted = lines[i].includes("[MUTED]"); continue; }
                     if (lines[i].startsWith("MIC|")) { const mm = lines[i].match(/Volume:\s*([0-9.]+)/); if (mm) root.micVol = Math.max(0, Math.min(1, Number(mm[1]))); root.micMuted = lines[i].includes("[MUTED]"); continue; }
@@ -107,13 +107,15 @@ Singleton {
                     if (lines[i].startsWith("AGY|")) { root.aiAgent = (lines[i].split("|")[1] || "agy").trim(); continue; }
                     if (lines[i].startsWith("BAT0|")) { const bp = lines[i].split("|"); root.bat0Present = true; root.bat0Threshold = "Start " + (bp[2] || "0") + "% / Stop " + (bp[3] || "100") + "%"; continue; }
                     const parts = lines[i].split(":"); if (parts.length < 4) continue;
-                    const act = parts[0] === "yes", sig = Number(parts[1] || 0), sec = (parts[2] || "").trim(), name = parts.slice(3).join(":").trim(), open = (!sec || sec === "--");
+                    const act = parts[0] === "yes", sig = Number(parts[1] || 0), sec = (parts[2] || "").trim(), name = parts.slice(3).join(":").replace(/\\:/g, ":").replace(/\\\\/g, "\\").trim(), open = (!sec || sec === "--");
                     if (!name) continue;
                     if (act) { activeSsid = name; activeSig = sig; }
-                    if (!seen[name] && list.length < 8) { seen[name] = true; list.push({ ssid: name, signal: sig, active: act, open: open, security: open ? "OPEN" : "WPA", saved: saved.indexOf(name) !== -1 }); }
+                    if (byName[name]) { if (act) byName[name].active = true; if (sig > byName[name].signal) byName[name].signal = sig; }
+                    else if (list.length < 8 || act) { const item = { ssid: name, signal: sig, active: act, open: open, security: open ? "OPEN" : "WPA", saved: saved.indexOf(name) !== -1 }; byName[name] = item; list.push(item); }
                 }
+                list.sort((a, b) => (b.active - a.active) || (b.signal - a.signal));
                 root.savedWifiList = saved; root.audioSinks = sinks; root.audioSources = sources;
-                root.wifiList = list; root.netType = (type === "wifi" || type === "ethernet") ? type : "none";
+                root.wifiList = list.slice(0, 8); root.netType = (type === "wifi" || type === "ethernet") ? type : "none";
                 root.signal = type === "wifi" ? activeSig : 0; root.ssid = type === "wifi" ? activeSsid : "";
             }
         }
@@ -165,12 +167,14 @@ Singleton {
     function setSpeakerVolume(val) { const c = Math.max(0, Math.min(1, val)); root.spkVol = c; Quickshell.execDetached(["sh", "-c", "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ " + Math.round(c * 100) + "%"]); }
     function toggleMicMute(m) { const next = (typeof m === "boolean") ? m : !root.micMuted; root.micMuted = next; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh mic " + (next ? "mute" : "unmute")]); }
     function setMicVolume(val) { const c = Math.max(0, Math.min(1, val)); root.micVol = c; Quickshell.execDetached(["sh", "-c", "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SOURCE@ " + Math.round(c * 100) + "%"]); }
-    function setAudioDefault(id) { root.playSfx("click"); Quickshell.execDetached(["sh", "-c", "wpctl set-default " + id + "; sleep 0.2 && qs ipc call status refresh >/dev/null 2>&1 || true"]); }
-    function toggleWebcam() { root.webcamEnabled = !root.webcamEnabled; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh webcam " + (root.webcamEnabled ? "on" : "off")]); }
-    function setKbdBacklight(lvl) {
-        const next = (typeof lvl === "number") ? Math.max(0, Math.min(2, lvl)) : ((root.kbdBacklight + 1) % 3);
-        root.kbdBacklight = next; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh kbd-backlight " + next]);
+    function setAudioDefault(id) {
+        const sid = String(id);
+        if (root.audioSinks.some(s => s.id === sid)) root.audioSinks = root.audioSinks.map(s => ({ id: s.id, active: s.id === sid, name: s.name }));
+        if (root.audioSources.some(s => s.id === sid)) root.audioSources = root.audioSources.map(s => ({ id: s.id, active: s.id === sid, name: s.name }));
+        root.playSfx("click"); Quickshell.execDetached(["sh", "-c", "wpctl set-default " + sid + "; sleep 0.2 && qs ipc call status refresh >/dev/null 2>&1 || true"]);
     }
+    function toggleWebcam() { root.webcamEnabled = !root.webcamEnabled; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh webcam " + (root.webcamEnabled ? "on" : "off")]); }
+    function setKbdBacklight(lvl) { const next = (typeof lvl === "number") ? Math.max(0, Math.min(2, lvl)) : ((root.kbdBacklight + 1) % 3); root.kbdBacklight = next; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh kbd-backlight " + next]); }
     function selectAiAgent(id) { root.aiAgent = id; root.playSfx("click"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh set-agent '" + id + "'"]); }
     function nextAiAgent() { const ids = ["agy", "mcode", "grok", "vibe", "claude", "chatgpt", "ollama"]; root.selectAiAgent(ids[(ids.indexOf(root.aiAgent) + 1) % ids.length]); }
 
@@ -185,20 +189,19 @@ Singleton {
         return root.superDeckSection || "ai";
     }
 
+    property bool _quakeShown: false
     function syncQuakeAi(hdrH) {
-        const cmd = (root.superDeckOpen && root.normalizeDeckTab(root.superDeckSection) === "ai") ? ("show " + (hdrH || 40)) : "hide keep-deck";
-        Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh " + cmd + " >/dev/null 2>&1"]);
+        const want = root.superDeckOpen && root.normalizeDeckTab(root.superDeckSection) === "ai";
+        if (!want && !root._quakeShown) return;
+        root._quakeShown = want;
+        Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh " + (want ? ("show " + (hdrH || 40)) : "hide keep-deck") + " >/dev/null 2>&1"]);
     }
     onSuperDeckOpenChanged: root.syncQuakeAi()
     onSuperDeckSectionChanged: if (root.superDeckOpen) root.syncQuakeAi()
 
     function toggleSuperDeck(sec) {
         if (!sec || sec === "last") { root.superDeckPowerHighlight = false; root.superDeckOpen = !root.superDeckOpen; }
-        else {
-            const target = root.normalizeDeckTab(sec);
-            if (root.superDeckOpen && root.superDeckSection === target) root.superDeckOpen = false;
-            else { root.superDeckSection = target; root.superDeckPowerHighlight = (target === "power"); root.superDeckOpen = true; }
-        }
+        else { const t = root.normalizeDeckTab(sec); if (root.superDeckOpen && root.superDeckSection === t) root.superDeckOpen = false; else { root.superDeckSection = t; root.superDeckPowerHighlight = (t === "power"); root.superDeckOpen = true; } }
         if (root.superDeckOpen) root.refresh();
         root.playSfx("click");
     }

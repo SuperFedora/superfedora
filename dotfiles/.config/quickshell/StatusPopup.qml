@@ -36,7 +36,7 @@ PanelWindow {
         { id: "audio", label: "[4] SENSORS & I/O" }, { id: "system", label: "[5] SYSTEM" }, { id: "power", label: "[6] POWER" }
     ]
 
-    NumberAnimation { id: fadeAnim; target: box; property: "opacity"; from: 0.68; to: 1.0; duration: 80; easing.type: Easing.OutQuad }
+    NumberAnimation { id: fadeAnim; target: box; property: "opacity"; from: 0.65; to: 1.0; duration: 75; easing.type: Easing.OutQuad }
 
     function focusActiveTab() { if (pop.activeTab === "wifi" && pop.wifiPassSsid !== "") wifiPassInput.forceActiveFocus(); else if (pop.activeTab !== "ai") box.forceActiveFocus(); }
     function selectTab(idx) {
@@ -65,7 +65,7 @@ PanelWindow {
     }
 
     onVisibleChanged: if (pop.visible) { pop.confirmCmd = ""; pop.agentBarOpen = false; pop.wifiPassSsid = ""; fadeAnim.from = 0.0; fadeAnim.duration = 90; fadeAnim.restart(); pop.focusActiveTab(); }
-    onActiveTabChanged: if (pop.visible) { pop.agentBarOpen = false; pop.wifiPassSsid = ""; fadeAnim.from = 0.68; fadeAnim.duration = 75; fadeAnim.restart(); pop.focusActiveTab(); }
+    onActiveTabChanged: if (pop.visible) { pop.agentBarOpen = false; pop.wifiPassSsid = ""; fadeAnim.from = 0.65; fadeAnim.duration = 75; fadeAnim.restart(); pop.focusActiveTab(); }
     onAgentBarOpenChanged: if (pop.visible && pop.activeTab === "ai") Status.syncQuakeAi(pop.agentBarOpen ? 82 : 40)
 
     Rectangle {
@@ -92,7 +92,7 @@ PanelWindow {
                 if ((event.key === Qt.Key_Down || event.key === Qt.Key_J) && n > 0) { pop.btIdx = (pop.btIdx + 1) % n; event.accepted = true; }
                 else if ((event.key === Qt.Key_Up || event.key === Qt.Key_K) && n > 0) { pop.btIdx = (pop.btIdx + n - 1) % n; event.accepted = true; }
                 else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && n > 0) { pop.btTrigger(pop.btList[Math.min(pop.btIdx, n - 1)]); event.accepted = true; }
-                else if (event.key === Qt.Key_S) { if (pop.btAdapter) pop.btAdapter.discovering = true; pop.runCmd("bluetoothctl --timeout 10 scan on >/dev/null 2>&1 &", false); event.accepted = true; }
+                else if (event.key === Qt.Key_S) { pop.runCmd("bluetoothctl --timeout 10 scan on >/dev/null 2>&1 &", false); event.accepted = true; }
                 else if (event.key === Qt.Key_D && n > 0) { const d = pop.btList[Math.min(pop.btIdx, n - 1)]; if (d) pop.runCmd("bluetoothctl remove " + d.address, false); event.accepted = true; }
             }
         }
@@ -174,17 +174,17 @@ PanelWindow {
                         Repeater {
                             model: Status.wifiList
                             Rectangle {
-                                id: wfRow; required property var modelData; required property int index; readonly property bool isSel: index === pop.wifiIdx || wfM.containsMouse
+                                id: wfRow; required property var modelData; required property int index; readonly property bool isSel: index === pop.wifiIdx || wfM.containsMouse || wfFgM.containsMouse
                                 Layout.fillWidth: true; implicitHeight: 36; radius: Theme.radiusSm; color: isSel ? Theme.bgHover : (modelData.active ? Theme.bg : "transparent"); border.width: modelData.active || isSel ? 1 : 0; border.color: modelData.active ? Theme.cyan : Theme.border
+                                MouseArea { id: wfM; anchors.fill: parent; z: 0; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: pop.wifiIdx = wfRow.index; onClicked: { pop.wifiIdx = wfRow.index; pop.wifiTrigger(wfRow.modelData); } }
                                 RowLayout {
-                                    anchors { fill: parent; leftMargin: 10; rightMargin: 10 } spacing: 8
+                                    anchors { fill: parent; leftMargin: 10; rightMargin: 10 } spacing: 8; z: 1
                                     Text { Layout.fillWidth: true; text: (wfRow.isSel ? "▸ " : "  ") + wfRow.modelData.ssid; color: wfRow.modelData.active ? Theme.cyan : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: wfRow.modelData.active || wfRow.isSel; elide: Text.ElideRight }
                                     Text { text: "[" + (wfRow.modelData.security || "WPA") + "]"; color: wfRow.modelData.open ? Theme.yellow : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
                                     Text { text: (wfRow.modelData.signal >= 75 ? "▂▄▆█ " : wfRow.modelData.signal >= 50 ? "▂▄▆░ " : wfRow.modelData.signal >= 25 ? "▂▄░░ " : "▂░░░ ") + wfRow.modelData.signal + "%"; color: Theme.yellow; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true; Layout.preferredWidth: 82; horizontalAlignment: Text.AlignRight }
                                     Rectangle { implicitWidth: wfActTxt.implicitWidth + 14; implicitHeight: 24; radius: Theme.radiusSm; color: Theme.bg; border.width: 1; border.color: wfRow.modelData.active ? Theme.green : (wfRow.modelData.saved ? Theme.cyan : Theme.blue); Text { id: wfActTxt; anchors.centerIn: parent; text: wfRow.modelData.active ? "[ CONNECTED — CLICK TO DISCONNECT ]" : (wfRow.modelData.saved ? "[ SAVED — CONNECT ]" : "[ CONNECT ]"); color: wfRow.modelData.active ? Theme.green : (wfRow.modelData.saved ? Theme.cyan : Theme.fg); font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } }
-                                    Rectangle { visible: wfRow.modelData.active || wfRow.modelData.saved; z: 2; implicitWidth: 78; implicitHeight: 24; radius: Theme.radiusSm; color: wfFgM.containsMouse ? Theme.red : Theme.bg; border.width: 1; border.color: Theme.red; Text { anchors.centerIn: parent; text: "[ FORGET ]"; color: wfFgM.containsMouse ? Theme.bg : Theme.red; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: wfFgM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pop.runCmd("nmcli connection delete '" + pop.escSh(wfRow.modelData.ssid) + "'; sleep 0.5 && qs ipc call status refresh", false) } }
+                                    Rectangle { visible: wfRow.modelData.active || wfRow.modelData.saved; implicitWidth: 78; implicitHeight: 24; radius: Theme.radiusSm; color: wfFgM.containsMouse ? Theme.red : Theme.bg; border.width: 1; border.color: Theme.red; Text { anchors.centerIn: parent; text: "[ FORGET ]"; color: wfFgM.containsMouse ? Theme.bg : Theme.red; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: wfFgM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: pop.wifiIdx = wfRow.index; onClicked: pop.runCmd("nmcli connection delete '" + pop.escSh(wfRow.modelData.ssid) + "'; sleep 0.5 && qs ipc call status refresh", false) } }
                                 }
-                                MouseArea { id: wfM; anchors.fill: parent; z: 1; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: pop.wifiIdx = wfRow.index; onClicked: { pop.wifiIdx = wfRow.index; pop.wifiTrigger(wfRow.modelData); } }
                             }
                         }
                         Item { Layout.fillHeight: true }
@@ -201,7 +201,7 @@ PanelWindow {
                     RowLayout {
                         anchors { fill: parent; leftMargin: 14; rightMargin: 14 } spacing: 10
                         Text { Layout.fillWidth: true; text: "▸ ZERO TRUST // BLUETOOTH PERIMETER"; color: pop.btEnabled ? Theme.cyan : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true }
-                        Rectangle { implicitWidth: 136; implicitHeight: 32; radius: Theme.radiusSm; color: btScn.containsMouse ? Theme.blue : Theme.bg; border.width: 2; border.color: Theme.cyan; Text { anchors.centerIn: parent; text: "[ SCAN / PAIR ]"; color: btScn.containsMouse ? Theme.bg : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true } MouseArea { id: btScn; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { if (pop.btAdapter) pop.btAdapter.discovering = true; pop.runCmd("bluetoothctl --timeout 10 scan on >/dev/null 2>&1 &", false); } } }
+                        Rectangle { implicitWidth: 136; implicitHeight: 32; radius: Theme.radiusSm; color: btScn.containsMouse ? Theme.blue : Theme.bg; border.width: 2; border.color: Theme.cyan; Text { anchors.centerIn: parent; text: "[ SCAN / PAIR ]"; color: btScn.containsMouse ? Theme.bg : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true } MouseArea { id: btScn; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pop.runCmd("bluetoothctl --timeout 10 scan on >/dev/null 2>&1 &", false) } }
                         Rectangle { implicitWidth: 148; implicitHeight: 32; radius: Theme.radiusSm; color: btTog.containsMouse ? Theme.bgHover : Theme.bg; border.width: 2; border.color: pop.btEnabled ? Theme.green : Theme.red; Text { anchors.centerIn: parent; text: pop.btEnabled ? "[ RADIO: ON ]" : "[ RADIO: OFF ]"; color: pop.btEnabled ? Theme.green : Theme.red; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true } MouseArea { id: btTog; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pop.runCmd(pop.btEnabled ? "bluetoothctl power off" : "rfkill unblock bluetooth; bluetoothctl power on", false) } }
                     }
                 }
@@ -213,15 +213,15 @@ PanelWindow {
                         Repeater {
                             model: pop.btList
                             Rectangle {
-                                id: btRow; required property var modelData; required property int index; readonly property bool isSel: index === pop.btIdx || btM.containsMouse
+                                id: btRow; required property var modelData; required property int index; readonly property bool isSel: index === pop.btIdx || btM.containsMouse || btFgM.containsMouse
                                 Layout.fillWidth: true; implicitHeight: 36; radius: Theme.radiusSm; color: isSel ? Theme.bgHover : (modelData.connected ? Theme.bg : "transparent"); border.width: modelData.connected || isSel ? 1 : 0; border.color: modelData.connected ? Theme.cyan : Theme.border
+                                MouseArea { id: btM; anchors.fill: parent; z: 0; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: pop.btIdx = btRow.index; onClicked: { pop.btIdx = btRow.index; pop.btTrigger(btRow.modelData); } }
                                 RowLayout {
-                                    anchors { fill: parent; leftMargin: 10; rightMargin: 10 } spacing: 8
+                                    anchors { fill: parent; leftMargin: 10; rightMargin: 10 } spacing: 8; z: 1
                                     Text { Layout.fillWidth: true; text: (btRow.isSel ? "▸ " : "  ") + (btRow.modelData.name || "Unknown") + "  [" + btRow.modelData.address + "]"; color: btRow.modelData.connected ? Theme.cyan : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: btRow.modelData.connected || btRow.isSel; elide: Text.ElideRight }
                                     Text { text: btRow.modelData.connected ? "[ CONNECTED ]" : (btRow.modelData.paired ? "[ PAIRED ]" : "[ DISCOVERED ]"); color: btRow.modelData.connected ? Theme.green : (btRow.modelData.paired ? Theme.cyan : Theme.yellow); font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
-                                    Rectangle { visible: btRow.modelData.paired || btRow.modelData.connected; z: 2; implicitWidth: 78; implicitHeight: 24; radius: Theme.radiusSm; color: btFgM.containsMouse ? Theme.red : Theme.bg; border.width: 1; border.color: Theme.red; Text { anchors.centerIn: parent; text: "[ FORGET ]"; color: btFgM.containsMouse ? Theme.bg : Theme.red; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: btFgM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pop.runCmd("bluetoothctl remove " + btRow.modelData.address, false) } }
+                                    Rectangle { visible: btRow.modelData.paired || btRow.modelData.connected; implicitWidth: 78; implicitHeight: 24; radius: Theme.radiusSm; color: btFgM.containsMouse ? Theme.red : Theme.bg; border.width: 1; border.color: Theme.red; Text { anchors.centerIn: parent; text: "[ FORGET ]"; color: btFgM.containsMouse ? Theme.bg : Theme.red; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: btFgM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: pop.btIdx = btRow.index; onClicked: pop.runCmd("bluetoothctl remove " + btRow.modelData.address, false) } }
                                 }
-                                MouseArea { id: btM; anchors.fill: parent; z: 1; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: pop.btIdx = btRow.index; onClicked: { pop.btIdx = btRow.index; pop.btTrigger(btRow.modelData); } }
                             }
                         }
                         Item { Layout.fillHeight: true }
