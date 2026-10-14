@@ -93,14 +93,9 @@ apply_all() {
         hyprctl hyprpaper wallpaper ",$wall_abs" >/dev/null 2>&1 || true
     fi
 
-    # 2. Lock Screen (hyprlock — clock-free 4K 16-bit SUPER FEDORA Hero art + GNOME-style HUD & controls)
-    local hud_cmd='cmd[update:5000] sh -c '\''net=$(nmcli -t -f TYPE,STATE dev 2>/dev/null | grep -m1 ":connected$" | cut -d: -f1); [ "$net" = "wifi" ] && net="󰤨 Wi-Fi" || ([ "$net" = "ethernet" ] && net="󰀂 ETH" || net="󰤮 Offline"); vol=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | awk "{if (\$3==\"[MUTED]\") print \"󰝟 Muted\"; else printf \"󰕾 %d%%\", \$2*100}"); bat=""; for b in /sys/class/power_supply/BAT*; do [ -e "$b/capacity" ] && bat="  ·  󰁹 $(cat "$b/capacity")% ($(cat "$b/status"))"; done; echo "$net  ·  $vol$bat"'\'''
-    local media_cmd='cmd[update:3000] sh -c '\''st=$(playerctl status 2>/dev/null); if [ "$st" = "Playing" ] || [ "$st" = "Paused" ]; then ic=$([ "$st" = "Playing" ] && echo "󰎆 PLAYING:" || echo "󰏤 PAUSED:"); info=$(playerctl metadata --format "{{ artist }} - {{ title }}" 2>/dev/null | cut -c1-48); [ -n "$info" ] && echo "  $ic $info  "; fi'\'''
+    # 2. Lock Screen (hyprlock — clock-free 4K 16-bit SUPER FEDORA Hero art + bottom-docked auth card)
     {
         printf '# Hyprlock Configuration — SuperFedora 16-Bit Theme (%s / %s)\ngeneral {\n    hide_cursor = false\n    ignore_empty_input = true\n    immediate_render = true\n    fail_timeout = 1200\n}\nanimations {\n    enabled = false\n}\nbackground {\n    monitor =\n    path = %s\n    blur_passes = 0\n    blur_size = 0\n}\n' "$NAME" "$mode" "$wall_rel"
-        write_lock_shape "430, 38" "0.90" "4" "-24, -20" "right" "top"
-        write_lock_lbl "$hud_cmd" "rgba($LOCK_FG, 1.0)" "12" "-42, -29" "right" "top"
-        write_lock_lbl "$media_cmd" "rgb($HOT)" "12" "24, -28" "left" "top"
         write_lock_shape "460, 210" "0.92" "6" "0, 28" "center" "bottom"
         printf 'image {\n    monitor =\n    path = ~/Pictures/Wallpapers/avatar.jpg\n    size = 64\n    rounding = 6\n    border_size = 2\n    border_color = rgb(%s)\n    position = 0, 156\n    halign = center\n    valign = bottom\n}\n' "$HOT"
         write_lock_lbl "<b>\$USER</b>  ·  <span foreground=\"#$ACCENT\">[SESSION LOCKED]</span>" "rgba($LOCK_FG, 1.0)" "14" "0, 124" "center" "bottom"
