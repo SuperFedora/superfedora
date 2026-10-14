@@ -218,6 +218,20 @@ def cmd_chat(host: str, model: str):
             history.pop()
 
 
+def cmd_ask(host: str, model: str, prompt: str):
+    info = probe_server(host, model)
+    host, model = info["host"], info["best"]
+    payload = json.dumps({"model": model, "messages": [{"role": "user", "content": prompt}], "stream": False}).encode("utf-8")
+    req = urllib.request.Request(f"http://{host}/api/chat", data=payload, headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=90) as resp:
+            data = json.loads(resp.read().decode("utf-8", errors="replace"))
+        msg = data.get("message") or {}
+        print((msg.get("content") or msg.get("thinking") or "(empty response)").strip())
+    except Exception as exc:
+        print(f"[Error querying http://{host} ({model})]: {exc}")
+
+
 def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else "probe"
     host = sys.argv[2] if len(sys.argv) > 2 else os.environ.get("OLLAMA_HOST", "127.0.0.1:11434")
@@ -230,9 +244,12 @@ def main():
         print_models_table(probe_server(host, model))
     elif cmd == "chat":
         cmd_chat(host, model)
+    elif cmd == "ask":
+        cmd_ask(host, model, " ".join(sys.argv[4:]).strip())
     else:
         cmd_probe(host, model)
 
 
 if __name__ == "__main__":
     main()
+

@@ -5,9 +5,8 @@ import Quickshell.Hyprland
 import Quickshell.Services.Pipewire
 import Quickshell.Services.UPower
 import Quickshell.Bluetooth
-import "panels"
 
-// Omarchy Quattro + GNOME Top Bar: [SF] + Workspaces | Clock | Collapsible Pocket (◂/▸) + Unified Quick Settings Pill.
+// Omarchy Quattro + GNOME Top Bar: [SF] + Workspaces | Clock | Collapsible System Tray (◂/▸) + Clean Status Pill.
 PanelWindow {
     id: bar
     required property var modelData
@@ -16,7 +15,6 @@ PanelWindow {
     readonly property var hyprMonitor: Hyprland.monitorFor(modelData)
     readonly property int activeWsId: hyprMonitor && hyprMonitor.activeWorkspace
         ? hyprMonitor.activeWorkspace.id : (Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1)
-    property bool aiOpen: false
 
     visible: true
     anchors { top: true; left: true; right: true }
@@ -27,14 +25,13 @@ PanelWindow {
     function run(cmd) { Quickshell.execDetached(["sh", "-c", cmd]); }
     PwObjectTracker { objects: [Pipewire.defaultAudioSink, Pipewire.defaultAudioSource] }
 
-    function openDeck(sec, alignLeft) {
-        calendarPopup.mode = ""; bar.aiOpen = false;
-        statusPopup.leftAligned = alignLeft === true;
-        Status.toggleSuperDeck(sec || "quick");
+    function openDeck(sec) {
+        calendarPopup.mode = "";
+        Status.toggleSuperDeck(sec || "");
     }
 
     function toggleCenter(targetMode) {
-        Status.superDeckOpen = false; bar.aiOpen = false;
+        Status.superDeckOpen = false;
         if (calendarPopup.mode === targetMode) calendarPopup.mode = "";
         else {
             if (targetMode === "date") calendarPopup.resetToToday(); else Status.refresh();
@@ -45,7 +42,6 @@ PanelWindow {
 
     Calendar { id: calendarPopup; targetScreen: bar.modelData }
     StatusPopup { id: statusPopup; targetScreen: bar.modelData }
-    AiPopup { id: aiPopup; targetScreen: bar.modelData; open: bar.aiOpen; rightOffset: 90; onCloseRequested: bar.aiOpen = false }
 
     // Omarchy Quattro: double-click empty bar space to toggle bar transparency
     MouseArea {
@@ -61,10 +57,10 @@ PanelWindow {
 
         BarLabel {
             text: "󰣛"
-            color: (Status.superDeckOpen && statusPopup.leftAligned) ? Theme.cyan : Theme.blue
+            color: Status.superDeckOpen ? Theme.cyan : Theme.blue
             pixelSize: Theme.iconSize + 2
-            onClicked: bar.openDeck("quick", true)
-            onRightClicked: bar.run("fuzzel")
+            onClicked: bar.openDeck("")
+            onRightClicked: bar.openDeck("ai")
         }
 
         Workspaces { monitor: bar.hyprMonitor; thickness: bar.implicitHeight }
@@ -117,7 +113,7 @@ PanelWindow {
         }
     }
 
-    // ---------------- Right: Collapsible Pocket Drawer + Unified Quick Settings Pill ----------------
+    // ---------------- Right: Collapsible System Tray + Clean Status Pill ----------------
     RowLayout {
         id: rightRow
         anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: 6 }
@@ -126,36 +122,12 @@ PanelWindow {
         Rectangle {
             id: pocketDrawer
             visible: Status.pocketOpen
-            implicitWidth: pocketLayout.implicitWidth + 10; implicitHeight: Theme.barHeight - 8
-            radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
+            implicitWidth: pocketLayout.implicitWidth + 6; implicitHeight: Theme.barHeight - 8
+            color: "transparent"; border.width: 0
 
             RowLayout {
                 id: pocketLayout; anchors.centerIn: parent; spacing: 2
-                Tray { bar: bar; Layout.rightMargin: 4 }
-
-                BarLabel {
-                    text: "󰍛 " + Status.cpu + "%"; pixelSize: Theme.fontSize - 2
-                    color: Status.cpu >= 80 ? Theme.red : Theme.fgDim
-                    onClicked: bar.openDeck("snapshots", false)
-                    onRightClicked: bar.run("kitty --class floating-term -e btop")
-                }
-
-                BarLabel {
-                    id: aiBtn; text: "󰚩"; color: bar.aiOpen ? Theme.blue : Theme.cyan
-                    onClicked: { Status.superDeckOpen = false; calendarPopup.mode = ""; bar.aiOpen = !bar.aiOpen; }
-                    onRightClicked: { bar.aiOpen = false; bar.run("~/.config/hypr/scripts/quake-ai.sh toggle"); }
-                }
-
-                BarLabel {
-                    text: Status.idleEnabled ? "󰒲" : "󰅶"; color: Status.idleEnabled ? Theme.fgDim : Theme.yellow
-                    onClicked: { bar.run("~/.config/hypr/scripts/toggle-idle.sh"); Status.refresh(); }
-                }
-
-                BarLabel {
-                    text: "󰀻"; color: Status.appGridOpen ? Theme.cyan : Theme.fgDim
-                    onClicked: Status.appGridOpen = !Status.appGridOpen
-                    onRightClicked: Status.runDockCmd("always toggle")
-                }
+                Tray { bar: bar }
             }
         }
 
@@ -171,26 +143,27 @@ PanelWindow {
             id: quickPill
             readonly property var sink: Pipewire.defaultAudioSink
             readonly property bool audioReady: sink !== null && sink.audio !== null
-            readonly property real vol: audioReady ? sink.audio.volume : 0
-            readonly property bool muted: audioReady ? sink.audio.muted : true
+            readonly property real vol: audioReady ? sink.audio.volume : Status.spkVol
+            readonly property bool muted: audioReady ? sink.audio.muted : Status.spkMuted
+            readonly property var source: Pipewire.defaultAudioSource
+            readonly property bool micReady: source !== null && source.audio !== null
+            readonly property bool micMuted: micReady ? source.audio.muted : Status.micMuted
             readonly property var btAdapter: Bluetooth.defaultAdapter
             readonly property int btConnected: Bluetooth.devices.values.filter(d => d.connected).length
             readonly property var batDev: UPower.displayDevice
             readonly property bool batPresent: batDev !== null && batDev.isLaptopBattery
             readonly property int batPct: batPresent ? Math.round(batDev.percentage <= 1 ? batDev.percentage * 100 : batDev.percentage) : 0
             readonly property bool batCharging: batPresent && (batDev.state === UPowerDeviceState.Charging || batDev.state === UPowerDeviceState.FullyCharged)
+            readonly property bool activeZeroTrust: Status.superDeckOpen && Status.superDeckSection === "zerotrust"
 
-            implicitWidth: pillRow.implicitWidth + 18; implicitHeight: Theme.barHeight - 8
-            radius: Theme.radiusSm
-            color: (Status.superDeckOpen && !statusPopup.leftAligned) || pillMouse.containsMouse ? Theme.bgHover : Theme.bgAlt
-            border.width: (Status.superDeckOpen && !statusPopup.leftAligned) ? 2 : 1
-            border.color: (Status.superDeckOpen && !statusPopup.leftAligned) ? Theme.blue : Theme.border
+            implicitWidth: pillRow.implicitWidth + 12; implicitHeight: Theme.barHeight - 8
+            color: "transparent"; border.width: 0
 
             RowLayout {
                 id: pillRow; anchors.centerIn: parent; spacing: 8
                 Text {
                     text: Status.netType === "ethernet" ? "󰀂" : (Status.netType !== "wifi" ? "󰤮" : (Status.signal >= 80 ? "󰤨" : Status.signal >= 60 ? "󰤥" : Status.signal >= 40 ? "󰤢" : Status.signal >= 20 ? "󰤟" : "󰤯"))
-                    color: Status.netType === "none" ? Theme.muted : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                    color: Status.netType === "none" ? Theme.red : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
                 }
                 Text {
                     visible: quickPill.btAdapter !== null
@@ -199,22 +172,38 @@ PanelWindow {
                 }
                 Text {
                     text: quickPill.muted ? "󰝟" : quickPill.vol >= 0.66 ? "󰕾" : quickPill.vol >= 0.33 ? "󰖀" : "󰕿"
-                    color: quickPill.muted ? Theme.muted : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                    color: quickPill.muted ? Theme.red : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                }
+                Text {
+                    text: quickPill.micMuted ? "󰍭" : "󰍬"
+                    color: quickPill.micMuted ? Theme.red : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                }
+                Text {
+                    text: Status.webcamEnabled ? "󰄀" : "󰗟"
+                    color: Status.webcamEnabled ? Theme.fg : Theme.red; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
                 }
                 Text {
                     visible: quickPill.batPresent
                     text: quickPill.batCharging ? "󰂄" : (quickPill.batPct <= 15 ? "󰁺" : quickPill.batPct <= 40 ? "󰁼" : quickPill.batPct <= 75 ? "󰂀" : "󰁹")
                     color: quickPill.batCharging ? Theme.green : (quickPill.batPct <= 15 ? Theme.red : Theme.fg); font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
                 }
-                Text { text: "󰐥"; color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2 }
+                Text { id: pwrIcon; text: "󰐥"; color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2 }
             }
 
             MouseArea {
                 id: pillMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
-                onClicked: e => bar.openDeck(e.button === Qt.RightButton ? "power" : "quick", false)
-                onWheel: wheel => { if (quickPill.audioReady) quickPill.sink.audio.volume = Math.max(0, Math.min(1, quickPill.vol + (wheel.angleDelta.y > 0 ? 0.05 : -0.05))); }
+                onClicked: e => {
+                    const nearPower = e.x >= (quickPill.width - 28);
+                    bar.openDeck((e.button === Qt.RightButton || nearPower) ? "power" : "zerotrust");
+                }
+                onWheel: wheel => {
+                    const v = Math.max(0, Math.min(1, quickPill.vol + (wheel.angleDelta.y > 0 ? 0.05 : -0.05)));
+                    if (quickPill.audioReady) quickPill.sink.audio.volume = v;
+                    Status.setSpeakerVolume(v);
+                }
             }
         }
     }
 }
+

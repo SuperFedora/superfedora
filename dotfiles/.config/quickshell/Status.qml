@@ -14,7 +14,7 @@ Singleton {
     property string netType: "none"; property string ssid: ""; property int signal: 0; property var wifiList: []
     property real brightness: 1.0; property bool idleEnabled: true; property bool sfxEnabled: true
     property real spkVol: 0.6; property bool spkMuted: false; property real micVol: 1.0; property bool micMuted: false; property bool webcamEnabled: true
-    property bool pocketOpen: false; property bool superDeckOpen: false; property string superDeckSection: "quick"
+    property bool pocketOpen: false; property bool superDeckOpen: false; property string superDeckSection: "ai"; property bool superDeckPowerHighlight: false
     property bool clock24h: true; property bool clockSeconds: false; property string localTz: "Local"; property bool autoTz: true
     property var worldClocks: []; property bool dnd: false; property bool sessionLocked: false
     property int notifUnread: 0; property int centerToggleSeq: 0; property var notifHistory: []; property var notifAction: null
@@ -172,10 +172,25 @@ Singleton {
     function setMicVolume(val) { const c = Math.max(0, Math.min(1, val)); root.micVol = c; Quickshell.execDetached(["sh", "-c", "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SOURCE@ " + Math.round(c * 100) + "%"]); }
     function toggleWebcam() { root.webcamEnabled = !root.webcamEnabled; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh webcam " + (root.webcamEnabled ? "on" : "off")]); }
 
+    function normalizeDeckTab(sec) {
+        const s = String(sec || "").toLowerCase();
+        if (s === "ai" || s === "agent" || s === "1") return "ai";
+        if (s === "zerotrust" || s === "net" || s === "io" || s === "quick" || s === "power" || s === "2") return "zerotrust";
+        if (s === "state" || s === "snapshots" || s === "telemetry" || s === "3") return "state";
+        if (s === "software" || s === "forge" || s === "apps" || s === "4") return "software";
+        if (s === "surface" || s === "style" || s === "dock" || s === "5") return "surface";
+        return root.superDeckSection || "ai";
+    }
+
     function toggleSuperDeck(sec) {
-        const target = sec || "quick";
-        if (root.superDeckOpen && root.superDeckSection === target) root.superDeckOpen = false;
-        else { root.superDeckSection = target; root.superDeckOpen = true; root.refresh(); }
+        if (!sec || sec === "last") {
+            root.superDeckPowerHighlight = false; root.superDeckOpen = !root.superDeckOpen;
+            if (root.superDeckOpen) root.refresh();
+        } else {
+            const pwr = (sec === "power"), target = root.normalizeDeckTab(sec);
+            if (root.superDeckOpen && root.superDeckSection === target && root.superDeckPowerHighlight === pwr) root.superDeckOpen = false;
+            else { root.superDeckSection = target; root.superDeckPowerHighlight = pwr; root.superDeckOpen = true; root.refresh(); }
+        }
         root.playSfx("click");
     }
 
@@ -219,9 +234,7 @@ Singleton {
         }
     }
 
-    Timer { interval: 3500; running: true; repeat: true; triggeredOnStart: true; onTriggered: clientsProc.running = true }
-    Component.onCompleted: { root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); }
-
+    Component.onCompleted: { root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); clientsProc.running = true; }
     IpcHandler {
         target: "dock"
         function reload(): void { root.reloadDock(); clientsProc.running = true; }
@@ -230,15 +243,13 @@ Singleton {
     }
     IpcHandler {
         target: "superdeck"
-        function toggle(): void { root.toggleSuperDeck("quick"); }
-        function open(sec: string): void { root.superDeckSection = sec || "quick"; root.superDeckOpen = true; root.refresh(); }
+        function toggle(): void { root.toggleSuperDeck(""); }
+        function toggleAi(): void { root.toggleSuperDeck("ai"); }
+        function open(sec: string): void { root.superDeckPowerHighlight = (sec === "power"); root.superDeckSection = root.normalizeDeckTab(sec); root.superDeckOpen = true; root.refresh(); }
+        function close(): void { root.superDeckOpen = false; }
     }
-    IpcHandler { target: "panels"; function settings(): void { root.toggleSuperDeck("dock"); } }
+    IpcHandler { target: "panels"; function settings(): void { root.toggleSuperDeck("surface"); } }
     IpcHandler { target: "status"; function refresh(): void { root.refresh(); } }
-
-    Timer {
-        interval: 6000; running: true; repeat: true; triggeredOnStart: true
-        onTriggered: { netProc.running = true; idleProc.running = true; tzProc.running = true; root.reloadSfx(); root.reloadWebcam(); }
-    }
+    Timer { interval: 4500; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
     function refresh() { netProc.running = true; idleProc.running = true; tzProc.running = true; clientsProc.running = true; root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); }
 }

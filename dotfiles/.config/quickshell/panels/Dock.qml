@@ -206,7 +206,7 @@ PanelWindow {
                         onEntered: { win.hoveredSlotIdx = win.dockItems.length + 1 + ioSlot.index; win.hoveredName = ioSlot.modelData.tip; }
                         onExited: if (win.hoveredSlotIdx === win.dockItems.length + 1 + ioSlot.index) win.hoveredName = ""
                         onClicked: e => {
-                            win.menuTarget = null; win.settingsMenu = false; if (e.button === Qt.RightButton) { Status.toggleSuperDeck("net"); return; }
+                            win.menuTarget = null; win.settingsMenu = false; if (e.button === Qt.RightButton) { Status.toggleSuperDeck("zerotrust"); return; }
                             if (ioSlot.modelData.id === "spk") { const m = !win.spkMuted; if (win.spkReady) win.sink.audio.muted = m; Status.toggleSpeakerMute(m); }
                             else if (ioSlot.modelData.id === "mic") { const m = !win.micMuted; if (win.micReady) win.source.audio.muted = m; Status.toggleMicMute(m); } else Status.toggleWebcam();
                         }

@@ -32,7 +32,9 @@ ShellRoot {
 
     IpcHandler {
         target: "ai"
-        function toggle(): void { Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh toggle"]); }
-        function setAgent(agent: string): void { Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh set-agent '" + agent + "'"]); }
+        function toggle(): void { Status.toggleSuperDeck("ai"); }
+        function tty(): void { Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh toggle"]); }
+        function setAgent(agent: string): void { Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh select-agent '" + agent + "'"]); }
     }
 }
+

@@ -35,14 +35,10 @@ save_state() { printf 'AI_AGENT=%q\nOLLAMA_HOST=%q\nOLLAMA_MODEL=%q\n' "$AI_AGEN
 
 normalize_id() {
     case "${1:-$AI_AGENT}" in
-        agy|antigravity|antigravity-cli) echo "agy" ;;
-        mcode|minimax|minimax-code)      echo "mcode" ;;
-        grok|grok-cli)                   echo "grok" ;;
-        vibe|mistral|mistral-vibe)       echo "vibe" ;;
-        claude|claude-code)              echo "claude" ;;
-        chatgpt|chatgtp|codex|openai)    echo "chatgpt" ;;
-        ollama|local)                    echo "ollama" ;;
-        *)                               echo "${1:-agy}" ;;
+        agy|antigravity*) echo "agy" ;;   mcode|minimax*) echo "mcode" ;;
+        grok|grok-cli)    echo "grok" ;;  vibe|mistral*)  echo "vibe" ;;
+        claude*)          echo "claude" ;; chatgpt|chatgtp|codex|openai) echo "chatgpt" ;;
+        ollama|local)     echo "ollama" ;; *) echo "${1:-agy}" ;;
     esac
 }
 
@@ -51,8 +47,7 @@ all_agents() {
     command -v chatgpt >/dev/null 2>&1 && chat_bin="chatgpt"
     printf 'agy|core|Antigravity CLI (agy)|agy|agy\nmcode|core|MiniMax Code (mcode)|mcode|mcode\n'
     printf 'grok|core|xAI Grok CLI (grok)|grok|grok\nvibe|core|Mistral Vibe (vibe)|vibe|vibe\n'
-    printf 'claude|standard|Claude Code (claude)|claude|claude\n'
-    printf 'chatgpt|standard|ChatGPT / Codex (%s)|%s|%s\n' "$chat_bin" "$chat_bin" "$chat_bin"
+    printf 'claude|standard|Claude Code (claude)|claude|claude\nchatgpt|standard|ChatGPT / Codex (%s)|%s|%s\n' "$chat_bin" "$chat_bin" "$chat_bin"
     printf 'ollama|local|Ollama (%s // %s)|sf-ollama chat %s %s|ollama\n' "$OLLAMA_HOST" "$OLLAMA_MODEL" "$OLLAMA_HOST" "$OLLAMA_MODEL"
     if [[ -f "$AGENTS_FILE" ]]; then
         while IFS='|' read -r cid clabel ccmd; do
@@ -68,9 +63,7 @@ resolve_agent() {
     local target cid clabel ccmd cbin found=0
     target="$(normalize_id "${1:-$AI_AGENT}")"
     while IFS='|' read -r cid _ clabel ccmd cbin; do
-        if [[ "$cid" == "$target" ]]; then
-            AI_AGENT="$cid"; AI_LABEL="$clabel"; AI_CMD="$ccmd"; AI_BIN="$cbin"; found=1; break
-        fi
+        [[ "$cid" == "$target" ]] && { AI_AGENT="$cid"; AI_LABEL="$clabel"; AI_CMD="$ccmd"; AI_BIN="$cbin"; found=1; break; }
     done < <(all_agents)
     [[ $found -eq 0 ]] && { AI_AGENT="agy"; AI_LABEL="Antigravity CLI (agy)"; AI_CMD="agy"; AI_BIN="agy"; }
     save_state
@@ -97,12 +90,8 @@ list_agents() {
 set_ollama() {
     local host="${1:-$OLLAMA_HOST}" model="${2:-}"
     host="${host#http://}"; host="${host#https://}"; host="${host%/}"; host="${host%%/*}"
-    if [[ -n "$host" ]]; then
-        [[ "$host" != *:* ]] && host="$host:11434"
-        OLLAMA_HOST="$host"
-    fi
-    OLLAMA_MODEL="$(detect_ollama_model "$OLLAMA_HOST" "${model%% *}")"
-    save_state
+    [[ -n "$host" ]] && { [[ "$host" != *:* ]] && host="$host:11434"; OLLAMA_HOST="$host"; }
+    OLLAMA_MODEL="$(detect_ollama_model "$OLLAMA_HOST" "${model%% *}")"; save_state
 }
 
 add_custom_agent() {
@@ -132,10 +121,8 @@ compute_geometry() {
     ' <<<"$mon_json")
     MON_NAME="${MON_NAME:-default}"; MON_X="${MON_X:-0}"; MON_Y="${MON_Y:-0}"; MON_W="${MON_W:-1920}"; MON_H="${MON_H:-1080}"
     Q_W=$(( MON_W * 68 / 100 )); Q_H=$(( MON_H * 58 / 100 ))
-    if (( Q_W > 1280 )); then Q_W=1280; elif (( Q_W < 860 )); then Q_W=860; fi
-    if (( Q_W > MON_W - 40 )); then Q_W=$(( MON_W - 40 )); fi
-    if (( Q_H > 720 )); then Q_H=720; elif (( Q_H < 480 )); then Q_H=480; fi
-    if (( Q_H > MON_H - 64 )); then Q_H=$(( MON_H - 64 )); fi
+    (( Q_W > 1280 )) && Q_W=1280; (( Q_W < 860 )) && Q_W=860; (( Q_W > MON_W - 40 )) && Q_W=$(( MON_W - 40 ))
+    (( Q_H > 720 )) && Q_H=720; (( Q_H < 480 )) && Q_H=480; (( Q_H > MON_H - 64 )) && Q_H=$(( MON_H - 64 ))
     Q_X=$(( MON_X + (MON_W - Q_W) / 2 )); Q_Y=$(( MON_Y + 42 ))
 }
 
@@ -183,7 +170,8 @@ prompt_ollama() {
     choices="$("$SF_OLLAMA" fuzzel-models "$OLLAMA_HOST" "$OLLAMA_MODEL" 2>/dev/null || true)"
     model="$(printf '%s\n' "$choices" | fuzzel --dmenu --prompt "Model ($OLLAMA_HOST) > " --width 56)" || return 0
     [[ -z "${model// /}" || "$model" == "[!]"* ]] && return 0
-    set_ollama "$OLLAMA_HOST" "${model%% *}"; resolve_agent "ollama"; relaunch_quake
+    set_ollama "$OLLAMA_HOST" "${model%% *}"; resolve_agent "ollama"
+    if has_quake_client && is_special_ai_open; then relaunch_quake; fi
 }
 
 prompt_add_agent() {
@@ -192,7 +180,15 @@ prompt_add_agent() {
     [[ -n "${cmd// /}" ]] || return 0
     id="$(echo "${cmd%% *}" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_-')"
     label="$(printf '%s (%s)\n%s\n' "${id^} CLI" "$cmd" "$cmd" | fuzzel --dmenu --prompt 'Agent Label > ' --width 44)" || return 0
-    add_custom_agent "$id" "${label:-$id}" "$cmd"; resolve_agent "$id"; relaunch_quake
+    add_custom_agent "$id" "${label:-$id}" "$cmd"; resolve_agent "$id"
+    if has_quake_client && is_special_ai_open; then relaunch_quake; fi
+}
+
+ask_agent() {
+    local q="${*:-}"; [[ -n "${q// /}" ]] || { echo "Please enter a prompt."; return 0; }; resolve_agent "$AI_AGENT"
+    if [[ "$AI_AGENT" == "vibe" ]] && command -v vibe >/dev/null 2>&1; then vibe -p "$q" 2>&1 || "$SF_OLLAMA" ask "$OLLAMA_HOST" "$OLLAMA_MODEL" "$q"
+    elif [[ "$AI_AGENT" == "claude" ]] && command -v claude >/dev/null 2>&1; then claude -p "$q" 2>&1 || "$SF_OLLAMA" ask "$OLLAMA_HOST" "$OLLAMA_MODEL" "$q"
+    else "$SF_OLLAMA" ask "$OLLAMA_HOST" "$OLLAMA_MODEL" "$q"; fi
 }
 
 configure_tui() {
@@ -216,14 +212,12 @@ configure_tui() {
         read -r -p "  Select action [1-5/q]: " act
         case "$act" in
             1) read -r -p "  Agent ID: " aid; [[ -n "$aid" ]] && resolve_agent "$aid" ;;
-            2) read -r -p "  Ollama Host/URL [$OLLAMA_HOST]: " oh; set_ollama "${oh:-$OLLAMA_HOST}" ""
-               printf '  Probing http://%s ...\n' "$OLLAMA_HOST"; "$SF_OLLAMA" table "$OLLAMA_HOST" "$OLLAMA_MODEL"
+            2) read -r -p "  Ollama Host/URL [$OLLAMA_HOST]: " oh; set_ollama "${oh:-$OLLAMA_HOST}" ""; "$SF_OLLAMA" table "$OLLAMA_HOST" "$OLLAMA_MODEL"
                mapfile -t mnames < <("$SF_OLLAMA" probe "$OLLAMA_HOST" "$OLLAMA_MODEL" | awk -F'|' '$1=="OLLAMA_MODEL"{print $2}')
                read -r -p "  Select model (#, name, or Enter for $OLLAMA_MODEL): " om
-               if [[ "$om" =~ ^[0-9]+$ ]] && (( om >= 1 && om <= ${#mnames[@]} )); then om="${mnames[$((om - 1))]}"; fi
+               [[ "$om" =~ ^[0-9]+$ ]] && (( om >= 1 && om <= ${#mnames[@]} )) && om="${mnames[$((om - 1))]}"
                set_ollama "$OLLAMA_HOST" "${om:-$OLLAMA_MODEL}"; resolve_agent "ollama" ;;
-            3) read -r -p "  ID: " nid; read -r -p "  Label: " nlbl; read -r -p "  Command: " ncmd
-               [[ -n "$nid" && -n "$ncmd" ]] && add_custom_agent "$nid" "$nlbl" "$ncmd" ;;
+            3) read -r -p "  ID: " nid; read -r -p "  Label: " nlbl; read -r -p "  Command: " ncmd; [[ -n "$nid" && -n "$ncmd" ]] && add_custom_agent "$nid" "$nlbl" "$ncmd" ;;
             4) read -r -p "  Custom ID to remove: " rid; [[ -n "$rid" ]] && remove_custom_agent "$rid" ;;
             5) relaunch_quake; break ;;
             q|Q|"") break ;;
@@ -236,11 +230,13 @@ case "${1:-toggle}" in
     show|open)     show_quake ;;
     hide|close)    hide_quake ;;
     restart|relaunch) relaunch_quake ;;
+    select-agent)  resolve_agent "${2:-agy}"; if has_quake_client && is_special_ai_open; then relaunch_quake; fi ;;
     set-agent)     resolve_agent "${2:-agy}"; relaunch_quake ;;
     next-agent)
         mapfile -t IDS < <(all_agents | cut -d'|' -f1); NEXT="${IDS[0]:-agy}"
         for i in "${!IDS[@]}"; do [[ "${IDS[$i]}" == "$AI_AGENT" ]] && { NEXT="${IDS[$(( (i + 1) % ${#IDS[@]} ))]}"; break; }; done
-        resolve_agent "$NEXT"; relaunch_quake ;;
+        resolve_agent "$NEXT"; if has_quake_client && is_special_ai_open; then relaunch_quake; fi ;;
+    ask|query)     shift; ask_agent "$@" ;;
     list-agents)   list_agents ;;
     set-ollama)    set_ollama "${2:-}" "${3:-}" ;;
     add-agent)     add_custom_agent "${2:-}" "${3:-}" "${4:-}" ;;
