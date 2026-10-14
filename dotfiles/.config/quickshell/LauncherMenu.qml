@@ -23,7 +23,7 @@ ColumnLayout {
         { id: "13-indigo",  label: "INDIGO",  hex: "#6c71c4" }, { id: "14-violet",  label: "VIOLET",  hex: "#bb9af7" },
         { id: "15-orchid",  label: "ORCHID",  hex: "#cba6f7" }, { id: "16-fuchsia", label: "FUCHSIA", hex: "#f43f5e" }
     ]
-    readonly property var barIconLabels: ({ wifi: "󰤨 WIFI", bluetooth: "󰂯 BT", speaker: "󰕾 SPK", mic: "󰍬 MIC", camera: "󰄀 CAM", idle: "󰅶 AWAKE", battery: "󰁹 BAT", power: "󰐥 PWR" })
+    readonly property var barIconLabels: ({ wifi: "󰤨 WIFI", bluetooth: "󰂯 BT", speaker: "󰕾 SPK", mic: "󰍬 MIC", camera: "󰄀 CAM", battery: "󰁹 BAT", power: "󰐥 PWR" })
 
     function asciiBar(pct) { const f = Math.max(0, Math.min(16, Math.round((pct / 100.0) * 16))); return "[" + "█".repeat(f) + "░".repeat(16 - f) + "]"; }
     function runForge(target) {

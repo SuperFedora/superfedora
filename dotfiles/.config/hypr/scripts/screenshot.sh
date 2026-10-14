@@ -1,7 +1,64 @@
 #!/usr/bin/env bash
-# Screenshot to ~/Pictures/Screenshots and the clipboard.
-# Usage: screenshot.sh [region|window|screen]
+# Capture & Omarchy center-bar tools: screenshot, screen recording, color picker, vox dictation, weather.
+# Usage: screenshot.sh [region|window|screen|record|record-region|color|vox|weather]
 set -u
+export PATH="$HOME/.local/bin:$PATH"
+
+case "${1:-region}" in
+    record|record-region)
+        vdir="$(xdg-user-dir VIDEOS 2>/dev/null || echo "$HOME/Videos")/Recordings"
+        mkdir -p "$vdir"
+        state="$HOME/.config/superfedora/recording-file"
+        if pgrep -x wf-recorder >/dev/null || pgrep -f '^gpu-screen-recorder' >/dev/null; then
+            pkill -INT -x wf-recorder 2>/dev/null || pkill -INT -f '^gpu-screen-recorder' 2>/dev/null || true
+            sleep 0.4
+            f="$(cat "$state" 2>/dev/null || echo "$vdir")"
+            rm -f "$state"
+            qs ipc call status refresh >/dev/null 2>&1 || true
+            notify-send -a SuperFedora "Screen Recording Saved" "$(basename "$f")"
+            exit 0
+        fi
+        out="$vdir/recording-$(date +%Y%m%d-%H%M%S).mp4"
+        mkdir -p "$HOME/.config/superfedora"
+        echo "$out" > "$state"
+        if [ "${1:-}" = "record-region" ]; then
+            geom="$(slurp -d -b 1a1b2666 -c 7aa2f7ff -w 2)" || { rm -f "$state"; exit 0; }
+            nohup wf-recorder -g "$geom" -f "$out" >/dev/null 2>&1 &
+        else
+            mon="$(hyprctl activeworkspace -j 2>/dev/null | jq -r '.monitor // empty')"
+            nohup wf-recorder ${mon:+-o "$mon"} -f "$out" >/dev/null 2>&1 &
+        fi
+        sleep 0.25
+        qs ipc call status refresh >/dev/null 2>&1 || true
+        notify-send -a SuperFedora "Screen Recording Started" "Click the red recording icon in the top bar to stop."
+        exit 0 ;;
+    color)
+        sleep 0.15
+        hex="$(hyprpicker -a 2>/dev/null | tr -d '[:space:]')"
+        [ -n "$hex" ] && notify-send -a SuperFedora "Color Picker" "Copied $hex to clipboard"
+        exit 0 ;;
+    vox)
+        if command -v voxtype >/dev/null 2>&1; then
+            if pgrep -x voxtype >/dev/null; then pkill -INT -x voxtype; else nohup voxtype >/dev/null 2>&1 & fi
+        elif pgrep -f 'pw-record.*superfedora-vox' >/dev/null; then
+            pkill -INT -f 'pw-record.*superfedora-vox' || true
+            notify-send -a SuperFedora "Vox Dictation Stopped" "Audio note saved to ~/Documents/VoiceNotes"
+        else
+            ndir="$HOME/Documents/VoiceNotes"
+            mkdir -p "$ndir"
+            vout="$ndir/superfedora-vox-$(date +%Y%m%d-%H%M%S).wav"
+            nohup pw-record "$vout" >/dev/null 2>&1 &
+            notify-send -a SuperFedora "Vox Dictation Active" "Recording microphone... Click mic icon again to stop."
+        fi
+        sleep 0.2
+        qs ipc call status refresh >/dev/null 2>&1 || true
+        exit 0 ;;
+    weather)
+        w="$(curl -fsSL --max-time 4 'https://wttr.in/?format=%l:+%c+%t+(Feels+like+%f),+%w+wind,+%h+humidity' 2>/dev/null | sed 's/+//g' || true)"
+        notify-send -a SuperFedora "Local Weather" "${w:-Weather service temporarily unavailable}"
+        exit 0 ;;
+esac
+
 dir="$(xdg-user-dir PICTURES 2>/dev/null || echo "$HOME/Pictures")/Screenshots"
 mkdir -p "$dir"
 file="$dir/screenshot-$(date +%Y%m%d-%H%M%S).png"

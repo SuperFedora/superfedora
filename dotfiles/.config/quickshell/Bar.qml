@@ -25,18 +25,11 @@ PanelWindow {
     function run(cmd) { Quickshell.execDetached(["sh", "-c", cmd]); }
     PwObjectTracker { objects: [Pipewire.defaultAudioSink, Pipewire.defaultAudioSource] }
 
-    function openDeck(sec) {
-        calendarPopup.mode = "";
-        Status.toggleSuperDeck(sec || "");
-    }
-
+    function openDeck(sec) { calendarPopup.mode = ""; Status.toggleSuperDeck(sec || ""); }
     function toggleCenter(targetMode) {
         Status.superDeckOpen = false;
         if (calendarPopup.mode === targetMode) calendarPopup.mode = "";
-        else {
-            if (targetMode === "date") calendarPopup.resetToToday(); else Status.refresh();
-            calendarPopup.mode = targetMode;
-        }
+        else { if (targetMode === "date") calendarPopup.resetToToday(); else Status.refresh(); calendarPopup.mode = targetMode; }
         Status.playSfx("click");
     }
 
@@ -85,32 +78,63 @@ PanelWindow {
 
     RowLayout {
         id: centerClock
-        anchors.centerIn: parent; spacing: 4
+        anchors.centerIn: parent; spacing: 3
         property date now: new Date()
         Timer { interval: Status.clockSeconds ? 1000 : 5000; running: true; repeat: true; triggeredOnStart: true; onTriggered: centerClock.now = new Date() }
 
+        readonly property var leftTools: [
+            { id: "weather", vis: Status.centerToolsOpen, active: false, col: Theme.cyan, txt: "󰖙" + (Status.weatherTemp ? " " + Status.weatherTemp : "") },
+            { id: "update",  vis: Status.centerToolsOpen || Status.updatesCount > 0, active: Status.updatesCount > 0, col: Theme.orange, txt: "󰚰" + (Status.updatesCount > 0 ? " " + Status.updatesCount : "") },
+            { id: "color",   vis: Status.centerToolsOpen, active: false, col: Theme.purple, txt: "󰈊" },
+            { id: "shot",    vis: Status.centerToolsOpen, active: false, col: Theme.cyan, txt: "󰹑" },
+            { id: "vox",     vis: Status.centerToolsOpen || Status.voxActive, active: Status.voxActive, col: Theme.cyan, txt: Status.voxActive ? "󰔟 REC" : "󰍬" },
+            { id: "record",  vis: Status.centerToolsOpen || Status.screenRecording, active: Status.screenRecording, col: Theme.red, txt: Status.screenRecording ? "󰻂 REC" : "󰻂" },
+            { id: "dnd",     vis: Status.centerToolsOpen || Status.dnd || Status.notifUnread > 0, active: Status.dnd || Status.notifUnread > 0, col: Status.dnd ? Theme.yellow : Theme.cyan, txt: Status.dnd ? ("󰂛" + (Status.notifUnread > 0 ? " " + Status.notifUnread : "")) : (Status.notifUnread > 0 ? ("󰂞 " + Status.notifUnread) : "󰂚") },
+            { id: "idle",    vis: true, active: !Status.idleEnabled, col: Theme.yellow, txt: !Status.idleEnabled ? "󰅶" : "󰒲" }
+        ]
+
+        function triggerCenterTool(id, rightBtn) {
+            if (id === "idle") { if (rightBtn) bar.openDeck("power"); else Status.toggleIdle(); }
+            else if (id === "dnd") { if (rightBtn) bar.toggleCenter("date"); else if (Status.notifAction) Status.notifAction("toggleDnd"); }
+            else if (id === "record") Status.toggleScreenRecord(rightBtn);
+            else if (id === "vox") Status.toggleVox();
+            else if (id === "shot") bar.run("~/.config/hypr/scripts/screenshot.sh " + (rightBtn ? "screen" : "region"));
+            else if (id === "color") bar.run("~/.config/hypr/scripts/screenshot.sh color");
+            else if (id === "update") bar.run("kitty --class floating-term -e bash -lc '~/.local/bin/sf update || sudo dnf upgrade; read -n1 -rsp \"Press any key\"'");
+            else if (id === "weather") { if (rightBtn) bar.toggleCenter("date"); else bar.run("~/.config/hypr/scripts/screenshot.sh weather"); }
+        }
+
+        Rectangle {
+            implicitWidth: 22; implicitHeight: Theme.barHeight - 8; radius: Theme.radiusSm
+            color: ctMouse.containsMouse ? Theme.bgHover : "transparent"
+            Text { anchors.centerIn: parent; text: Status.centerToolsOpen ? "▸" : "◂"; color: Status.centerToolsOpen || ctMouse.containsMouse ? Theme.cyan : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize }
+            MouseArea { id: ctMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Status.centerToolsOpen = !Status.centerToolsOpen; Status.playSfx("click"); } }
+        }
+
+        Repeater {
+            model: centerClock.leftTools
+            Rectangle {
+                id: ctChip; required property var modelData
+                visible: modelData.vis; implicitWidth: visible ? ctTxt.implicitWidth + 12 : 0; implicitHeight: Theme.barHeight - 8; radius: Theme.radiusSm
+                color: ctChipM.pressed ? Theme.bgAlt : (ctChipM.containsMouse ? Theme.bgHover : "transparent")
+                border.width: modelData.active ? 1 : 0; border.color: modelData.col
+                Text { id: ctTxt; anchors.centerIn: parent; text: ctChip.modelData.txt; color: ctChip.modelData.active ? ctChip.modelData.col : (ctChipM.containsMouse ? Theme.cyan : Theme.fgDim); font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: ctChip.modelData.active }
+                MouseArea { id: ctChipM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: e => centerClock.triggerCenterTool(ctChip.modelData.id, e.button === Qt.RightButton) }
+            }
+        }
+
+        Rectangle { implicitWidth: 1; implicitHeight: 14; color: Theme.border }
+
         BarLabel {
-            pixelSize: Theme.fontSize; bold: true
-            color: calendarPopup.mode === "date" ? Theme.blue : Theme.fg
+            pixelSize: Theme.fontSize; bold: true; color: calendarPopup.mode === "date" ? Theme.blue : Theme.fg
             text: Qt.formatDateTime(centerClock.now, "ddd, MMM d")
-            onClicked: bar.toggleCenter("date")
-            onRightClicked: if (Status.notifAction) Status.notifAction("toggleDnd")
+            onClicked: bar.toggleCenter("date"); onRightClicked: if (Status.notifAction) Status.notifAction("toggleDnd")
         }
 
         BarLabel {
-            pixelSize: Theme.fontSize; bold: true
-            color: calendarPopup.mode === "time" ? Theme.blue : Theme.fg
+            pixelSize: Theme.fontSize; bold: true; color: calendarPopup.mode === "time" ? Theme.blue : Theme.fg
             text: Qt.formatDateTime(centerClock.now, Status.clock24h ? (Status.clockSeconds ? "HH:mm:ss" : "HH:mm") : (Status.clockSeconds ? "h:mm:ss AP" : "h:mm AP"))
-            onClicked: bar.toggleCenter("time")
-            onRightClicked: Status.saveClockPrefs(!Status.clock24h, Status.clockSeconds)
-        }
-
-        BarLabel {
-            pixelSize: Theme.fontSize - 1; bold: Status.notifUnread > 0 || Status.dnd
-            color: Status.dnd ? Theme.yellow : (Status.notifUnread > 0 ? Theme.cyan : (calendarPopup.mode === "date" ? Theme.blue : Theme.fgDim))
-            text: Status.dnd ? ("󰂛" + (Status.notifUnread > 0 ? " " + Status.notifUnread : "")) : (Status.notifUnread > 0 ? ("󰂞 " + Status.notifUnread) : "󰂚")
-            onClicked: bar.toggleCenter("date")
-            onRightClicked: if (Status.notifAction) Status.notifAction("toggleDnd")
+            onClicked: bar.toggleCenter("time"); onRightClicked: Status.saveClockPrefs(!Status.clock24h, Status.clockSeconds)
         }
     }
 
@@ -122,14 +146,12 @@ PanelWindow {
 
         Rectangle {
             id: pocketDrawer; visible: Status.pocketOpen
-            implicitWidth: visible ? trayRow.implicitWidth + 4 : 0; implicitHeight: Theme.barHeight - 8
-            color: "transparent"; border.width: 0
+            implicitWidth: visible ? trayRow.implicitWidth + 4 : 0; implicitHeight: Theme.barHeight - 8; color: "transparent"; border.width: 0
             Tray { id: trayRow; anchors.centerIn: parent; bar: bar }
         }
 
         Rectangle {
-            id: pocketToggle; implicitWidth: 26; implicitHeight: Theme.barHeight - 8; radius: Theme.radiusSm
-            color: ptMouse.containsMouse ? Theme.bgHover : "transparent"
+            id: pocketToggle; implicitWidth: 26; implicitHeight: Theme.barHeight - 8; radius: Theme.radiusSm; color: ptMouse.containsMouse ? Theme.bgHover : "transparent"
             Text { anchors.centerIn: parent; text: Status.pocketOpen ? "▸" : "◂"; color: Status.pocketOpen || ptMouse.containsMouse ? Theme.cyan : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize }
             MouseArea { id: ptMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Status.pocketOpen = !Status.pocketOpen; Status.playSfx("click"); } }
         }
@@ -159,15 +181,11 @@ PanelWindow {
                 if (id === "speaker") return quickPill.muted ? "󰝟" : quickPill.vol >= 0.66 ? "󰕾" : quickPill.vol >= 0.33 ? "󰖀" : "󰕿";
                 if (id === "mic") return quickPill.micMuted ? "󰍭" : "󰍬";
                 if (id === "camera") return Status.webcamEnabled ? "󰄀" : "󰗟";
-                if (id === "idle") return Status.idleEnabled ? "󰒲" : "󰅶";
                 if (id === "battery") return quickPill.batCharging ? "󰂄" : (quickPill.batPct <= 15 ? "󰁺" : quickPill.batPct <= 40 ? "󰁼" : quickPill.batPct <= 75 ? "󰂀" : "󰁹");
                 return "󰐥";
             }
-            function iconSection(id) {
-                return (id === "wifi" || id === "bluetooth") ? id : ((id === "idle" || id === "battery" || id === "power") ? "power" : "audio");
-            }
+            function iconSection(id) { return (id === "wifi" || id === "bluetooth") ? id : ((id === "battery" || id === "power") ? "power" : "audio"); }
             function iconColor(id, hovered) {
-                if (id === "idle" && !Status.idleEnabled) return Theme.yellow;
                 if (Status.superDeckOpen && Status.superDeckSection === quickPill.iconSection(id)) return Theme.cyan;
                 if (hovered) return id === "power" ? Theme.red : Theme.cyan;
                 if (id === "wifi") return (!Status.wifiEnabled || Status.netType === "none") ? Theme.muted : Theme.fg;
@@ -175,7 +193,6 @@ PanelWindow {
                 if (id === "speaker") return quickPill.muted ? Theme.muted : Theme.fg;
                 if (id === "mic") return quickPill.micMuted ? Theme.muted : Theme.fg;
                 if (id === "camera") return Status.webcamEnabled ? Theme.fg : Theme.muted;
-                if (id === "idle") return Theme.fgDim;
                 if (id === "battery") return quickPill.batCharging ? Theme.cyan : (quickPill.batPct <= 15 ? Theme.red : Theme.fg);
                 return Theme.fgDim;
             }
@@ -185,12 +202,10 @@ PanelWindow {
                 else if (id === "speaker") { const m = !quickPill.muted; if (quickPill.audioReady) quickPill.sink.audio.muted = m; Status.toggleSpeakerMute(m); }
                 else if (id === "mic") { const m = !quickPill.micMuted; if (quickPill.micReady) quickPill.source.audio.muted = m; Status.toggleMicMute(m); }
                 else if (id === "camera") Status.toggleWebcam();
-                else if (id === "idle") Status.toggleIdle();
                 else bar.openDeck("power");
             }
 
-            implicitWidth: pillRow.implicitWidth + 6; implicitHeight: Theme.barHeight - 6
-            color: "transparent"; border.width: 0
+            implicitWidth: pillRow.implicitWidth + 6; implicitHeight: Theme.barHeight - 6; color: "transparent"; border.width: 0
 
             RowLayout {
                 id: pillRow; anchors.centerIn: parent; spacing: 2
@@ -208,11 +223,7 @@ PanelWindow {
                             visible: !slotItem.isDiv; anchors.fill: parent; radius: Theme.radiusSm
                             color: slotMouse.pressed ? Theme.bgAlt : (slotMouse.containsMouse ? Theme.bgHover : "transparent")
                             border.width: slotMouse.pressed ? 1 : 0; border.color: Theme.cyan
-                            Text {
-                                anchors.centerIn: parent; text: slotItem.isDiv ? "" : quickPill.iconGlyph(slotItem.modelData)
-                                color: slotItem.isDiv ? "transparent" : quickPill.iconColor(slotItem.modelData, slotMouse.containsMouse)
-                                font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
-                            }
+                            Text { anchors.centerIn: parent; text: slotItem.isDiv ? "" : quickPill.iconGlyph(slotItem.modelData); color: slotItem.isDiv ? "transparent" : quickPill.iconColor(slotItem.modelData, slotMouse.containsMouse); font.family: Theme.font; font.pixelSize: Theme.iconSize - 2 }
                             MouseArea {
                                 id: slotMouse; property real dragStartX: 0; property bool didDrag: false
                                 anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton
@@ -222,7 +233,7 @@ PanelWindow {
                                     const dx = e.x - dragStartX;
                                     if (Math.abs(dx) >= 24) { didDrag = true; Status.moveBarIcon(slotItem.modelData, dx > 0 ? 1 : -1); dragStartX = e.x; }
                                 }
-                                onClicked: e => { if (!didDrag) { if (slotItem.modelData === "idle") { if (e.button === Qt.RightButton) bar.openDeck("power"); else Status.toggleIdle(); } else if (e.button === Qt.RightButton) quickPill.toggleHardware(slotItem.modelData); else bar.openDeck(quickPill.iconSection(slotItem.modelData)); } }
+                                onClicked: e => { if (!didDrag) { if (e.button === Qt.RightButton) quickPill.toggleHardware(slotItem.modelData); else bar.openDeck(quickPill.iconSection(slotItem.modelData)); } }
                                 onWheel: wheel => {
                                     const step = wheel.angleDelta.y > 0 ? 0.05 : -0.05;
                                     if (slotItem.modelData === "speaker") { const v = Math.max(0, Math.min(1, quickPill.vol + step)); if (quickPill.audioReady) quickPill.sink.audio.volume = v; Status.setSpeakerVolume(v); }
@@ -236,4 +247,3 @@ PanelWindow {
         }
     }
 }
-

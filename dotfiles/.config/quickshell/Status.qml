@@ -18,7 +18,8 @@ Singleton {
     property bool rgbSupported: false; property int rgbCount: 0; property string rgbHex: "7aa2f7"
     property string aiReply: "Ready. Type a prompt above and press Enter for an instant answer, or click [ OPEN TERMINAL ] for an interactive session."
     property bool aiBusy: false; property string _pendingAiPrompt: ""
-    property bool pocketOpen: false; property bool superDeckOpen: false; property string superDeckSection: "ai"; property bool superDeckPowerHighlight: false
+    property bool pocketOpen: false; property bool centerToolsOpen: false; property bool superDeckOpen: false; property string superDeckSection: "ai"; property bool superDeckPowerHighlight: false
+    property bool screenRecording: false; property bool voxActive: false; property int updatesCount: 0; property string weatherTemp: ""
     property bool settingsOpen: false; property string settingsPage: "wifi"
     property bool clock24h: true; property bool clockSeconds: false; property string localTz: "Local"; property bool autoTz: true
     property var worldClocks: []; property bool dnd: false; property bool sessionLocked: false
@@ -36,34 +37,18 @@ Singleton {
     Timer {
         interval: 3000; running: true; repeat: true; triggeredOnStart: true
         onTriggered: {
-            const nowMs = Date.now(); procStat.reload();
-            const v = procStat.text().split("\n")[0].trim().split(/\s+/).slice(1).map(Number);
-            if (v.length >= 4) {
-                const idle = v[3] + (v[4] || 0), total = v.reduce((a, b) => a + b, 0);
-                if (root._lastCpu) { const dt = total - root._lastCpu.total; root.cpu = dt > 0 ? Math.round(100 * (1 - (idle - root._lastCpu.idle) / dt)) : 0; }
-                root._lastCpu = { total, idle };
-            }
+            const nowMs = Date.now(); procStat.reload(); const v = procStat.text().split("\n")[0].trim().split(/\s+/).slice(1).map(Number);
+            if (v.length >= 4) { const idle = v[3] + (v[4] || 0), total = v.reduce((a, b) => a + b, 0); if (root._lastCpu) { const dt = total - root._lastCpu.total; root.cpu = dt > 0 ? Math.round(100 * (1 - (idle - root._lastCpu.idle) / dt)) : 0; } root._lastCpu = { total, idle }; }
             procMem.reload(); const mtext = procMem.text(), mt = mtext.match(/MemTotal:\s+(\d+)/), ma = mtext.match(/MemAvailable:\s+(\d+)/);
             if (mt && ma && Number(mt[1]) > 0) root.mem = Math.round(100 * (1 - Number(ma[1]) / Number(mt[1])));
             pkgTemp.reload(); let rawT = Number(pkgTemp.text().trim() || "0");
             if (!rawT || rawT <= 0) { fallbackTemp.reload(); rawT = Number(fallbackTemp.text().trim() || "40000"); }
             root.tempC = Math.round(rawT > 1000 ? rawT / 1000 : rawT);
             gpuRc6.reload(); const rc6Txt = gpuRc6.text().trim();
-            if (rc6Txt !== "") {
-                const rc6 = Number(rc6Txt);
-                if (root._lastGpu && nowMs > root._lastGpu.t) root.gpu = Math.max(0, Math.min(100, Math.round(100 * (1 - Math.max(0, rc6 - root._lastGpu.rc6) / (nowMs - root._lastGpu.t)))));
-                root._lastGpu = { rc6: rc6, t: nowMs };
-            }
+            if (rc6Txt !== "") { const rc6 = Number(rc6Txt); if (root._lastGpu && nowMs > root._lastGpu.t) root.gpu = Math.max(0, Math.min(100, Math.round(100 * (1 - Math.max(0, rc6 - root._lastGpu.rc6) / (nowMs - root._lastGpu.t))))); root._lastGpu = { rc6: rc6, t: nowMs }; }
             procNet.reload(); let rxBytes = 0, txBytes = 0;
-            for (const nl of procNet.text().split("\n").slice(2)) {
-                const parts = nl.trim().split(/[:\s]+/);
-                if (parts.length >= 10 && parts[0] !== "lo" && parts[0] !== "") { rxBytes += Number(parts[1] || 0); txBytes += Number(parts[9] || 0); }
-            }
-            if (root._lastNet && nowMs > root._lastNet.t) {
-                const dtSec = (nowMs - root._lastNet.t) / 1000.0;
-                root.netRxKbps = Math.max(0, (rxBytes - root._lastNet.rx) / 1024.0 / dtSec);
-                root.netTxKbps = Math.max(0, (txBytes - root._lastNet.tx) / 1024.0 / dtSec);
-            }
+            for (const nl of procNet.text().split("\n").slice(2)) { const parts = nl.trim().split(/[:\s]+/); if (parts.length >= 10 && parts[0] !== "lo" && parts[0] !== "") { rxBytes += Number(parts[1] || 0); txBytes += Number(parts[9] || 0); } }
+            if (root._lastNet && nowMs > root._lastNet.t) { const dtSec = (nowMs - root._lastNet.t) / 1000.0; root.netRxKbps = Math.max(0, (rxBytes - root._lastNet.rx) / 1024.0 / dtSec); root.netTxKbps = Math.max(0, (txBytes - root._lastNet.tx) / 1024.0 / dtSec); }
             root._lastNet = { rx: rxBytes, tx: txBytes, t: nowMs };
         }
     }
@@ -83,6 +68,10 @@ Singleton {
             "ag=$(grep '^AI_AGENT=' ~/.config/superfedora/quake-ai.env 2>/dev/null | cut -d= -f2 | tr -d \"'\\\"\"); echo \"AGY|${ag:-agy}\"; " +
             "awk -F'=' '/^[[:space:]]*exec-once[[:space:]]*=/{c=$2; sub(/^[[:space:]]+/,\"\",c); if(c!~/(systemctl|superfedora\\.locked|hyprpolkitagent|sfx play startup)/) print \"STA|\"c}' ~/.config/hypr/conf/autostart.conf 2>/dev/null || true; " +
             "echo \"RGB|$(cat ~/.config/superfedora/rgb-devices 2>/dev/null || echo 0)|$(cat ~/.config/superfedora/rgb-color 2>/dev/null || echo 7aa2f7)\"; " +
+            "(pgrep -x wf-recorder >/dev/null || pgrep -f '^gpu-screen-recorder' >/dev/null) && echo 'REC|1' || echo 'REC|0'; " +
+            "(pgrep -x voxtype >/dev/null || pgrep -f 'pw-record.*superfedora-vox' >/dev/null) && echo 'VOX|1' || echo 'VOX|0'; " +
+            "wf=~/.cache/superfedora-weather; if [ ! -f \"$wf\" ] || [ -n \"$(find \"$wf\" -mmin +15 2>/dev/null)\" ]; then (curl -fsSL --max-time 3 'https://wttr.in/?format=%t' 2>/dev/null | tr -d '+' > \"$wf\" &) 2>/dev/null; fi; echo \"WTH|$(cat \"$wf\" 2>/dev/null | tr -d '\\n')\"; " +
+            "uf=~/.cache/superfedora-updates; if [ ! -f \"$uf\" ] || [ -n \"$(find \"$uf\" -mmin +30 2>/dev/null)\" ]; then (dnf check-update -q 2>/dev/null | grep -cE '^[a-zA-Z0-9]' > \"$uf\" &) 2>/dev/null; fi; echo \"UPD|$(cat \"$uf\" 2>/dev/null | head -n1)\"; " +
             "if [ -d /sys/class/power_supply/BAT0 ]; then bs=$(cat /sys/class/power_supply/BAT0/charge_control_start_threshold /sys/class/power_supply/BAT0/charge_start_threshold 2>/dev/null | head -n1); be=$(cat /sys/class/power_supply/BAT0/charge_control_end_threshold /sys/class/power_supply/BAT0/charge_stop_threshold 2>/dev/null | head -n1); echo \"BAT0|1|${bs:-0}|${be:-100}\"; fi"]
         stdout: StdioCollector {
             onStreamFinished: {
@@ -100,6 +89,10 @@ Singleton {
                     if (lines[i].startsWith("AGY|")) { root.aiAgent = (lines[i].split("|")[1] || "agy").trim(); continue; }
                     if (lines[i].startsWith("STA|")) { const sc = lines[i].slice(4).trim(); if (sc) stApps.push(sc); continue; }
                     if (lines[i].startsWith("RGB|")) { const rp = lines[i].split("|"); root.rgbCount = Number(rp[1] || 0); root.rgbSupported = root.rgbCount > 0; root.rgbHex = (rp[2] || "7aa2f7").replace(/^#/, ""); continue; }
+                    if (lines[i].startsWith("REC|")) { root.screenRecording = (lines[i].split("|")[1] || "0").trim() === "1"; continue; }
+                    if (lines[i].startsWith("VOX|")) { root.voxActive = (lines[i].split("|")[1] || "0").trim() === "1"; continue; }
+                    if (lines[i].startsWith("WTH|")) { root.weatherTemp = (lines[i].split("|")[1] || "").trim(); continue; }
+                    if (lines[i].startsWith("UPD|")) { root.updatesCount = Number((lines[i].split("|")[1] || "0").trim()) || 0; continue; }
                     if (lines[i].startsWith("BAT0|")) { const bp = lines[i].split("|"); root.bat0Present = true; root.bat0Threshold = "Start " + (bp[2] || "0") + "% / Stop " + (bp[3] || "100") + "%"; continue; }
                     const parts = lines[i].split(":"); if (parts.length < 4) continue;
                     const act = parts[0] === "yes", sig = Number(parts[1] || 0), sec = (parts[2] || "").trim(), name = parts.slice(3).join(":").replace(/\\:/g, ":").replace(/\\\\/g, "\\").trim(), open = (!sec || sec === "--");
@@ -193,13 +186,15 @@ Singleton {
         if (root.superDeckOpen) root.refresh(); root.playSfx("click");
     }
     function toggleIdle() { root.idleEnabled = !root.idleEnabled; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-idle.sh"]); }
+    function toggleScreenRecord(region) { root.screenRecording = !root.screenRecording; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/screenshot.sh " + (region ? "record-region" : "record")]); }
+    function toggleVox() { root.voxActive = !root.voxActive; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/screenshot.sh vox"]); }
     Process { id: idleProc; command: ["sh", "-c", "[ ! -f ~/.config/superfedora/stay-awake ] && pgrep -x hypridle >/dev/null"]; onExited: code => root.idleEnabled = code === 0 }
     property bool appGridOpen: false; property var clients: []
     property var dockConfig: ({ position: "bottom", autohide: false, showAlways: true, opacity: 1.0, pinned: ["kitty", "org.mozilla.firefox", "com.google.Chrome", "org.gnome.Nautilus", "nvim", "btop"] })
     property var wsModes: ({}); property string defaultWsMode: "dwindle"
-    readonly property var defaultBarIcons: ["wifi", "bluetooth", "|", "speaker", "mic", "camera", "|", "idle", "battery", "power"]
-    readonly property var coreBarIcons: ["wifi", "bluetooth", "speaker", "mic", "camera", "idle", "battery", "power"]
-    property var barIcons: ["wifi", "bluetooth", "|", "speaker", "mic", "camera", "|", "idle", "battery", "power"]
+    readonly property var defaultBarIcons: ["wifi", "bluetooth", "|", "speaker", "mic", "camera", "|", "battery", "power"]
+    readonly property var coreBarIcons: ["wifi", "bluetooth", "speaker", "mic", "camera", "battery", "power"]
+    property var barIcons: ["wifi", "bluetooth", "|", "speaker", "mic", "camera", "|", "battery", "power"]
     property var barHiddenIcons: []
     FileView { id: dockFile; path: Quickshell.env("HOME") + "/.config/superfedora/dock.json" }
     FileView { id: modesFile; path: Quickshell.env("HOME") + "/.config/superfedora/workspace-modes.json" }
@@ -233,7 +228,7 @@ Singleton {
     }
     function toggleBarDividers(): void {
         if (root.barIcons.indexOf("|") !== -1) root.barIcons = root.barIcons.filter(x => x !== "|");
-        else { const c = root.barIcons.filter(x => x !== "|"); root.barIcons = [c[0], c[1], "|", c[2], c[3], c[4], "|", c[5], c[6], c[7]].filter(Boolean); }
+        else { const c = root.barIcons.filter(x => x !== "|"); root.barIcons = [c[0], c[1], "|", c[2], c[3], c[4], "|", c[5], c[6]].filter(Boolean); }
         root.playSfx("toggle"); root.saveBarIcons();
     }
     function resetBarIcons(): void { root.barIcons = root.defaultBarIcons.slice(); root.barHiddenIcons = []; root.playSfx("toggle"); root.saveBarIcons(); }
