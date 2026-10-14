@@ -121,7 +121,7 @@ apply_all() {
     # 2. Lock Screen (hyprlock)
     {
         printf '# Hyprlock Configuration — SuperFedora 16-Bit Theme (%s / %s / %s)\ngeneral {\n    hide_cursor = false\n    ignore_empty_input = true\n    immediate_render = true\n    fail_timeout = 1200\n}\nauth {\n    pam {\n        enabled = true\n        module = password-auth\n    }\n    fingerprint {\n        enabled = true\n    }\n}\nanimations {\n    enabled = false\n}\nbackground {\n    monitor =\n    path = %s\n    blur_passes = 0\n    blur_size = 0\n}\n' "$NAME" "$mode" "$corners" "$wall_rel"
-        write_lock_lbl "<b>󰍹 Screen Off</b>" "rgba($LOCK_FG, 1.0)" "12" "-390, -24" "right" "top" $'    onclick = hyprctl dispatch dpms off\n'
+        write_lock_lbl "<b>󰍹 Screen Off</b>" "rgba($LOCK_FG, 1.0)" "12" "-390, -24" "right" "top" $'    onclick = ~/.config/hypr/scripts/toggle-touchpad.sh dpms off\n'
         write_lock_lbl "<b>󰤄 Suspend</b>"    "rgba($LOCK_FG, 1.0)" "12" "-276, -24" "right" "top" $'    onclick = systemctl suspend\n'
         write_lock_lbl "<b>󰜉 Restart</b>"    "rgba($LOCK_FG, 1.0)" "12" "-162, -24" "right" "top" $'    onclick = systemctl reboot\n'
         write_lock_lbl "<b>󰐥 Power Off</b>"  "rgb(f7768e)"         "12" "-28, -24"  "right" "top" $'    onclick = systemctl poweroff\n'

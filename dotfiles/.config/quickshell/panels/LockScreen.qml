@@ -110,7 +110,7 @@ Scope {
                     Text { text: "SYSTEM & POWER"; color: Theme.blue; font.family: Theme.font; font.pixelSize: 11; font.bold: true }
                     Repeater {
                         model: [
-                            { icon: "󰍹", label: "Turn Screen Off", danger: false, direct: "hyprctl dispatch dpms off" },
+                            { icon: "󰍹", label: "Turn Screen Off", danger: false, direct: "sleep 0.2; ~/.config/hypr/scripts/toggle-touchpad.sh dpms off" },
                             { icon: "󰤄", label: "Suspend...",      danger: false, act: "suspend", title: "Suspend System?",     body: "The system will enter low-power sleep mode.", btn: "Suspend",   cmd: "systemctl suspend" },
                             { icon: "󰍃", label: "Log Out...",      danger: true,  act: "logout",  title: "Log Out of Session?", body: "Close your current session and return to the login screen.", btn: "Log Out", cmd: "~/.local/share/superfedora/lib/session-ctl.sh switch" },
                             { icon: "󰜉", label: "Restart...",      danger: true,  act: "reboot",  title: "Restart System?",     body: "All open applications will close and the system will reboot.", btn: "Restart", cmd: "systemctl reboot" },

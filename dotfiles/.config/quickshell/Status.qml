@@ -76,7 +76,7 @@ Singleton {
             "b=$(brightnessctl -m 2>/dev/null | cut -d, -f4 | tr -d '%'); echo \"BRI|${b:-100}\"; " +
             "echo \"SPK|$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null)\"; echo \"MIC|$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null)\"; " +
             "echo \"CAM|$(cat ~/.config/superfedora/webcam-enabled 2>/dev/null || echo on)\"; " +
-            "k=$(cat /sys/class/leds/tpacpi::kbd_backlight/brightness ~/.config/superfedora/kbd-backlight 2>/dev/null | head -n1); echo \"KBD|${k:-0}\"; " +
+            "~/.config/hypr/scripts/toggle-touchpad.sh dpms sync >/dev/null 2>&1 || true; k=$(cat /sys/class/leds/tpacpi::kbd_backlight/brightness ~/.config/superfedora/kbd-backlight 2>/dev/null | head -n1); echo \"KBD|${k:-0}\"; " +
             "ag=$(grep '^AI_AGENT=' ~/.config/superfedora/quake-ai.env 2>/dev/null | cut -d= -f2 | tr -d \"'\\\"\"); echo \"AGY|${ag:-agy}\"; " +
             "if [ -d /sys/class/power_supply/BAT0 ]; then bs=$(cat /sys/class/power_supply/BAT0/charge_control_start_threshold /sys/class/power_supply/BAT0/charge_start_threshold 2>/dev/null | head -n1); be=$(cat /sys/class/power_supply/BAT0/charge_control_end_threshold /sys/class/power_supply/BAT0/charge_stop_threshold 2>/dev/null | head -n1); echo \"BAT0|1|${bs:-0}|${be:-100}\"; fi"]
         stdout: StdioCollector {

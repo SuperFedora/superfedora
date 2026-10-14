@@ -9,6 +9,7 @@
 #   toggle-touchpad.sh mic [toggle|mute|unmute|status]      Toggle microphone mute + ThinkPad micmute LED
 #   toggle-touchpad.sh speaker [toggle|mute|unmute]         Toggle speaker mute + ThinkPad mute LED
 #   toggle-touchpad.sh kbd-backlight [cycle|up|down|0|1|2]  Cycle/set ThinkPad keyboard backlight
+#   toggle-touchpad.sh dpms [off|on|sync]                   Turn screen + keyboard lights off or restore on wake
 # ==============================================================================
 set -euo pipefail
 
@@ -23,6 +24,28 @@ refresh_qs() {
     if command -v qs >/dev/null 2>&1 && pgrep -x quickshell >/dev/null 2>&1; then
         qs ipc call status refresh >/dev/null 2>&1 || true
     fi
+}
+
+set_led() {
+    local dev="$1" val="$2" sys="/sys/class/leds/$1/brightness"
+    if command -v brightnessctl >/dev/null 2>&1; then
+        brightnessctl -q --device="$dev" set "$val" >/dev/null 2>&1 || true
+    fi
+    [[ -w "$sys" ]] && echo "$val" > "$sys" 2>/dev/null || true
+    return 0
+}
+
+kbd_leds_list() {
+    local p name
+    for p in /sys/class/leds/*; do
+        [[ -e "$p/brightness" ]] || continue
+        name="${p##*/}"
+        case "$name" in
+            *kbd_backlight*|platform::micmute|platform::mute|tpacpi::power|tpacpi::thinkvantage|input*::capslock|input*::numlock|input*::scrolllock)
+                echo "$name"
+                ;;
+        esac
+    done
 }
 
 cmd_webcam() {
@@ -66,7 +89,7 @@ cmd_webcam() {
 }
 
 cmd_audio() {
-    local node="$1" label="$2" sub="${3:-toggle}" led_path="$4"
+    local node="$1" label="$2" sub="${3:-toggle}" led_path="$4" led_dev=""
     case "$sub" in
         status) wpctl get-volume "$node" 2>/dev/null || true; return 0 ;;
         mute|off|1)   wpctl set-mute "$node" 1 2>/dev/null || true ;;
@@ -78,8 +101,10 @@ cmd_audio() {
     local st led_val=0
     st="$(wpctl get-volume "$node" 2>/dev/null || true)"
     [[ "$st" == *"[MUTED]"* ]] && led_val=1
-    if [[ -n "$led_path" && -w "$led_path" ]]; then
-        echo "$led_val" > "$led_path" 2>/dev/null || true
+    if [[ -n "$led_path" ]]; then
+        led_dev="${led_path#/sys/class/leds/}"
+        led_dev="${led_dev%/brightness}"
+        set_led "$led_dev" "$led_val"
     fi
     refresh_qs
     if [[ "$node" == "@DEFAULT_AUDIO_SINK@" ]]; then
@@ -108,18 +133,69 @@ cmd_kbd_backlight() {
         down)   next=$(( cur > 0 ? cur - 1 : 0 )) ;;
         *)      next=$(( (cur + 1) % 3 )) ;;
     esac
-    if command -v brightnessctl >/dev/null 2>&1; then
-        if [[ "$sub" == "cycle" && "$cur" -lt 2 ]]; then
-            brightnessctl --device="$dev" set +1 >/dev/null 2>&1 || brightnessctl --device="$dev" set "$next" >/dev/null 2>&1 || true
-        else
-            brightnessctl --device="$dev" set "$next" >/dev/null 2>&1 || true
-        fi
-    fi
-    [[ -w "$sys" ]] && echo "$next" > "$sys" 2>/dev/null || true
+    set_led "$dev" "$next"
     echo "$next" > "$KBD_FILE"
     refresh_qs
     case "$next" in 1) lbl="LOW (50%)" ;; 2) lbl="HIGH (100%)" ;; *) lbl="OFF (0%)" ;; esac
     notify-send -a "SuperFedora" -t 1400 "ThinkPad Keyboard Backlight: $lbl" "Level $next / 2" 2>/dev/null || true
+}
+
+cmd_dpms() {
+    local sub="${1:-off}" rt="${XDG_RUNTIME_DIR:-/tmp}"
+    local state_file="$rt/sf-dpms-leds.state" pid_file="$rt/sf-dpms-watch.pid" dev cur
+    case "$sub" in
+        off)
+            PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH" idlescreen stop >/dev/null 2>&1 || true
+            if [[ ! -f "$state_file" ]]; then
+                : > "$state_file"
+                while IFS= read -r dev; do
+                    [[ -n "$dev" ]] || continue
+                    cur="$(cat "/sys/class/leds/$dev/brightness" 2>/dev/null || echo 0)"
+                    [[ "$cur" =~ ^[0-9]+$ ]] || cur=0
+                    printf '%s=%s\n' "$dev" "$cur" >> "$state_file"
+                done < <(kbd_leds_list)
+            fi
+            while IFS= read -r dev; do
+                [[ -n "$dev" ]] && set_led "$dev" 0
+            done < <(kbd_leds_list)
+            hyprctl dispatch dpms off >/dev/null 2>&1 || true
+            [[ -f "$pid_file" ]] && kill "$(cat "$pid_file" 2>/dev/null)" 2>/dev/null || true
+            (
+                echo "$BASHPID" > "$pid_file"
+                sleep 1.2
+                while [[ -f "$state_file" ]]; do
+                    if hyprctl monitors -j 2>/dev/null | grep -q '"dpmsStatus": true'; then
+                        "$0" dpms on >/dev/null 2>&1 || true
+                        break
+                    fi
+                    sleep 0.5
+                done
+                rm -f "$pid_file"
+            ) </dev/null >/dev/null 2>&1 & disown || true
+            ;;
+        on)
+            [[ -f "$pid_file" ]] && kill "$(cat "$pid_file" 2>/dev/null)" 2>/dev/null || true
+            rm -f "$pid_file"
+            hyprctl dispatch dpms on >/dev/null 2>&1 || true
+            if [[ -f "$state_file" ]]; then
+                while IFS='=' read -r dev cur; do
+                    [[ -n "$dev" && "$cur" =~ ^[0-9]+$ ]] && set_led "$dev" "$cur"
+                done < "$state_file"
+                rm -f "$state_file"
+            elif [[ -f "$KBD_FILE" ]]; then
+                cur="$(tr -d '[:space:]' < "$KBD_FILE" 2>/dev/null || echo 0)"
+                [[ "$cur" =~ ^[0-9]+$ ]] && set_led "tpacpi::kbd_backlight" "$cur"
+            fi
+            refresh_qs
+            ;;
+        sync)
+            if hyprctl monitors -j 2>/dev/null | grep -q '"dpmsStatus": false'; then
+                [[ -f "$state_file" ]] || cmd_dpms off
+            elif [[ -f "$state_file" ]]; then
+                cmd_dpms on
+            fi
+            ;;
+    esac
 }
 
 case "${1:-touchpad}" in
@@ -127,6 +203,7 @@ case "${1:-touchpad}" in
     mic|microphone|input) shift || true; cmd_audio "@DEFAULT_AUDIO_SOURCE@" "Microphone" "${1:-toggle}" "/sys/class/leds/platform::micmute/brightness" ;;
     speaker|speakers|output|sink) shift || true; cmd_audio "@DEFAULT_AUDIO_SINK@" "Speakers" "${1:-toggle}" "/sys/class/leds/platform::mute/brightness" ;;
     kbd|kbd-backlight|backlight) shift || true; cmd_kbd_backlight "${1:-cycle}" ;;
+    dpms|screen) shift || true; cmd_dpms "${1:-off}" ;;
     *)
         state="${XDG_RUNTIME_DIR:-/tmp}/touchpad-disabled"
         if [[ -f "$state" ]]; then
