@@ -18,10 +18,15 @@ Singleton {
     property color muted: "#565f89"
     property color blue: "#7aa2f7"
     property color cyan: "#bcd3ff"
+    readonly property color accent: root.blue
+    readonly property color primary: root.cyan
     readonly property color green: "#9ece6a"
+    readonly property color ok: root.green
     readonly property color yellow: "#e0af68"
+    readonly property color warning: root.yellow
     readonly property color orange: "#ff9e64"
     readonly property color red: "#f7768e"
+    readonly property color danger: root.red
     readonly property color magenta: "#bb9af7"
     readonly property string font: "JetBrainsMono Nerd Font"
     property int fontSize: 14

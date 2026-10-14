@@ -8,12 +8,9 @@ import ".."
 
 // Omarchy Quattro Dock: grab-and-drag edge relocation, hover tooltips, multi-window pips & Input/Output controls.
 PanelWindow {
-    id: win
-    required property var modelData
-    screen: modelData
+    id: win; required property var modelData; screen: modelData
     readonly property var cfg: Status.dockConfig || ({ position: "bottom", autohide: false, showAlways: true, pinned: [] })
-    readonly property string position: cfg.position || "bottom"
-    readonly property bool isVert: position === "left" || position === "right"
+    readonly property string position: cfg.position || "bottom"; readonly property bool isVert: position === "left" || position === "right"
     readonly property var hyprMon: Hyprland.monitorFor(modelData)
     readonly property int wsId: hyprMon && hyprMon.activeWorkspace ? hyprMon.activeWorkspace.id : (Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1)
     readonly property string wsMode: Status.wsModeFor(win.wsId)
@@ -34,8 +31,10 @@ PanelWindow {
     property bool settingsMenu: false; property int menuSlotIdx: 0; property int dragIdx: -1
     property real dragStartCoord: 0; property var launchingMap: ({}); property real dockOpacity: 1.0
     property string hoveredName: ""; property int hoveredSlotIdx: 0; property bool edgeDragging: false; property string ghostEdge: ""
+    readonly property bool forgeVisible: Status.forgeBusy || Status.forgeRecent
+    readonly property color forgeCol: Status.forgeState === "error" ? Theme.red : (Status.forgeState === "done" ? Theme.green : Theme.yellow)
     readonly property bool menuOpen: win.menuTarget !== null || win.settingsMenu
-    readonly property bool activelyInteracting: win.edgeHovered || bodyHover.hovered || menuHover.hovered || win.menuOpen || win.dragIdx >= 0 || win.edgeDragging
+    readonly property bool activelyInteracting: win.edgeHovered || bodyHover.hovered || menuHover.hovered || win.menuOpen || win.dragIdx >= 0 || win.edgeDragging || win.forgeVisible
     readonly property bool contentShown: win.shown && (!win.autohide || win.activelyInteracting || win.keepRevealed)
 
     onActivelyInteractingChanged: if (win.activelyInteracting) { win.keepRevealed = true; hideTimer.stop(); } else hideTimer.restart()
@@ -45,14 +44,12 @@ PanelWindow {
     function normId(raw) { return String(raw || "").trim().replace(/\.desktop$/i, ""); }
     function iconUrl(s) { const v = String(s || ""); return !v ? "" : (v.startsWith("file://") || v.startsWith("image://")) ? v : v.startsWith("/") ? ("file://" + v) : (Quickshell.iconPath(v, true) || ""); }
     function findEntry(idOrClass) {
-        const raw = win.normId(idOrClass); if (!raw) return null;
-        let e = DesktopEntries.byId(raw) || DesktopEntries.byId(raw.toLowerCase()); if (e) return e;
+        const raw = win.normId(idOrClass), low = raw.toLowerCase(); if (!raw) return null;
+        if (Status.localAppsMap && Status.localAppsMap[low]) return Status.localAppsMap[low];
+        let e = DesktopEntries.byId(raw) || DesktopEntries.byId(low); if (e) return e;
         if (DesktopEntries.heuristicLookup) { e = DesktopEntries.heuristicLookup(raw); if (e) return e; }
-        const low = raw.toLowerCase(), all = (DesktopEntries.applications && DesktopEntries.applications.values) ? DesktopEntries.applications.values : [];
-        for (let i = 0; i < all.length; i++) {
-            const item = all[i], eid = win.normId(item.id).toLowerCase();
-            if (eid === low || eid.endsWith("." + low) || String(item.name || "").toLowerCase() === low) return item;
-        }
+        const all = ((DesktopEntries.applications && DesktopEntries.applications.values) ? DesktopEntries.applications.values : []).concat(Status.localApps || []);
+        for (let i = 0; i < all.length; i++) { const item = all[i], eid = win.normId(item.id).toLowerCase(); if (eid === low || eid.endsWith("." + low) || String(item.name || "").toLowerCase() === low) return item; }
         return null;
     }
 
@@ -68,17 +65,15 @@ PanelWindow {
             const c = clients[j], cls = String(c.class || c.initialClass || ""); if (!cls || cls === "quake-ai") continue;
             const entry = win.findEntry(cls), key = entry ? win.normId(entry.id) : cls, slot = ensureSlot(key, entry, false), isMin = String((c.workspace && c.workspace.name) || "").includes("minimized");
             slot.windows.push({ address: c.address, workspaceId: c.workspace ? c.workspace.id : 1, minimized: isMin, focused: c.focusHistoryID === 0 });
-            if (c.focusHistoryID === 0 && !isMin) slot.focused = true;
-            if (isMin) slot.minimizedCount++;
+            if (c.focusHistoryID === 0 && !isMin) slot.focused = true; if (isMin) slot.minimizedCount++;
         }
         return order;
     }
 
     function launchItem(item) {
-        if (!item) return; Status.playSfx("click");
-        const nextMap = Object.assign({}, win.launchingMap); nextMap[item.key] = Date.now(); win.launchingMap = nextMap;
+        if (!item) return; Status.playSfx("click"); const nextMap = Object.assign({}, win.launchingMap); nextMap[item.key] = Date.now(); win.launchingMap = nextMap;
         if (item.entry && typeof item.entry.execute === "function") item.entry.execute();
-        else Quickshell.execDetached(["sh", "-c", "gtk-launch '" + item.key + "' 2>/dev/null || " + item.key.toLowerCase()]);
+        else Quickshell.execDetached(["sh", "-c", "gtk-launch '" + item.key + "' 2>/dev/null || ~/.local/bin/" + item.key + " 2>/dev/null || " + item.key.toLowerCase()]);
     }
     function activateItem(item) {
         if (!item) return; const wins = item.windows || []; if (wins.length === 0) { win.launchItem(item); return; } Status.playSfx("click");
@@ -89,14 +84,13 @@ PanelWindow {
     }
     function quitItem(item) { if (!item || !item.windows) return; for (let i = 0; i < item.windows.length; i++) Hyprland.dispatch("closewindow address:" + item.windows[i].address); Status.refresh(); }
     function movePin(fromIdx, toIdx) {
-        const pins = win.dockItems.filter(x => x.pinned).map(x => x.key);
-        if (fromIdx < 0 || fromIdx >= pins.length || toIdx < 0 || toIdx >= pins.length || fromIdx === toIdx) return;
+        const pins = win.dockItems.filter(x => x.pinned).map(x => x.key); if (fromIdx < 0 || fromIdx >= pins.length || toIdx < 0 || toIdx >= pins.length || fromIdx === toIdx) return;
         const moved = pins.splice(fromIdx, 1)[0]; pins.splice(toIdx, 0, moved); Status.runDockCmd("pinned " + pins.map(k => "'" + k + "'").join(" "));
     }
     visible: win.shown; color: "transparent"
     WlrLayershell.namespace: "superfedora-dock"; WlrLayershell.layer: WlrLayer.Top; WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Normal; exclusiveZone: 0; anchors { bottom: true; top: true; left: true; right: true }
-    mask: Region { item: win.contentShown ? dockBar : null; Region { item: (win.shown && win.autohide) ? edgeStrip : null } Region { item: win.menuOpen ? contextPopup : null } }
+    mask: Region { item: win.contentShown ? dockBar : null; Region { item: (win.shown && win.autohide) ? edgeStrip : null } Region { item: win.menuOpen ? contextPopup : null } Region { item: (win.contentShown && win.forgeVisible) ? forgeBanner : null } }
 
     Item {
         id: edgeStrip; width: win.isVert ? 6 : Math.max(240, dockBar.width); height: win.isVert ? Math.max(240, dockBar.height) : 6
@@ -111,7 +105,20 @@ PanelWindow {
         radius: Theme.radius; color: Qt.rgba(Theme.blue.r, Theme.blue.g, Theme.blue.b, 0.25); border.width: 2; border.color: Theme.cyan
     }
     Rectangle {
-        id: hoverTooltip; visible: win.contentShown && !win.menuOpen && win.hoveredName !== "" && !win.edgeDragging
+        id: forgeBanner; visible: win.contentShown && win.forgeVisible && !win.menuOpen && !win.edgeDragging
+        width: 340; height: 54; radius: Theme.radiusSm; color: Theme.bg; border.width: 2; border.color: win.forgeCol
+        x: win.position === "left" ? (dockBar.x + dockBar.width + 8) : (win.position === "right" ? (dockBar.x - width - 8) : Math.round((win.width - width) / 2))
+        y: win.position === "top" ? (dockBar.y + dockBar.height + 8) : (win.position === "bottom" ? (dockBar.y - height - 8) : Math.round(dockBar.y + (dockBar.height - height) / 2))
+        ColumnLayout {
+            anchors { fill: parent; margins: 7 } spacing: 3
+            RowLayout { Layout.fillWidth: true; spacing: 6; Text { text: "󰙪 FORGE: " + (Status.forgeTarget || "working"); color: win.forgeCol; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true } Text { text: Status.forgePct + "%"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true } }
+            Rectangle { Layout.fillWidth: true; implicitHeight: 6; radius: 2; color: Theme.bgAlt; border.width: 1; border.color: Theme.border; Rectangle { width: Math.round((parent.width - 2) * Math.max(0, Math.min(100, Status.forgePct)) / 100); height: 4; x: 1; y: 1; radius: 1; color: win.forgeCol } }
+            Text { text: Status.forgeStep + (Status.forgeLogLine ? ("  ·  " + Status.forgeLogLine) : ""); color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 4; elide: Text.ElideRight; Layout.fillWidth: true }
+        }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.toggleSuperDeck("forge") }
+    }
+    Rectangle {
+        id: hoverTooltip; visible: win.contentShown && !win.menuOpen && win.hoveredName !== "" && !win.edgeDragging && !win.forgeVisible
         width: tipText.implicitWidth + 16; height: 24; radius: Theme.radiusSm; color: Theme.bg; border.width: 1; border.color: Theme.blue
         x: win.position === "left" ? (dockBar.x + dockBar.width + 8) : (win.position === "right" ? (dockBar.x - width - 8) : Math.max(8, Math.min(win.width - width - 8, dockBar.x + win.hoveredSlotIdx * 50 - Math.round(width / 2) + 28)))
         y: win.position === "top" ? (dockBar.y + dockBar.height + 8) : (win.position === "bottom" ? (dockBar.y - height - 8) : Math.max(8, Math.min(win.height - height - 8, dockBar.y + win.hoveredSlotIdx * 50 + 16)))
@@ -121,22 +128,13 @@ PanelWindow {
         id: dockBar; visible: win.contentShown; width: win.isVert ? 58 : (dockGrid.implicitWidth + 18); height: win.isVert ? (dockGrid.implicitHeight + 18) : 58
         x: win.position === "left" ? 6 : (win.position === "right" ? win.width - width - 6 : Math.round((win.width - width) / 2))
         y: win.position === "top" ? 42 : (win.position === "bottom" ? win.height - height - 6 : Math.round((win.height - height) / 2))
-        radius: Theme.radius; color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, win.dockOpacity); border.width: 2; border.color: Theme.blue; HoverHandler { id: bodyHover }
+        radius: Theme.radius; color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, win.dockOpacity); border.width: 2; border.color: win.forgeVisible ? win.forgeCol : Theme.blue; HoverHandler { id: bodyHover }
         MouseArea {
             anchors.fill: parent; z: -1; property point startPt: Qt.point(0, 0)
             onDoubleClicked: { win.dockOpacity = win.dockOpacity < 0.99 ? 1.0 : 0.78; Status.playSfx("toggle"); }
             onPressed: e => { startPt = Qt.point(e.x, e.y); win.ghostEdge = win.position; }
-            onPositionChanged: e => {
-                if (pressed && Math.hypot(e.x - startPt.x, e.y - startPt.y) > 24) {
-                    win.edgeDragging = true;
-                    const gx = dockBar.x + e.x, gy = dockBar.y + e.y, dL = gx, dR = win.width - gx, dT = gy, dB = win.height - gy, m = Math.min(dL, dR, dT, dB);
-                    win.ghostEdge = m === dB ? "bottom" : (m === dT ? "top" : (m === dL ? "left" : "right"));
-                }
-            }
-            onReleased: {
-                if (win.edgeDragging && win.ghostEdge && win.ghostEdge !== win.position) { Status.runDockCmd("position " + win.ghostEdge); Status.playSfx("confirm"); }
-                win.edgeDragging = false; win.ghostEdge = "";
-            }
+            onPositionChanged: e => { if (pressed && Math.hypot(e.x - startPt.x, e.y - startPt.y) > 24) { win.edgeDragging = true; const gx = dockBar.x + e.x, gy = dockBar.y + e.y, dL = gx, dR = win.width - gx, dT = gy, dB = win.height - gy, m = Math.min(dL, dR, dT, dB); win.ghostEdge = m === dB ? "bottom" : (m === dT ? "top" : (m === dL ? "left" : "right")); } }
+            onReleased: { if (win.edgeDragging && win.ghostEdge && win.ghostEdge !== win.position) { Status.runDockCmd("position " + win.ghostEdge); Status.playSfx("confirm"); } win.edgeDragging = false; win.ghostEdge = ""; }
         }
         GridLayout {
             id: dockGrid; anchors.centerIn: parent; columns: win.isVert ? 1 : 99; rows: win.isVert ? 99 : 1; rowSpacing: 6; columnSpacing: 6
@@ -148,13 +146,9 @@ PanelWindow {
                     id: appsMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton
                     onEntered: { win.hoveredSlotIdx = 0; win.hoveredName = "Launchpad App Grid"; }
                     onExited: if (win.hoveredSlotIdx === 0) win.hoveredName = ""
-                    onClicked: e => {
-                        if (e.button === Qt.RightButton) { win.menuTarget = null; win.menuSlotIdx = 0; win.settingsMenu = !win.settingsMenu; }
-                        else { win.menuTarget = null; win.settingsMenu = false; Status.appGridOpen = !Status.appGridOpen; Status.playSfx("click"); }
-                    }
+                    onClicked: e => { if (e.button === Qt.RightButton) { win.menuTarget = null; win.menuSlotIdx = 0; win.settingsMenu = !win.settingsMenu; } else { win.menuTarget = null; win.settingsMenu = false; Status.appGridOpen = !Status.appGridOpen; Status.playSfx("click"); } }
                 }
             }
-
             Repeater {
                 model: win.dockItems
                 Rectangle {
@@ -175,11 +169,7 @@ PanelWindow {
                         onEntered: { win.hoveredSlotIdx = slot.index + 1; win.hoveredName = slot.modelData.name + (slot.modelData.windows.length > 1 ? " (" + slot.modelData.windows.length + ")" : ""); }
                         onExited: if (win.hoveredSlotIdx === slot.index + 1) win.hoveredName = ""
                         onPressed: e => { slotMouse.dragged = false; if (e.button === Qt.LeftButton && slot.modelData.pinned) { win.dragIdx = slot.index; win.dragStartCoord = win.isVert ? e.y : e.x; } }
-                        onPositionChanged: e => {
-                            if (win.dragIdx < 0 || !slot.modelData.pinned) return;
-                            const delta = (win.isVert ? e.y : e.x) - win.dragStartCoord;
-                            if (Math.abs(delta) > 32) { const target = win.dragIdx + (delta > 0 ? 1 : -1); slotMouse.dragged = true; win.movePin(win.dragIdx, target); win.dragIdx = target; }
-                        }
+                        onPositionChanged: e => { if (win.dragIdx < 0 || !slot.modelData.pinned) return; const delta = (win.isVert ? e.y : e.x) - win.dragStartCoord; if (Math.abs(delta) > 32) { const target = win.dragIdx + (delta > 0 ? 1 : -1); slotMouse.dragged = true; win.movePin(win.dragIdx, target); win.dragIdx = target; } }
                         onReleased: win.dragIdx = -1
                         onClicked: e => {
                             if (slotMouse.dragged) return;
@@ -189,6 +179,12 @@ PanelWindow {
                         }
                     }
                 }
+            }
+            Rectangle {
+                id: forgeDockSlot; visible: win.forgeVisible; implicitWidth: 44; implicitHeight: 44; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 2; border.color: win.forgeCol
+                ColumnLayout { anchors.centerIn: parent; spacing: 0; Text { Layout.alignment: Qt.AlignHCenter; text: "󰙪"; color: win.forgeCol; font.family: Theme.font; font.pixelSize: 16 } Text { Layout.alignment: Qt.AlignHCenter; text: Status.forgePct + "%"; color: Theme.fg; font.family: Theme.font; font.pixelSize: 9; font.bold: true } }
+                Rectangle { width: Math.max(4, Math.round(36 * Status.forgePct / 100)); height: 3; anchors { bottom: parent.bottom; bottomMargin: 2; horizontalCenter: parent.horizontalCenter } color: win.forgeCol }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.toggleSuperDeck("forge") }
             }
             Rectangle { width: win.isVert ? 28 : 2; height: win.isVert ? 2 : 28; Layout.alignment: Qt.AlignCenter; color: Theme.border }
             Repeater {

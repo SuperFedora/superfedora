@@ -128,6 +128,41 @@ else
   pass "Non-root user check logic enforces normal user execution"
 fi
 
+# 8. Test 16-bit workstation banners & cast comms CLI (lib/notify-ctl.sh)
+NOTIFY_CTL="$SCRIPT_DIR/lib/notify-ctl.sh"
+for b in ready warning update checkpoint; do
+  b_out="$(HOME="$MOCK_HOME" XDG_CONFIG_HOME="$MOCK_HOME/.config" "$NOTIFY_CTL" --banner "$b" 2>&1)" || true
+  if [[ "$b_out" == *"[OK] Banner triggered:"* ]]; then
+    pass "notify-ctl.sh --banner $b triggers workstation banner"
+  else
+    fail "notify-ctl.sh --banner $b failed: $b_out"
+  fi
+done
+
+if HOME="$MOCK_HOME" XDG_CONFIG_HOME="$MOCK_HOME/.config" "$NOTIFY_CTL" --banner invalid_banner >/dev/null 2>&1; then
+  fail "notify-ctl.sh --banner invalid_banner should exit non-zero"
+else
+  pass "notify-ctl.sh rejects unknown --banner value"
+fi
+
+for role in ai security builder engineer app all; do
+  c_out="$(HOME="$MOCK_HOME" XDG_CONFIG_HOME="$MOCK_HOME/.config" "$NOTIFY_CTL" --cast "$role" 2>&1)" || true
+  if [[ "$c_out" == *"[OK] Cast comms triggered:"* ]]; then
+    pass "notify-ctl.sh --cast $role triggers workstation cast comms"
+  else
+    fail "notify-ctl.sh --cast $role failed: $c_out"
+  fi
+done
+
+# 9. Verify 16-bit cast portrait SVGs exist in dotfiles/.config/superfedora/cast/
+for role_svg in ai security builder engineer app; do
+  if [[ -f "$SCRIPT_DIR/dotfiles/.config/superfedora/cast/${role_svg}.svg" ]]; then
+    pass "Cast portrait SVG present: dotfiles/.config/superfedora/cast/${role_svg}.svg"
+  else
+    fail "Missing cast portrait SVG: dotfiles/.config/superfedora/cast/${role_svg}.svg"
+  fi
+done
+
 echo "Test summary: $FAILURES failure(s)."
 if [[ "$FAILURES" -gt 0 ]]; then
   exit 1

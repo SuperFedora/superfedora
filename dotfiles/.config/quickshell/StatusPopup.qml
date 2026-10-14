@@ -7,7 +7,7 @@ import Quickshell.Services.UPower
 import Quickshell.Bluetooth
 import "panels"
 
-// SuperDesk 16-Bit Quick-Action Console: Live LLM Harness ([1] AI, using Pi for Ollama) + Uniform Size & Animation across [1]..[0].
+// SuperDesk 16-Bit Quick-Action Console: [`] AI (Live LLM Harness, Pi for Ollama) + [1] SYS (Fastfetch & btop) .. [0] POWER.
 PanelWindow {
     id: pop
     property var targetScreen: Quickshell.screens[0]
@@ -22,9 +22,9 @@ PanelWindow {
     visible: Status.superDeckOpen && pop.isTargetMon; screen: pop.targetScreen; color: "transparent"
     WlrLayershell.namespace: "superfedora-superdeck"; WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: (pop.visible && pop.activeTab !== "ai") ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    anchors.top: true; anchors.bottom: pop.activeTab !== "ai"; anchors.left: pop.activeTab !== "ai"; anchors.right: pop.activeTab !== "ai"
-    margins.top: pop.activeTab === "ai" ? (Theme.barHeight + 6) : Theme.barHeight; exclusionMode: ExclusionMode.Ignore
-    implicitWidth: pop.fullW; implicitHeight: pop.activeTab === "ai" ? 40 : pop.fullH
+    anchors { top: true; bottom: true; left: true; right: true }
+    margins.top: Theme.barHeight; exclusionMode: ExclusionMode.Ignore
+    mask: Region { item: bgArea; Region { intersection: pop.activeTab === "ai" ? Intersection.Subtract : Intersection.Combine; item: aiHole } }
 
     readonly property var btAdapter: Bluetooth.defaultAdapter; readonly property bool btEnabled: btAdapter !== null && btAdapter.enabled
     readonly property var btList: btAdapter ? Bluetooth.devices.values.slice(0, 7) : []
@@ -33,16 +33,16 @@ PanelWindow {
     readonly property bool batCharging: batPresent && (batDev.state === UPowerDeviceState.Charging || batDev.state === UPowerDeviceState.FullyCharged)
 
     readonly property var tabs: [
-        { id: "ai", label: "[1] AI" }, { id: "wifi", label: "[2] WI-FI" }, { id: "bluetooth", label: "[3] BT" },
-        { id: "audio", label: "[4] AUDIO" }, { id: "display", label: "[5] DISPLAY" }, { id: "theme", label: "[6] THEME" },
-        { id: "shell", label: "[7] DOCK" }, { id: "forge", label: "[8] FORGE" }, { id: "state", label: "[9] STATE" },
-        { id: "power", label: "[0] POWER" }
+        { id: "ai", label: "[`] AI" }, { id: "sys", label: "[1] SYS" }, { id: "wifi", label: "[2] WI-FI" },
+        { id: "bluetooth", label: "[3] BT" }, { id: "audio", label: "[4] AUDIO" }, { id: "display", label: "[5] DISPLAY" },
+        { id: "theme", label: "[6] THEME" }, { id: "shell", label: "[7] DOCK" }, { id: "forge", label: "[8] FORGE" },
+        { id: "state", label: "[9] STATE" }, { id: "power", label: "[0] POWER" }
     ]
 
     function focusActiveTab() { if (pop.activeTab === "wifi" && pop.wifiPassSsid !== "") wifiPassInput.forceActiveFocus(); else if (pop.activeTab === "forge") catalogView.focusSearch(); else if (pop.activeTab !== "ai") box.forceActiveFocus(); }
-    function selectTab(idx) { if (idx < 0 || idx >= pop.tabs.length) return; pop.confirmCmd = ""; pop.wifiPassSsid = ""; Status.superDeckPowerHighlight = (pop.tabs[idx].id === "power"); Status.superDeckSection = pop.tabs[idx].id; Status.playSfx("click"); pop.focusActiveTab(); }
+    function selectTab(idx) { if (idx < 0 || idx >= pop.tabs.length) return; const id = pop.tabs[idx].id, same = (Status.superDeckSection === id); pop.confirmCmd = ""; pop.wifiPassSsid = ""; Status.superDeckPowerHighlight = (id === "power"); Status.superDeckSection = id; if (same && id === "ai") Status.syncQuakeAi(); Status.playSfx("click"); pop.focusActiveTab(); }
     function stepTab(back) { const cur = pop.tabs.findIndex(t => t.id === pop.activeTab); pop.selectTab((Math.max(0, cur) + (back ? (pop.tabs.length - 1) : 1)) % pop.tabs.length); }
-    function runCmd(cmd, closeAfter) { if (closeAfter) Status.superDeckOpen = false; Status.playSfx("confirm"); Quickshell.execDetached(["sh", "-c", cmd]); Status.refresh(); }
+    function runCmd(cmd, _closeAfter) { Status.playSfx("confirm"); Quickshell.execDetached(["sh", "-c", cmd]); Status.refresh(); }
     function askConfirm(label, cmd) { pop.confirmLabel = label; pop.confirmCmd = cmd; Status.playSfx("alert"); }
     function escSh(s) { return String(s || "").replace(/'/g, "'\\''"); }
     function wifiTrigger(w) { if (!w) return; const s = pop.escSh(w.ssid); if (w.active) pop.runCmd("nmcli connection down '" + s + "'; sleep 0.5 && qs ipc call status refresh", false); else if (w.saved || w.open) pop.runCmd("nmcli device wifi connect '" + s + "'; sleep 0.8 && qs ipc call status refresh", false); else { pop.wifiPassSsid = w.ssid; wifiPassInput.text = ""; wifiPassInput.forceActiveFocus(); Status.playSfx("click"); } }
@@ -52,22 +52,25 @@ PanelWindow {
     onVisibleChanged: if (pop.visible) { pop.confirmCmd = ""; pop.wifiPassSsid = ""; pop.focusActiveTab(); }
     onActiveTabChanged: if (pop.visible) { pop.confirmCmd = ""; pop.wifiPassSsid = ""; pop.focusActiveTab(); }
 
-    MouseArea { visible: pop.activeTab !== "ai"; anchors.fill: parent; onClicked: Status.superDeckOpen = false }
+    MouseArea { id: bgArea; anchors.fill: parent; acceptedButtons: Qt.AllButtons; onClicked: Status.superDeckOpen = false }
+    Item { id: aiHole; x: box.x; y: box.y + 40; width: pop.fullW; height: pop.fullH - 40 }
 
     Rectangle {
         id: box
         width: pop.fullW; height: pop.activeTab === "ai" ? 40 : pop.fullH
-        anchors { top: parent.top; topMargin: pop.activeTab === "ai" ? 0 : 6; horizontalCenter: parent.horizontalCenter }
+        anchors { top: parent.top; topMargin: 6; horizontalCenter: parent.horizontalCenter }
         color: Theme.bg; radius: Theme.radius; border.width: 2; focus: true
         border.color: pop.activeTab === "power" ? Theme.red : Theme.blue
-        MouseArea { anchors.fill: parent }
+        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons }
         Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
         Keys.onPressed: event => {
             if (event.key === Qt.Key_Escape) {
                 if (pop.wifiPassSsid !== "") { pop.wifiPassSsid = ""; box.forceActiveFocus(); } else Status.superDeckOpen = false;
                 event.accepted = true;
+            } else if (((event.modifiers & (Qt.MetaModifier | Qt.AltModifier | Qt.ControlModifier)) || !wifiPassInput.activeFocus) && (event.key === Qt.Key_QuoteLeft || event.key === Qt.Key_AsciiTilde)) {
+                pop.selectTab(0); event.accepted = true;
             } else if (((event.modifiers & (Qt.MetaModifier | Qt.AltModifier | Qt.ControlModifier)) || !wifiPassInput.activeFocus) && ((event.key >= Qt.Key_1 && event.key <= Qt.Key_9) || event.key === Qt.Key_0)) {
-                pop.selectTab(event.key === Qt.Key_0 ? 9 : (event.key - Qt.Key_1)); event.accepted = true;
+                pop.selectTab(event.key === Qt.Key_0 ? 10 : (event.key - Qt.Key_1 + 1)); event.accepted = true;
             } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
                 pop.stepTab(event.key === Qt.Key_Backtab || Boolean(event.modifiers & Qt.ShiftModifier)); event.accepted = true;
             } else if (pop.activeTab === "wifi" && !wifiPassInput.activeFocus) {
@@ -91,7 +94,7 @@ PanelWindow {
             anchors { fill: parent; leftMargin: 8; rightMargin: 8; topMargin: 4; bottomMargin: pop.activeTab === "ai" ? 4 : 10 }
             spacing: 6
 
-            // ---------------- 16-Bit Top Tab Bar (1 2 3 4 5 6 7 8 9 0  |  SETTINGS + ESC) ----------------
+            // ---------------- 16-Bit Top Tab Bar (` 1 2 3 4 5 6 7 8 9 0  |  SETTINGS + ESC) ----------------
             RowLayout {
                 Layout.fillWidth: true; Layout.preferredHeight: 32; spacing: 4
                 Repeater {
@@ -104,14 +107,14 @@ PanelWindow {
                         MouseArea { id: tMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pop.selectTab(parent.index) }
                     }
                 }
-                Item { implicitWidth: 12; implicitHeight: 22; Rectangle { anchors.centerIn: parent; width: 1; height: 20; color: Theme.border } }
+                Item { implicitWidth: 10; implicitHeight: 22; Rectangle { anchors.centerIn: parent; width: 1; height: 20; color: Theme.border } }
                 Rectangle {
-                    implicitWidth: 88; implicitHeight: 30; radius: Theme.radiusSm; color: setM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: setM.containsMouse ? Theme.cyan : Theme.border
+                    implicitWidth: 84; implicitHeight: 30; radius: Theme.radiusSm; color: setM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: setM.containsMouse ? Theme.cyan : Theme.border
                     Text { anchors.centerIn: parent; text: "󰒓 SETTINGS"; color: setM.containsMouse ? Theme.cyan : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
                     MouseArea { id: setM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettings(pop.activeTab) }
                 }
                 Rectangle {
-                    implicitWidth: 42; implicitHeight: 30; radius: Theme.radiusSm; color: escM.containsMouse ? Theme.red : Theme.bg; border.width: 1; border.color: escM.containsMouse ? Theme.red : Theme.border
+                    implicitWidth: 40; implicitHeight: 30; radius: Theme.radiusSm; color: escM.containsMouse ? Theme.red : Theme.bg; border.width: 1; border.color: escM.containsMouse ? Theme.red : Theme.border
                     Text { anchors.centerIn: parent; text: "ESC"; color: escM.containsMouse ? Theme.bg : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
                     MouseArea { id: escM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.superDeckOpen = false }
                 }
@@ -124,7 +127,7 @@ PanelWindow {
                 RowLayout {
                     anchors { fill: parent; margins: 6 } spacing: 8
                     Text { Layout.fillWidth: true; text: "▸ CONFIRM ACTION: " + pop.confirmLabel + "?"; color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true; elide: Text.ElideRight }
-                    Rectangle { implicitWidth: 96; implicitHeight: 24; radius: Theme.radiusSm; color: Theme.red; Text { anchors.centerIn: parent; text: "[ CONFIRM ]"; color: Theme.bg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { const c = pop.confirmCmd; pop.confirmCmd = ""; pop.runCmd(c, true); } } }
+                    Rectangle { implicitWidth: 96; implicitHeight: 24; radius: Theme.radiusSm; color: Theme.red; Text { anchors.centerIn: parent; text: "[ CONFIRM ]"; color: Theme.bg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { const c = pop.confirmCmd; pop.confirmCmd = ""; pop.runCmd(c, false); } } }
                     Rectangle { implicitWidth: 84; implicitHeight: 24; radius: Theme.radiusSm; color: Theme.bgHover; border.width: 1; border.color: Theme.border; Text { anchors.centerIn: parent; text: "[ CANCEL ]"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: pop.confirmCmd = "" } }
                 }
             }
@@ -218,9 +221,9 @@ PanelWindow {
                 }
             }
 
-            // ---------------- TAB 4 [4] AUDIO + TAB 5 [5] DISPLAY ----------------
+            // ---------------- TAB 1 [1] SYS + TAB 4 [4] AUDIO + TAB 5 [5] DISPLAY ----------------
             AiTab {
-                id: aiAndAudioView; visible: pop.activeTab === "audio" || pop.activeTab === "display"
+                id: aiAndAudioView; visible: pop.activeTab === "sys" || pop.activeTab === "audio" || pop.activeTab === "display"
                 activeTab: pop.activeTab
                 onExecuteCommand: (cmd, closeAfter) => pop.runCmd(cmd, closeAfter)
             }

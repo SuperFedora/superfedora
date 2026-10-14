@@ -126,6 +126,7 @@ Grid {
                 cursorShape: Qt.PointingHandCursor
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 onClicked: e => {
+                    Status.superDeckOpen = false;
                     if (parent.active) {
                         Status.runDockCmd(e.button === Qt.RightButton ? "layout back " + parent.modelData : "layout cycle " + parent.modelData);
                     } else {

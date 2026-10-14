@@ -16,7 +16,7 @@ case "${1:-region}" in
             else
                 mkdir -p "$HOME/.config/superfedora" && touch "$pflag"
                 pkill -STOP -x wf-recorder 2>/dev/null || pkill -STOP -f '^gpu-screen-recorder' 2>/dev/null || true
-                notify-send -a SuperFedora "Screen Recording Paused" "Click START/RESUME in the top bar to continue."
+                notify-send -a SuperFedora "Screen Recording Paused" "Click START in the recorder dock to continue."
             fi
             qs ipc call status refresh >/dev/null 2>&1 || true
         fi
@@ -44,7 +44,7 @@ case "${1:-region}" in
         mkdir -p "$HOME/.config/superfedora"
         echo "$out" > "$state"
         if [ "${1:-}" = "record-region" ]; then
-            geom="$(slurp -d -b 1a1b2666 -c 7aa2f7ff -w 2)" || { rm -f "$state"; exit 0; }
+            geom="$(slurp -d -b 1a1b2666 -c 7aa2f7ff -w 2)" || { rm -f "$state"; qs ipc call status refresh >/dev/null 2>&1 || true; exit 0; }
             nohup wf-recorder -g "$geom" -f "$out" >/dev/null 2>&1 &
         else
             mon="$(hyprctl activeworkspace -j 2>/dev/null | jq -r '.monitor // empty')"
@@ -52,7 +52,7 @@ case "${1:-region}" in
         fi
         sleep 0.25
         qs ipc call status refresh >/dev/null 2>&1 || true
-        notify-send -a SuperFedora "Screen Recording Started" "Use the PAUSE / STOP controls in the top bar."
+        notify-send -a SuperFedora "Screen Recording Started" "Use the PAUSE / STOP controls in the recorder dock."
         exit 0 ;;
     color)
         sleep 0.15

@@ -122,9 +122,9 @@ This document chronicles the installation, origin, configuration, and environmen
 
 ---
 
-## 3. Quake AI Drop-Down Console & Extensible Agent Framework
+## 3. SuperDock [`] AI Console & Extensible Agent Framework
 
-SuperFedora includes a Quake-style drop-down AI terminal (`SUPER + \`` to toggle, `Esc` or `SUPER + \`` to hide when open, `SUPER + Shift + \`` to cycle agents) integrated with the **Top Bar AI icon (`󰚩`)** popover (`panels/AiPopup.qml`).
+SuperFedora includes a Quake-style drop-down AI terminal integrated into the **SuperDock `[\`] AI` tab** (`SUPER + \`` to open `[\`] AI` to the left of `[1] SYS`, `SUPER + 1..0` or `Alt + \`/1..0` to switch tabs while open, and `Esc` or clicking outside the dock to close).
 
 ### 3.1 Built-In Agent Support
 - **Core Stack**:

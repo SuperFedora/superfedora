@@ -44,16 +44,16 @@ PanelWindow {
     }
 
     readonly property var apps: {
-        const raw = (DesktopEntries.applications && DesktopEntries.applications.values) ? DesktopEntries.applications.values : [];
+        const raw = ((DesktopEntries.applications && DesktopEntries.applications.values) ? DesktopEntries.applications.values : []).concat(Status.localApps || []);
         const q = root.filterText.trim().toLowerCase(), list = [], seen = {};
         for (let i = 0; i < raw.length; i++) {
             const e = raw[i];
             if (!e || e.noDisplay) continue;
             const id = root.normId(e.id), name = String(e.name || id || "").trim();
-            if (!name || seen[name.toLowerCase()]) continue;
+            if (!name || seen[name.toLowerCase()] || seen[id.toLowerCase()]) continue;
             const hay = (name + " " + String(e.genericName || "") + " " + String(e.comment || "") + " " + id).toLowerCase();
             if (q && !hay.includes(q)) continue;
-            seen[name.toLowerCase()] = true;
+            seen[name.toLowerCase()] = true; seen[id.toLowerCase()] = true;
             list.push({ id: id, name: name, icon: root.iconUrl(e.icon), entry: e });
         }
         list.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));

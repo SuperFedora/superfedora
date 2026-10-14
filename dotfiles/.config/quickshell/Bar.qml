@@ -68,11 +68,11 @@ PanelWindow {
         spacing: 3
 
         readonly property var tools: [
-            { id: "color",  active: false, col: Theme.purple, txt: "󰈊", tip: "Color Picker  ·  Copy screen pixel hex to clipboard" },
+            { id: "color",  active: false, col: Theme.magenta, txt: "󰈊", tip: "Color Picker  ·  Copy screen pixel hex to clipboard" },
             { id: "shot",   active: false, col: Theme.cyan,   txt: "󰹑", tip: "Screenshot  ·  Left-click: Region  ·  Right-click: Full Screen" },
             { id: "record", active: Status.recorderOpen || Status.screenRecording, col: Theme.red, txt: "󰻂", tip: "Screen Recorder  ·  Toggle Start / Pause recording controls" },
             { id: "dnd",    active: Status.dnd || Status.notifUnread > 0, col: Status.dnd ? Theme.yellow : Theme.cyan, txt: Status.dnd ? "󰂛" : (Status.notifUnread > 0 ? ("󰂞 " + Status.notifUnread) : "󰂚"), tip: Status.dnd ? "Do Not Disturb: ON (Click to allow notifications)" : "Do Not Disturb: OFF (Click to silence notifications)" },
-            { id: "idle",   active: !Status.idleEnabled, col: Theme.yellow, txt: !Status.idleEnabled ? "󰅶" : "󰒲", tip: !Status.idleEnabled ? "Hot Coffee (Keep Screen On): ON  ·  Screen never locks or sleeps" : "Hot Coffee (Keep Screen On): OFF  ·  Click to keep screen awake" }
+            { id: "idle",   active: Status.idleMode !== "poweroff", col: Status.idleMode === "lock" ? Theme.cyan : Theme.yellow, txt: Status.idleMode === "lock" ? "󰅶 󰌾" : (Status.idleMode === "screensaver" ? "󰅶" : "󰒲"), tip: Status.idleMode === "lock" ? "Coffee / Idle Mode: Lock After Timer (2m Screensaver → 5m Lock · No Screen Power Off) · Click to cycle" : (Status.idleMode === "screensaver" ? "Coffee / Idle Mode: Only Screensaver (2m Screensaver · Never Locks or Powers Off) · Click to cycle" : "Coffee / Idle Mode: Screen Power Off (2m Screensaver → 5m Lock → 10m Screen Off) · Click to cycle") }
         ]
 
         function triggerTool(id, rightBtn) {
@@ -87,7 +87,7 @@ PanelWindow {
             model: centerLeftTools.tools
             Rectangle {
                 id: ctChip; required property var modelData
-                readonly property bool shown: Status.centerToolsOpen || (modelData.active && (modelData.id === "idle" || modelData.id === "dnd"))
+                readonly property bool shown: Status.centerToolsOpen || (modelData.active && (modelData.id === "idle" || modelData.id === "dnd" || modelData.id === "record"))
                 visible: shown; implicitWidth: shown ? ctTxt.implicitWidth + 12 : 0; implicitHeight: Theme.barHeight - 8; radius: Theme.radiusSm
                 color: ctChipM.pressed ? Theme.bgAlt : (ctChipM.containsMouse ? Theme.bgHover : "transparent"); border.width: modelData.active ? 1 : 0; border.color: modelData.col
                 Text { id: ctTxt; anchors.centerIn: parent; text: ctChip.modelData.txt; color: ctChip.modelData.active ? ctChip.modelData.col : (ctChipM.containsMouse ? Theme.cyan : Theme.fgDim); font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: ctChip.modelData.active }
@@ -102,28 +102,43 @@ PanelWindow {
         }
     }
 
-    // ---------------- Between Clock & Top-Right Icons: Screen Recording Control Deck ----------------
-    Rectangle {
-        id: recorderDeck
+    // ---------------- Right-Side Vertical Screen Recorder Dock ----------------
+    PanelWindow {
+        id: recorderDock
         visible: Status.recorderOpen || Status.screenRecording
-        anchors { left: centerClock.right; leftMargin: 12; verticalCenter: parent.verticalCenter }
-        implicitWidth: visible ? recRow.implicitWidth + 12 : 0; implicitHeight: Theme.barHeight - 6; radius: Theme.radiusSm
-        color: Theme.bgAlt; border.width: 1; border.color: Status.screenRecording ? (Status.screenPaused ? Theme.yellow : Theme.red) : Theme.cyan
-        RowLayout {
-            id: recRow; anchors.centerIn: parent; spacing: 4
-            Text { text: Status.screenRecording ? (Status.screenPaused ? "󰏤 PAUSED" : "󰻂 REC") : "󰻂 RECORDER"; color: Status.screenRecording ? (Status.screenPaused ? Theme.yellow : Theme.red) : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true }
-            Rectangle {
-                implicitWidth: recStartTxt.implicitWidth + 10; implicitHeight: Theme.barHeight - 10; radius: Theme.radiusSm
-                color: recStartM.containsMouse ? (Status.screenRecording && !Status.screenPaused ? Theme.yellow : Theme.green) : Theme.bg
-                border.width: 1; border.color: Status.screenRecording && !Status.screenPaused ? Theme.yellow : Theme.green
-                Text { id: recStartTxt; anchors.centerIn: parent; text: !Status.screenRecording ? "󰐊 START" : (Status.screenPaused ? "󰐊 START" : "󰏤 PAUSE"); color: recStartM.containsMouse ? Theme.bg : (Status.screenRecording && !Status.screenPaused ? Theme.yellow : Theme.green); font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
-                MouseArea { id: recStartM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton; onContainsMouseChanged: bar.setTip(!Status.screenRecording ? "Start Screen Recording (Left: Full Screen · Right: Select Region)" : (Status.screenPaused ? "Resume Screen Recording" : "Pause Screen Recording"), containsMouse); onClicked: e => { if (!Status.screenRecording) Status.startScreenRecord(e.button === Qt.RightButton); else Status.pauseScreenRecord(); } }
-            }
-            Rectangle {
-                implicitWidth: recStopTxt.implicitWidth + 10; implicitHeight: Theme.barHeight - 10; radius: Theme.radiusSm
-                color: recStopM.containsMouse ? (Status.screenRecording ? Theme.red : Theme.bgHover) : Theme.bg; border.width: 1; border.color: Status.screenRecording ? Theme.red : Theme.border
-                Text { id: recStopTxt; anchors.centerIn: parent; text: Status.screenRecording ? "󰓛 STOP" : "×"; color: recStopM.containsMouse && Status.screenRecording ? Theme.bg : (Status.screenRecording ? Theme.red : Theme.fgDim); font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
-                MouseArea { id: recStopM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onContainsMouseChanged: bar.setTip(Status.screenRecording ? "Stop & Save Recording to ~/Videos/Recordings" : "Close Screen Recorder Controls", containsMouse); onClicked: { if (Status.screenRecording) Status.stopScreenRecord(); else { Status.recorderOpen = false; Status.playSfx("click"); } } }
+        screen: bar.modelData; color: "transparent"; exclusionMode: ExclusionMode.Ignore
+        anchors.right: true; margins.right: 8
+        implicitWidth: 144; implicitHeight: recCol.implicitHeight + 24
+
+        Rectangle {
+            anchors.fill: parent; radius: Theme.radius
+            color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, 0.96)
+            border.width: 2; border.color: Status.screenRecording ? (Status.screenPaused ? Theme.yellow : Theme.red) : Theme.cyan
+
+            ColumnLayout {
+                id: recCol; anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 } spacing: 8
+                Text { Layout.alignment: Qt.AlignHCenter; text: Status.screenRecording ? (Status.screenPaused ? "󰏤 PAUSED" : "󰻂 REC") : "󰻂 RECORDER"; color: Status.screenRecording ? (Status.screenPaused ? Theme.yellow : Theme.red) : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true }
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
+                Rectangle {
+                    Layout.fillWidth: true; implicitHeight: 32; radius: Theme.radiusSm
+                    readonly property color accent: Status.screenRecording && !Status.screenPaused ? Theme.yellow : Theme.green
+                    color: recStartM.containsMouse ? accent : Theme.bgAlt; border.width: 1; border.color: accent
+                    Text { anchors.centerIn: parent; text: !Status.screenRecording || Status.screenPaused ? "[ 󰐊 START ]" : "[ 󰏤 PAUSE ]"; color: recStartM.containsMouse ? Theme.bg : parent.accent; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true }
+                    MouseArea { id: recStartM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { if (!Status.screenRecording) Status.startScreenRecord(false); else Status.pauseScreenRecord(); } }
+                }
+                Rectangle {
+                    Layout.fillWidth: true; implicitHeight: 32; radius: Theme.radiusSm
+                    readonly property color accent: Status.screenRecording ? Theme.red : Theme.cyan
+                    color: recActM.containsMouse ? accent : Theme.bgAlt; border.width: 1; border.color: accent
+                    Text { anchors.centerIn: parent; text: Status.screenRecording ? "[ 󰓛 STOP ]" : "[ 󰹑 REGION ]"; color: recActM.containsMouse ? Theme.bg : parent.accent; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true }
+                    MouseArea { id: recActM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { if (Status.screenRecording) Status.stopScreenRecord(); else Status.startScreenRecord(true); } }
+                }
+                Rectangle {
+                    visible: !Status.screenRecording; Layout.fillWidth: true; implicitHeight: 28; radius: Theme.radiusSm
+                    color: recCloseM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: recCloseM.containsMouse ? Theme.red : Theme.border
+                    Text { anchors.centerIn: parent; text: "[ × CLOSE ]"; color: recCloseM.containsMouse ? Theme.red : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
+                    MouseArea { id: recCloseM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Status.recorderOpen = false; Status.playSfx("click"); } }
+                }
             }
         }
     }

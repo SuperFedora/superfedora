@@ -71,6 +71,7 @@ run_rollback() {
             local num
             num="$(sudo snapper -c root create -t single -p -d "$desc")"
             echo "[OK] Created Btrfs snapshot #$num ($desc)"
+            "$SF_ROOT/lib/notify-ctl.sh" --banner checkpoint >/dev/null 2>&1 || true
             return 0 ;;
         --setup|setup)
             sudo bash "$SF_ROOT/lib/setup-btrfs-snapper.sh"

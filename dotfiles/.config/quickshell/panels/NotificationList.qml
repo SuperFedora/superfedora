@@ -101,7 +101,7 @@ ColumnLayout {
                                     font.family: Theme.font; font.pixelSize: Theme.fontSize - 3
                                 }
                                 Text {
-                                    text: "[x]"; color: delM.containsMouse ? Theme.red : Theme.fgDim
+                                    text: "[ACK]"; color: delM.containsMouse ? Theme.red : Theme.cyan
                                     font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true
                                     MouseArea {
                                         id: delM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -119,8 +119,9 @@ ColumnLayout {
                             RowLayout {
                                 Layout.fillWidth: true; spacing: 6
                                 Text {
-                                    Layout.fillWidth: true; text: itemCard.modelData.appName || "System"
-                                    color: Theme.muted; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; elide: Text.ElideRight
+                                    Layout.fillWidth: true
+                                    text: "[ " + (itemCard.modelData.roleTitle || "SYS ENG") + " // " + String(itemCard.modelData.appName || "SYSTEM").toUpperCase() + " ]"
+                                    color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true; elide: Text.ElideRight
                                 }
                                 Repeater {
                                     model: itemCard.modelData.actions || []
@@ -147,6 +148,53 @@ ColumnLayout {
                     MouseArea {
                         id: cardHover; anchors.fill: parent; z: -1; hoverEnabled: true
                         onClicked: { if (Status.notifAction) Status.notifAction("dismiss", itemCard.modelData.id); }
+                    }
+                }
+            }
+        }
+    }
+
+    // 16-Bit Workstation Banner & Cast Comms Testbench
+    Rectangle {
+        Layout.fillWidth: true; implicitHeight: testCol.implicitHeight + 14; radius: Theme.radiusSm
+        color: Theme.bgAlt; border.width: 1; border.color: Theme.border
+        ColumnLayout {
+            id: testCol; anchors { fill: parent; margins: 7 } spacing: 5
+            Text { text: "16-BIT BANNERS & CAST COMMS TESTBENCH"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 4; font.bold: true }
+            RowLayout {
+                Layout.fillWidth: true; spacing: 4
+                Repeater {
+                    model: [
+                        { l: "READY", act: "banner", v: "ready", c: Theme.primary },
+                        { l: "WARN",  act: "banner", v: "warning", c: Theme.danger },
+                        { l: "UPD",   act: "banner", v: "update", c: Theme.ok },
+                        { l: "CHKPT", act: "banner", v: "checkpoint", c: Theme.cyan }
+                    ]
+                    Rectangle {
+                        required property var modelData
+                        Layout.fillWidth: true; implicitHeight: 22; radius: Theme.radiusSm
+                        color: tbM.containsMouse ? modelData.c : Theme.bg; border.width: 1; border.color: modelData.c
+                        Text { anchors.centerIn: parent; text: "[" + parent.modelData.l + "]"; color: tbM.containsMouse ? Theme.bg : parent.modelData.c; font.family: Theme.font; font.pixelSize: Theme.fontSize - 4; font.bold: true }
+                        MouseArea { id: tbM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { if (Status.notifAction) Status.notifAction(parent.modelData.act, parent.modelData.v); } }
+                    }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true; spacing: 4
+                Repeater {
+                    model: [
+                        { l: "AI",    v: "ai",       c: Theme.primary },
+                        { l: "SEC",   v: "security", c: Theme.danger },
+                        { l: "FORGE", v: "builder",  c: Theme.ok },
+                        { l: "ENG",   v: "engineer", c: Theme.accent },
+                        { l: "APP",   v: "app",      c: Theme.magenta }
+                    ]
+                    Rectangle {
+                        required property var modelData
+                        Layout.fillWidth: true; implicitHeight: 22; radius: Theme.radiusSm
+                        color: tcM.containsMouse ? modelData.c : Theme.bg; border.width: 1; border.color: modelData.c
+                        Text { anchors.centerIn: parent; text: "[" + parent.modelData.l + "]"; color: tcM.containsMouse ? Theme.bg : parent.modelData.c; font.family: Theme.font; font.pixelSize: Theme.fontSize - 4; font.bold: true }
+                        MouseArea { id: tcM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { if (Status.notifAction) Status.notifAction("cast", parent.modelData.v); } }
                     }
                 }
             }

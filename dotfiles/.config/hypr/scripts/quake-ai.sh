@@ -2,7 +2,7 @@
 # Copyright 2026 SuperFedora Contributors
 # SPDX-License-Identifier: Apache-2.0
 # ==============================================================================
-# quake-ai.sh — SuperDock [1] AI Harness Manager (Native LLM Harness + Pi for Ollama)
+# quake-ai.sh — SuperDock [`] AI Harness Manager (Native LLM Harness + Pi for Ollama)
 # ==============================================================================
 # Usage:
 #   quake-ai.sh [toggle|show|hide|restart|next-agent|set-agent <id>|list-agents]
@@ -113,7 +113,7 @@ spawn_quake() {
     local runner="$STATE_DIR/quake-ai-runner.sh" safe_title="${AI_LABEL//[\'\"]/}"
     {
         printf '#!/usr/bin/env bash\nexport PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.minimax-code/bin:$HOME/.minimax/bin:$HOME/.grok/bin:$HOME/.npm-global/bin:/usr/local/bin:/usr/bin:/bin:$PATH"\n'
-        printf 'export AI_AGENT=%q AI_LABEL=%q AI_BIN=%q AI_CMD=%q OLLAMA_HOST=%q OLLAMA_MODEL=%q SF_OLLAMA=%q\n' "$AI_AGENT" "$AI_LABEL" "$AI_BIN" "$AI_CMD" "$OLLAMA_HOST" "$OLLAMA_MODEL" "$SF_OLLAMA"
+        printf 'export AI_AGENT=%q AI_LABEL=%q AI_BIN=%q AI_CMD=%q OLLAMA_HOST=%q OLLAMA_MODEL=%q SF_OLLAMA=%q SELF=%q\n' "$AI_AGENT" "$AI_LABEL" "$AI_BIN" "$AI_CMD" "$OLLAMA_HOST" "$OLLAMA_MODEL" "$SF_OLLAMA" "$SELF"
         cat <<'EOF'
 clear
 if [[ "$AI_AGENT" == "ollama" ]]; then
@@ -123,10 +123,11 @@ if [[ "$AI_AGENT" == "ollama" ]]; then
     else printf '\033[1;33m[!]\033[0m Cannot connect to Ollama at %s (%s)\n' "$OLLAMA_HOST" "$OLLAMA_MODEL"; fi
 elif command -v "$AI_BIN" >/dev/null 2>&1; then eval "$AI_CMD"
 else printf '\033[1;33m[!]\033[0m %s (%s) is not installed yet. Configure via Top Bar AI menu or: sf ai configure\n' "$AI_LABEL" "$AI_BIN"; fi
-exec "${SHELL:-/bin/bash}"
+"${SHELL:-/bin/bash}"
+"$SELF" hide >/dev/null 2>&1 || true
 EOF
     } > "$runner"; chmod +x "$runner"
-    hyprctl dispatch exec "[workspace special:ai silent; float; size $Q_W $Q_H; move $Q_X $Q_Y] kitty --class quake-ai -o 'map escape launch --type=background $SELF hide' -o 'map shift+escape send_text all \x1b' -o 'map alt+2 launch --type=background qs ipc call superdeck open 2' -o 'map alt+3 launch --type=background qs ipc call superdeck open 3' -o 'map alt+4 launch --type=background qs ipc call superdeck open 4' -o 'map alt+5 launch --type=background qs ipc call superdeck open 5' -o 'map alt+6 launch --type=background qs ipc call superdeck open 6' -o 'map alt+7 launch --type=background qs ipc call superdeck open 7' -o 'map alt+8 launch --type=background qs ipc call superdeck open 8' -o 'map alt+9 launch --type=background qs ipc call superdeck open 9' -o 'map alt+0 launch --type=background qs ipc call superdeck open 0' --title 'Quake AI — $safe_title' -e $runner" >/dev/null
+    hyprctl dispatch exec "[workspace special:ai silent; float; size $Q_W $Q_H; move $Q_X $Q_Y] kitty --class quake-ai -o 'map escape launch --type=background $SELF hide' -o 'map shift+escape send_text all \x1b' -o 'map alt+grave launch --type=background qs ipc call superdeck open ai' -o 'map alt+1 launch --type=background qs ipc call superdeck open 1' -o 'map alt+2 launch --type=background qs ipc call superdeck open 2' -o 'map alt+3 launch --type=background qs ipc call superdeck open 3' -o 'map alt+4 launch --type=background qs ipc call superdeck open 4' -o 'map alt+5 launch --type=background qs ipc call superdeck open 5' -o 'map alt+6 launch --type=background qs ipc call superdeck open 6' -o 'map alt+7 launch --type=background qs ipc call superdeck open 7' -o 'map alt+8 launch --type=background qs ipc call superdeck open 8' -o 'map alt+9 launch --type=background qs ipc call superdeck open 9' -o 'map alt+0 launch --type=background qs ipc call superdeck open 0' --title 'Quake AI — $safe_title' -e $runner" >/dev/null
     for _ in {1..30}; do has_quake_client && break; sleep 0.04; done
 }
 
@@ -135,15 +136,22 @@ show_quake() {
     exec 9>"$STATE_DIR/quake-ai.lock"; flock -w 2 9 || true
     # shellcheck disable=SC1090
     [[ -f "$FAST_FILE" ]] && source "$FAST_FILE"
-    if [[ -n "${Q_PID:-}" && -d "/proc/$Q_PID" && -n "${Q_W:-}" ]]; then
+    if [[ -n "${Q_PID:-}" && -d "/proc/$Q_PID" && -n "${Q_W:-}" ]] && tr '\0' ' ' < "/proc/$Q_PID/cmdline" 2>/dev/null | grep -q 'alt+1'; then
         [[ "$hdr_h" == "${Q_HDR_H:-40}" ]] || { Q_H=$(( Q_FULL_H - hdr_h )); Q_Y=$(( Q_BASE_Y + hdr_h )); Q_HDR_H="$hdr_h"; batch="dispatch movewindowpixel exact $Q_X $Q_Y,class:^(quake-ai)$; dispatch resizewindowpixel exact $Q_W $Q_H,class:^(quake-ai)$; "; }
-        [[ "${Q_OPEN:-0}" == "1" ]] || batch="dispatch togglespecialworkspace ai; ${batch}"
+        is_special_ai_open || batch="dispatch togglespecialworkspace ai; ${batch}"
         [[ -n "$batch" ]] && hyprctl --batch "${batch}dispatch focuswindow class:^(quake-ai)$" >/dev/null || hyprctl dispatch focuswindow "class:^(quake-ai)$" >/dev/null
         save_fast 1; return 0
     fi
+    if has_quake_client; then
+        Q_PID="$(hyprctl clients -j 2>/dev/null | jq -r '.[] | select(.class=="quake-ai") | .pid' | head -n1)"
+        if [[ -n "$Q_PID" ]] && ! tr '\0' ' ' < "/proc/$Q_PID/cmdline" 2>/dev/null | grep -q 'alt+1'; then
+            hyprctl dispatch closewindow "class:^(quake-ai)$" >/dev/null 2>&1 || true
+            for _ in {1..20}; do has_quake_client || break; sleep 0.04; done
+        fi
+    fi
     compute_geometry "$hdr_h"; has_quake_client || spawn_quake
     Q_PID="$(hyprctl clients -j 2>/dev/null | jq -r '.[] | select(.class=="quake-ai") | .pid' | head -n1)"; Q_HDR_H="$hdr_h"
-    [[ "${SPEC_OPEN:-0}" == "1" ]] || batch="dispatch togglespecialworkspace ai; "
+    is_special_ai_open || batch="dispatch togglespecialworkspace ai; "
     hyprctl --batch "${batch}dispatch movewindowpixel exact $Q_X $Q_Y,class:^(quake-ai)$; dispatch resizewindowpixel exact $Q_W $Q_H,class:^(quake-ai)$; dispatch focuswindow class:^(quake-ai)$" >/dev/null
     save_fast 1
 }
@@ -152,8 +160,8 @@ hide_quake() {
     exec 9>"$STATE_DIR/quake-ai.lock"; flock -w 2 9 || true
     # shellcheck disable=SC1090
     [[ -f "$FAST_FILE" ]] && source "$FAST_FILE"
-    if [[ -n "${Q_PID:-}" && -d "/proc/$Q_PID" ]]; then [[ "${Q_OPEN:-0}" == "1" ]] && { hyprctl dispatch togglespecialworkspace ai >/dev/null || true; save_fast 0; }
-    elif is_special_ai_open; then hyprctl dispatch togglespecialworkspace ai >/dev/null || true; fi
+    if is_special_ai_open; then hyprctl dispatch togglespecialworkspace ai >/dev/null || true; fi
+    [[ -n "${Q_PID:-}" && -d "/proc/$Q_PID" ]] && save_fast 0
     [[ "${1:-}" == "keep-deck" ]] || qs ipc call superdeck close >/dev/null 2>&1 || true
 }
 relaunch_quake() { rm -f "$FAST_FILE"; hyprctl dispatch closewindow "class:^(quake-ai)$" >/dev/null 2>&1 || true; for _ in {1..25}; do has_quake_client || break; sleep 0.04; done; show_quake "${1:-40}"; }

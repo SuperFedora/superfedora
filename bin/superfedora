@@ -37,6 +37,7 @@
 set -uo pipefail
 
 SF_ROOT="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/.." && pwd)"
+[[ -d "$SF_ROOT/lib" ]] || { [[ -d "$HOME/Projects/superfedora/superfedora/lib" ]] && SF_ROOT="$HOME/Projects/superfedora/superfedora" || SF_ROOT="$HOME/.local/share/superfedora"; }
 export SF_ROOT
 REPO_SLUG="SuperFedora/superfedora"
 PAGES_URL="https://superfedora.github.io/install.sh"
@@ -160,7 +161,7 @@ case "$CMD" in
     update)
         info "fetching the latest SuperFedora release..."
         curl -fsSL "$PAGES_URL" | SUPERFEDORA_NO_RUN=1 bash || die "could not fetch the installer"
-        exec "$HOME/.local/bin/superfedora" install "$@"
+        "$HOME/.local/bin/superfedora" install "$@" && { "$SF_ROOT/lib/notify-ctl.sh" --banner update >/dev/null 2>&1 || true; }
         ;;
     dotfiles)
         exec "$SF_ROOT/lib/install-dotfiles.sh" "${DOTFILE_ARGS[@]}"

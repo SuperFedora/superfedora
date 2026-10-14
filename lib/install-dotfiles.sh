@@ -157,6 +157,8 @@ echo "SuperFedora v$VERSION dotfiles: $changed file(s) updated"
 # ------------------------------------------------------------------------------
 # Reload a running Hyprland session so changes take effect immediately
 # ------------------------------------------------------------------------------
+target_rt="${XDG_RUNTIME_DIR:-/run/user/$(id -u "$TARGET_USER")}"
+[[ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" && -d "$target_rt/hypr" ]] && HYPRLAND_INSTANCE_SIGNATURE="$(find "$target_rt/hypr" -mindepth 1 -maxdepth 1 -printf '%f\n' 2>/dev/null | head -n1 || true)" && export HYPRLAND_INSTANCE_SIGNATURE
 if [[ $RELOAD -eq 1 && $changed -gt 0 && -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] && command -v hyprctl >/dev/null; then
     hyprctl reload >/dev/null
     errs="$(hyprctl configerrors 2>/dev/null | sed '/^\s*$/d')"

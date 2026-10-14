@@ -50,7 +50,7 @@ Helpers used by bindings and the bar: `grim`, `slurp`, `wl-clipboard`, `hyprpick
 | Script | Used by |
 | :--- | :--- |
 | `menu.sh` | Fuzzel menus: main, capture, toggles, style, setup, system/power, plus `restart-shell` and `toggle-screenreader` |
-| `quake-ai.sh` | Super+\` (or `Esc` to hide) Quake-style drop-down AI console (`agy`, `mcode`, `grok`, `vibe`, `claude`, `chatgpt`, `ollama` `ip:port`, and custom agents) |
+| `quake-ai.sh` | Super+\` SuperDock `[\`] AI` console (`Esc` or click outside to close; `agy`, `mcode`, `grok`, `vibe`, `claude`, `chatgpt`, `ollama` via Pi, and custom agents) |
 | `keybindings.sh` | Super+F1 searchable binding list (from `hyprctl binds`) |
 | `focus.sh` | Stack-aware focus: walks tabs in a group before moving to the next window |
 | `windows.sh` | Super+W window switcher |
@@ -68,7 +68,7 @@ Bindings mirror `pop-os/cosmic-comp` `data/keybindings.ron` entry for entry. Hig
 
 | Keys | Action |
 | :--- | :--- |
-| Super + \` (or `Esc` when open) | Quake AI drop-down console |
+| Super + \` (`Esc` or click outside to close) | SuperDock `[\`] AI` Agent console |
 | Super + T / B / F | Terminal / browser / file manager |
 | Super + Q, Alt + F4 | Close window |
 | Tap Super, Super + A, Super + / | Launcher |
@@ -100,7 +100,7 @@ Hypridle owns `org.freedesktop.ScreenSaver` on Hyprland and drives IdleScreen:
 | 10 min | Displays off (DPMS) |
 | 30 min | Suspend, **on battery only** |
 
-`lock_cmd` stops the screensaver before hyprlock appears. Super+Shift+I starts the screensaver immediately; Super+Ctrl+I toggles stay-awake (hypridle off), shown in the bar.
+`lock_cmd` stops the screensaver before hyprlock appears. Super+Shift+I starts the screensaver immediately; Super+Ctrl+I (or clicking the Coffee button in the top bar) cycles between `poweroff` (Screensaver -> Lock -> Screen Power Off), `lock` (Screensaver -> Lock Screen without powering off the display), and `screensaver` (Screensaver only, never locking or powering off).
 
 > [!IMPORTANT]
 > Starting IdleScreen from hypridle needs IdleScreen **4.1.22+**, which calls its own D-Bus name (`io.github.idlescreen.Idle`) first instead of `org.freedesktop.ScreenSaver`.
@@ -117,7 +117,7 @@ Hypridle owns `org.freedesktop.ScreenSaver` on Hyprland and drives IdleScreen:
 | `LauncherMenu.qml` & `StatusPopup.qml` | Unified **SuperDeck** (`Apps`, `Forge`, `Style`, `Net/Snd`, `Dock`, `Snaps`, `Power`) with instant app filter, `owner/repo` source forging, interactive Volume/Brightness sliders, 6 Quick Tiles, and inline power confirmation |
 | `panels/Dock.qml`, `panels/AppGrid.qml` | Omarchy **Quattro** Dock (`bottom`/`left`/`right`/`top`, grab-and-drag empty dock space with ghost preview slab, double-click transparency toggle, hover app pill tooltip, 1..3 running-window pips, minimize-to-dock) and Launchpad App Grid |
 | `panels/AiPopup.qml` | Top-bar AI agent selector (`agy`, `mcode`, `grok`, `vibe`, `claude`, `chatgpt`, `ollama` `ip:port`, and custom agents) |
-| `Notifications.qml` | Notification server and popups; IPC `notifications` (`dismiss`, `dismissAll`, `toggleDnd`) |
+| `Notifications.qml`, `panels/WorkstationBanner.qml` | 16-Bit SNES/MMX Multi-Zone Comms (`top-center` Security, `top-right` Builder/Engineer/App, `bottom-center` AI Agent) with 64x64 beveled cast portraits (`~/.config/superfedora/cast/*.svg`), ~300ms typewriter reveal, and 4 center-screen banners (`R E A D Y`, `W A R N I N G`, `U P D A T E   C O M P L E T E`, `C H E C K P O I N T   S A V E D`) |
 | `Osd.qml` | 16-bit SNES segmented HUD bar for volume/mute and brightness |
 | `Status.qml`, `Theme.qml`, `BarLabel.qml`, `Tray.qml`, `Calendar.qml` | Consolidated polling + event-driven Hyprland IPC (`Hyprland.onRawEvent`), 16-bit palette tokens, and calendar popover |
 
@@ -128,6 +128,7 @@ Hypridle owns `org.freedesktop.ScreenSaver` on Hyprland and drives IdleScreen:
 ```bash
 sf theme [snes|tokyo-night|catppuccin|nord|01..08] --mode night|day --corners square|rounded --nightlight on|off
 sf forge <owner/repo|ripgrep|fastfetch|idlescreen|fd|zoxide|btop|hyprland|quickshell>
+sf notify [--banner ready|warning|update|checkpoint | --cast ai|security|builder|engineer|app|all | dnd | clear]
 sf dock [position bottom|top|left|right | autohide toggle | layout cycle]
 sf sfx [status|on|off|toggle|play startup|click|confirm|toggle|volume|alert]
 sf tui                             # Launch 16-bit SNES Cartridge Control Deck TUI

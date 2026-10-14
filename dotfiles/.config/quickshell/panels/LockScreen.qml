@@ -50,7 +50,7 @@ Scope {
     PamContext {
         id: pam; config: "password-auth"; user: root.userName
         onResponseRequiredChanged: { if (pam.responseRequired && root.pendingPass !== "") { const p = root.pendingPass; root.pendingPass = ""; pam.respond(p); } }
-        onCompleted: res => { root.authBusy = false; if (res === PamResult.Success) { root.authError = ""; root.locked = false; } else { root.authError = "Incorrect password — please try again"; Qt.callLater(() => { if (root.locked && !pam.active) pam.start(); }); } }
+        onCompleted: res => { root.authBusy = false; if (res === PamResult.Success) { root.authError = ""; root.locked = false; if (Status.notifAction) Status.notifAction("banner", "ready"); } else { root.authError = "Incorrect password — please try again"; Qt.callLater(() => { if (root.locked && !pam.active) pam.start(); }); } }
         onError: err => { root.authBusy = false; root.authError = "Authentication error — try again"; Qt.callLater(() => { if (root.locked && !pam.active) pam.start(); }); }
     }
     Timer { id: countTimer; interval: 1000; repeat: true; running: root.confirmAct !== ""; onTriggered: { if (root.countdown > 1) root.countdown -= 1; else root.executeConfirm(); } }
@@ -76,7 +76,7 @@ Scope {
         if (act === "de" || act === "logout") root.locked = false;
         if (cmd) Quickshell.execDetached(["sh", "-c", cmd]);
     }
-    IpcHandler { target: "lock"; function activate(): void { root.activateLock(); } function unlock(): void { root.locked = false; } }
+    IpcHandler { target: "lock"; function activate(): void { root.activateLock(); } function unlock(): void { root.locked = false; if (Status.notifAction) Status.notifAction("banner", "ready"); } }
 
     WlSessionLock {
         id: sessionLock; locked: root.locked

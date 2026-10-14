@@ -43,11 +43,11 @@
 | Super + Shift + K | Move window up |
 | Super + Shift + L | Move window right |
 
-## COSMIC: workspaces (switches SuperDesk [1]..[0] tabs when SuperDesk is open)
+## COSMIC: workspaces (switches SuperDesk [`]/[1]..[0] tabs when SuperDesk is open)
 
 | Keys | Action |
 | :--- | :--- |
-| Super + 1 | Workspace 1 / SuperDesk [1] Harness |
+| Super + 1 | Workspace 1 / SuperDesk [1] System (Fastfetch & btop) |
 | Super + 2 | Workspace 2 / SuperDesk [2] Wi-Fi |
 | Super + 3 | Workspace 3 / SuperDesk [3] Bluetooth |
 | Super + 4 | Workspace 4 / SuperDesk [4] Audio & Cam |
@@ -169,7 +169,7 @@
 | Keyboard | ThinkPad keyboard backlight (Fn+F11) |
 | KbdBrightnessUp | Keyboard backlight up (Fn+Space) |
 | KbdBrightnessDown | Keyboard backlight down |
-| Favorites | SuperDesk AI Agent (Fn+F12) |
+| Favorites | SuperDesk [`] AI Agent (Fn+F12) |
 | WebCam | Toggle web camera kill-switch |
 | PowerOff | Power deck |
 | Sleep | Power / sleep deck |
@@ -195,7 +195,7 @@
 | Super + Shift + T | Activity monitor (btop) |
 | Super + Shift + B | Private browser window |
 | Super + P | Pin floating window |
-| Super + ` | SuperDesk drop-down AI & settings console |
+| Super + ` | SuperDesk [`] AI Agent console |
 | Super + Shift + ` | Quake AI TTY terminal console |
 | Super + Ctrl + ` | Toggle scratchpad |
 | Super + Alt + Tab | Next tab in stack |

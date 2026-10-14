@@ -2,32 +2,53 @@
 # Copyright 2026 SuperFedora Contributors
 # SPDX-License-Identifier: Apache-2.0
 # ==============================================================================
-# toggle-idle.sh — Toggle Keep Screen On / Stay-Awake mode (screensaver plays, never locks or powers off monitor)
-# Usage: toggle-idle.sh [toggle|on|off|status]
+# toggle-idle.sh — Cycle Coffee / Idle mode:
+#   poweroff    -> Screensaver (2m) -> Lock (5m) -> Screen Off (10m)
+#   lock        -> Screensaver (2m) -> Lock (5m) · Never powers off screen
+#   screensaver -> Screensaver (2m) · Never locks or powers off screen
+# Usage: toggle-idle.sh [toggle|cycle|poweroff|lock|screensaver|on|off|status]
 # ==============================================================================
 set -euo pipefail
 
 STATE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/superfedora"
+MODE_FILE="$STATE_DIR/idle-mode"
 STAY_AWAKE_FILE="$STATE_DIR/stay-awake"
 mkdir -p "$STATE_DIR"
 
 pgrep -x hypridle >/dev/null 2>&1 || hyprctl dispatch exec hypridle >/dev/null 2>&1 || true
 
+cur="$(cat "$MODE_FILE" 2>/dev/null || true)"
+if [[ -z "$cur" ]]; then
+    [[ -f "$STAY_AWAKE_FILE" ]] && cur="screensaver" || cur="poweroff"
+fi
+
 case "${1:-toggle}" in
     status)
-        [[ -f "$STAY_AWAKE_FILE" ]] && echo "paused" || echo "enabled"
+        echo "$cur"
         exit 0 ;;
-    stay-awake|awake|on)
-        touch "$STAY_AWAKE_FILE" ;;
-    normal|idle|off)
-        rm -f "$STAY_AWAKE_FILE" ;;
+    poweroff|normal|idle|off)
+        next="poweroff" ;;
+    lock|lock-only)
+        next="lock" ;;
+    screensaver|stay-awake|awake|on)
+        next="screensaver" ;;
     *)
-        if [[ -f "$STAY_AWAKE_FILE" ]]; then rm -f "$STAY_AWAKE_FILE"; else touch "$STAY_AWAKE_FILE"; fi ;;
+        case "$cur" in
+            poweroff)    next="lock" ;;
+            lock)        next="screensaver" ;;
+            *)           next="poweroff" ;;
+        esac ;;
 esac
 
-if [[ -f "$STAY_AWAKE_FILE" ]]; then
-    notify-send -a SuperFedora "Keep Screen On: ON" "Screensaver will play; lock and monitor off are paused"
-else
-    notify-send -a SuperFedora "Keep Screen On: OFF" "Normal screen lock and monitor power-off resumed"
-fi
+echo "$next" > "$MODE_FILE"
+if [[ "$next" == "screensaver" ]]; then touch "$STAY_AWAKE_FILE"; else rm -f "$STAY_AWAKE_FILE"; fi
+
+case "$next" in
+    poweroff)
+        notify-send -a SuperFedora "Idle Mode: Screen Power Off" "Screensaver (2m) -> Lock (5m) -> Screen Off (10m)" ;;
+    lock)
+        notify-send -a SuperFedora "Idle Mode: Lock Screen Only" "Screensaver (2m) -> Lock (5m) · Screen never powers off" ;;
+    screensaver)
+        notify-send -a SuperFedora "Idle Mode: Only Screensaver" "Screensaver (2m) · Never locks or powers off" ;;
+esac
 command -v qs >/dev/null 2>&1 && qs ipc call status refresh >/dev/null 2>&1 || true

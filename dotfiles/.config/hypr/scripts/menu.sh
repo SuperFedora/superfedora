@@ -87,6 +87,7 @@ menu_system() {
 }
 
 restart_shell() {
+    hyprctl reload >/dev/null 2>&1 || true
     local lock_file="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/superfedora.locked"
     if [ ! -f "$lock_file" ]; then
         pkill -x quickshell || true
