@@ -24,7 +24,7 @@ refresh_qs() {
 }
 
 cmd_webcam() {
-    local sub="${1:-toggle}" cur="on" target="off"
+    local sub="${1:-toggle}" cur="on" target="off" rt="${XDG_RUNTIME_DIR:-/tmp}"
     [[ -f "$WEBCAM_FILE" ]] && cur="$(tr -d '[:space:]' < "$WEBCAM_FILE")"
     [[ "$cur" == "off" || "$cur" == "0" || "$cur" == "false" ]] && cur="off" || cur="on"
     [[ "$sub" == "status" ]] && { echo "$cur"; return 0; }
@@ -35,26 +35,30 @@ cmd_webcam() {
     esac
     echo "$target" > "$WEBCAM_FILE"
     refresh_qs
-    local sink_state src_state
-    sink_state="$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null || true)"
-    src_state="$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null || true)"
+    local sink_st src_st
+    sink_st="$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null || true)"
+    [[ "$sink_st" == Volume:* ]] && echo "$sink_st" > "$rt/sf-sink.state"
+    src_st="$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null || true)"
+    [[ "$src_st" == Volume:* ]] && echo "$src_st" > "$rt/sf-src.state"
+    [[ -f "$rt/sf-webcam.pid" ]] && kill "$(cat "$rt/sf-webcam.pid" 2>/dev/null)" 2>/dev/null || true
     if [[ "$target" == "off" ]]; then
         mkdir -p "$WP_CONF_DIR"
         printf 'wireplumber.profiles = {\n  main = {\n    monitor.v4l2 = disabled\n    monitor.libcamera = disabled\n  }\n}\n' > "$WP_CONF"
-        setfacl -m "u:${USER}:---" /dev/video* 2>/dev/null || true
         sudo -n modprobe -r uvcvideo 2>/dev/null || true
         notify-send -a "SuperFedora" -t 1500 "Web Camera: OFF" "Camera input disabled" 2>/dev/null || true
     else
         rm -f "$WP_CONF"
-        setfacl -b /dev/video* 2>/dev/null || true
         sudo -n modprobe uvcvideo 2>/dev/null || true
         notify-send -a "SuperFedora" -t 1500 "Web Camera: ON" "Camera input enabled" 2>/dev/null || true
     fi
     (
+        echo "$BASHPID" > "$rt/sf-webcam.pid"
+        sleep 0.2
+        systemctl --user reset-failed wireplumber 2>/dev/null || true
         systemctl --user restart wireplumber 2>/dev/null || true
-        sleep 0.45
-        [[ "$sink_state" == *"[MUTED]"* ]] && wpctl set-mute @DEFAULT_AUDIO_SINK@ 1 2>/dev/null || true
-        [[ "$src_state" == *"[MUTED]"* ]] && wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 1 2>/dev/null || true
+        for _ in 1 2 3 4 5 6; do wpctl get-volume @DEFAULT_AUDIO_SINK@ >/dev/null 2>&1 && break; sleep 0.15; done
+        [[ "$(cat "$rt/sf-sink.state" 2>/dev/null)" == *"[MUTED]"* ]] && wpctl set-mute @DEFAULT_AUDIO_SINK@ 1 2>/dev/null || true
+        [[ "$(cat "$rt/sf-src.state" 2>/dev/null)" == *"[MUTED]"* ]] && wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 1 2>/dev/null || true
         refresh_qs
     ) </dev/null >/dev/null 2>&1 & disown || true
 }

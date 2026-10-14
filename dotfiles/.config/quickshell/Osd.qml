@@ -15,14 +15,15 @@ Scope {
     }
 
     readonly property var sink: Pipewire.defaultAudioSink
-    readonly property real vol: sink && sink.audio ? sink.audio.volume : 0
-    readonly property bool muted: sink && sink.audio ? sink.audio.muted : false
+    readonly property bool audioReady: sink !== null && sink.audio !== null
+    readonly property real vol: audioReady ? sink.audio.volume : Status.spkVol
+    readonly property bool muted: audioReady ? sink.audio.muted : Status.spkMuted
     readonly property real bri: Status.brightness
     readonly property real activeVal: root.mode === "brightness" ? root.bri : root.vol
 
     property bool _armed: false
-    onVolChanged: show("volume")
-    onMutedChanged: show("volume")
+    onVolChanged: if (root.audioReady) show("volume")
+    onMutedChanged: if (root.audioReady) show("volume")
     onBriChanged: show("brightness")
 
     function show(kind) {

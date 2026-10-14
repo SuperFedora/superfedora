@@ -166,11 +166,11 @@ Singleton {
     function reloadWebcam() { netProc.running = true; }
     function playSfx(name) { if (root.sfxEnabled) Quickshell.execDetached(["sh", "-c", "(~/.local/bin/sf sfx play " + name + " || ~/Projects/superfedora/superfedora/lib/sfx.sh play " + name + ") >/dev/null 2>&1"]); }
     function toggleSfx() { root.sfxEnabled = !root.sfxEnabled; Quickshell.execDetached(["sh", "-c", "(~/.local/bin/sf sfx toggle || ~/Projects/superfedora/superfedora/lib/sfx.sh toggle) >/dev/null 2>&1"]); }
-    function toggleSpeakerMute() { root.spkMuted = !root.spkMuted; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh speaker toggle"]); }
+    function toggleSpeakerMute(m) { const next = (typeof m === "boolean") ? m : !root.spkMuted; root.spkMuted = next; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh speaker " + (next ? "mute" : "unmute")]); }
     function setSpeakerVolume(val) { const c = Math.max(0, Math.min(1, val)); root.spkVol = c; Quickshell.execDetached(["sh", "-c", "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ " + Math.round(c * 100) + "%"]); }
-    function toggleMicMute() { root.micMuted = !root.micMuted; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh mic toggle"]); }
+    function toggleMicMute(m) { const next = (typeof m === "boolean") ? m : !root.micMuted; root.micMuted = next; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh mic " + (next ? "mute" : "unmute")]); }
     function setMicVolume(val) { const c = Math.max(0, Math.min(1, val)); root.micVol = c; Quickshell.execDetached(["sh", "-c", "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SOURCE@ " + Math.round(c * 100) + "%"]); }
-    function toggleWebcam() { root.webcamEnabled = !root.webcamEnabled; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh webcam toggle"]); }
+    function toggleWebcam() { root.webcamEnabled = !root.webcamEnabled; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh webcam " + (root.webcamEnabled ? "on" : "off")]); }
 
     function toggleSuperDeck(sec) {
         const target = sec || "quick";

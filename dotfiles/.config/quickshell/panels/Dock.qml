@@ -207,8 +207,8 @@ PanelWindow {
                         onExited: if (win.hoveredSlotIdx === win.dockItems.length + 1 + ioSlot.index) win.hoveredName = ""
                         onClicked: e => {
                             win.menuTarget = null; win.settingsMenu = false; if (e.button === Qt.RightButton) { Status.toggleSuperDeck("net"); return; }
-                            if (ioSlot.modelData.id === "spk") { if (win.spkReady) win.sink.audio.muted = !win.sink.audio.muted; Status.toggleSpeakerMute(); }
-                            else if (ioSlot.modelData.id === "mic") { if (win.micReady) win.source.audio.muted = !win.source.audio.muted; Status.toggleMicMute(); } else Status.toggleWebcam();
+                            if (ioSlot.modelData.id === "spk") { const m = !win.spkMuted; if (win.spkReady) win.sink.audio.muted = m; Status.toggleSpeakerMute(m); }
+                            else if (ioSlot.modelData.id === "mic") { const m = !win.micMuted; if (win.micReady) win.source.audio.muted = m; Status.toggleMicMute(m); } else Status.toggleWebcam();
                         }
                         onWheel: wheel => {
                             const d = wheel.angleDelta.y > 0 ? 0.05 : -0.05;

@@ -133,18 +133,18 @@ PanelWindow {
                         implicitWidth: spkBtnTxt.implicitWidth + 12; implicitHeight: 22; radius: Theme.radiusSm
                         color: !pop.muted ? Theme.bgAlt : Theme.bg; border.width: 1; border.color: !pop.muted ? Theme.blue : Theme.red
                         Text { id: spkBtnTxt; anchors.centerIn: parent; text: pop.muted ? "󰝟 Spk: Muted" : ("󰕾 Spk: " + Math.round(pop.vol * 100) + "%"); color: pop.muted ? Theme.red : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 4; font.bold: true }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (pop.audioReady) pop.sink.audio.muted = !pop.sink.audio.muted; Status.toggleSpeakerMute(); } }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { const m = !pop.muted; if (pop.audioReady) pop.sink.audio.muted = m; Status.toggleSpeakerMute(m); } }
                     }
                     Rectangle {
                         implicitWidth: micBtnTxt.implicitWidth + 12; implicitHeight: 22; radius: Theme.radiusSm
                         color: !pop.micMuted ? Theme.bgAlt : Theme.bg; border.width: 1; border.color: !pop.micMuted ? Theme.green : Theme.red
                         Text { id: micBtnTxt; anchors.centerIn: parent; text: pop.micMuted ? "󰍭 Mic: Muted" : ("󰍬 Mic: " + Math.round(pop.micVol * 100) + "%"); color: pop.micMuted ? Theme.red : Theme.green; font.family: Theme.font; font.pixelSize: Theme.fontSize - 4; font.bold: true }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (pop.micReady) pop.source.audio.muted = !pop.source.audio.muted; Status.toggleMicMute(); } }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { const m = !pop.micMuted; if (pop.micReady) pop.source.audio.muted = m; Status.toggleMicMute(m); } }
                     }
                     Rectangle {
                         implicitWidth: camBtnTxt.implicitWidth + 12; implicitHeight: 22; radius: Theme.radiusSm
                         color: Status.webcamEnabled ? Theme.bgAlt : Theme.bg; border.width: 1; border.color: Status.webcamEnabled ? Theme.green : Theme.red
-                        Text { id: camBtnTxt; anchors.centerIn: parent; text: Status.webcamEnabled ? "󰄀 Cam: ON" : "󰗟 Cam: OFF"; color: Status.webcamEnabled ? Theme.green : Theme.red; font.family: Theme.font; font.pixelSize: Theme.fontSize - 4; font.bold: true }
+                        Text { id: camBtnTxt; anchors.centerIn: parent; text: Status.webcamEnabled ? "󰄀 Camera: ON" : "󰗟 Camera: OFF"; color: Status.webcamEnabled ? Theme.green : Theme.red; font.family: Theme.font; font.pixelSize: Theme.fontSize - 4; font.bold: true }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.toggleWebcam() }
                     }
                 }
@@ -153,7 +153,7 @@ PanelWindow {
                     Layout.fillWidth: true; spacing: 8
                     Text {
                         text: pop.muted ? "󰝟" : (pop.vol >= 0.5 ? "󰕾" : "󰖀"); color: pop.muted ? Theme.red : Theme.cyan; font.family: Theme.font; font.pixelSize: 16; Layout.preferredWidth: 18
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (pop.audioReady) pop.sink.audio.muted = !pop.sink.audio.muted; Status.toggleSpeakerMute(); } }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { const m = !pop.muted; if (pop.audioReady) pop.sink.audio.muted = m; Status.toggleSpeakerMute(m); } }
                     }
                     Rectangle {
                         Layout.fillWidth: true; height: 10; radius: Theme.radiusSm; color: Theme.bgAlt
@@ -171,7 +171,7 @@ PanelWindow {
                     Layout.fillWidth: true; spacing: 8
                     Text {
                         text: pop.micMuted ? "󰍭" : "󰍬"; color: pop.micMuted ? Theme.red : Theme.green; font.family: Theme.font; font.pixelSize: 16; Layout.preferredWidth: 18
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (pop.micReady) pop.source.audio.muted = !pop.source.audio.muted; Status.toggleMicMute(); } }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { const m = !pop.micMuted; if (pop.micReady) pop.source.audio.muted = m; Status.toggleMicMute(m); } }
                     }
                     Rectangle {
                         Layout.fillWidth: true; height: 10; radius: Theme.radiusSm; color: Theme.bgAlt
@@ -239,8 +239,8 @@ PanelWindow {
             }
 
             LauncherMenu {
-                id: catalog
-                searchQuery: searchInput.text
+                id: catalog; searchQuery: searchInput.text
+                batPresent: pop.batPresent; batPct: pop.batPct; batCharging: pop.batCharging
                 onExecuteCommand: (cmd, closeAfter) => pop.runCmd(cmd, closeAfter)
             }
         }

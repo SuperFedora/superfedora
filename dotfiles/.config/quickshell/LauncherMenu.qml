@@ -10,6 +10,7 @@ ColumnLayout {
     property string searchQuery: ""
     property string confirmCmd: ""
     property string confirmLabel: ""
+    property bool batPresent: false; property int batPct: 100; property bool batCharging: false
     signal executeCommand(string cmd, bool closeAfter)
 
     Layout.fillWidth: true
@@ -115,7 +116,8 @@ ColumnLayout {
         add("snapshots", "󰒓  GNOME Control Center (Full GUI)", "Settings", "gnome-control-center", true);
         add("snapshots", "󰋼  About SuperFedora (fastfetch)", "System", "kitty --class floating-term -e bash -c 'fastfetch 2>/dev/null || ~/.local/bin/sf tui banner; echo; read -n1 -rsp \"Press any key\"'", true);
 
-        // 7. Session & Power (with confirmation popup & polkit support)
+        // 7. Session & Power (with Battery %, confirmation popup & polkit support)
+        if (deckBody.batPresent) add("power", (deckBody.batCharging ? "󰂄  Battery Level: " : "󰁹  Battery Level: ") + deckBody.batPct + "%", deckBody.batCharging ? "Charging / AC" : "On Battery", "gnome-control-center power", true, true);
         add("power", "󰌾  Lock Screen", "SUPER+Esc", "qs ipc --any-display call lock activate >/dev/null 2>&1 || loginctl lock-session", true, true);
         add("power", "󰒲  Start 16-Bit IdleScreen Now", "SUPER+SHIFT+I", "idlescreen start", true);
         add("power", "󰤄  Suspend Workstation", "Sleep", "systemctl suspend", true, false, true);
