@@ -26,7 +26,7 @@ ColumnLayout {
 
     function runForgeInput() {
         const q = forgeInput.text.trim().replace(/"/g, "");
-        if (!q) deckBody.executeCommand("kitty --class floating-term -e bash -c '~/.local/bin/sf forge status; echo; read -n1 -rsp \"Press any key\"'", true);
+        if (!q) deckBody.executeCommand("kitty --class floating-term -e bash -c '~/.local/bin/sf forge status; echo; read -r -p \"Forge preset or owner/repo (Enter to exit) > \" t; [ -n \"$t\" ] && { ~/.local/bin/sf forge \"$t\"; echo; read -n1 -rsp \"Done. Press any key\"; }'", true);
         else deckBody.executeCommand("kitty --class floating-term -e bash -c '~/.local/bin/sf forge \"" + q + "\"; echo; read -n1 -rsp \"Done. Press any key\"'", true);
     }
 
@@ -136,7 +136,12 @@ ColumnLayout {
                             Text { text: "󰣪 >"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true }
                             TextInput {
                                 id: forgeInput; Layout.fillWidth: true; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; clip: true
-                                Keys.onEscapePressed: deckBody.closeRequested(); Keys.onReturnPressed: deckBody.runForgeInput()
+                                Keys.onReturnPressed: deckBody.runForgeInput()
+                                Keys.onPressed: event => {
+                                    if (event.key === Qt.Key_Escape) { deckBody.closeRequested(); event.accepted = true; }
+                                    else if ((event.modifiers & (Qt.AltModifier | Qt.ControlModifier)) && event.key >= Qt.Key_1 && event.key <= Qt.Key_6) { deckBody.switchTabRequested(event.key - Qt.Key_1); event.accepted = true; }
+                                    else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { deckBody.cycleTabRequested(event.key === Qt.Key_Backtab || Boolean(event.modifiers & Qt.ShiftModifier)); event.accepted = true; }
+                                }
                                 Text { visible: forgeInput.text === ""; text: "owner/repo (e.g. BurntSushi/ripgrep)..."; color: Theme.muted; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2 }
                             }
                         }

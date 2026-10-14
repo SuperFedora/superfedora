@@ -11,7 +11,7 @@ Singleton {
 
     property int cpu: 0; property int mem: 0; property int gpu: 0; property int tempC: 40
     property real netRxKbps: 0; property real netTxKbps: 0
-    property string netType: "none"; property string ssid: ""; property int signal: 0; property var wifiList: []
+    property string netType: "none"; property bool wifiEnabled: true; property string ssid: ""; property int signal: 0; property var wifiList: []
     property real brightness: 1.0; property bool idleEnabled: true; property bool sfxEnabled: true
     property real spkVol: 0.6; property bool spkMuted: false; property real micVol: 1.0; property bool micMuted: false; property bool webcamEnabled: true
     property int kbdBacklight: 0; property bool bat0Present: false; property string bat0Threshold: "Standard (0% - 100%)"; property string aiAgent: "agy"
@@ -80,6 +80,7 @@ Singleton {
         id: netProc
         command: ["sh", "-c",
             "nmcli -t -f TYPE,STATE device 2>/dev/null | grep -m1 ':connected$' | cut -d: -f1 || echo none; " +
+            "echo \"WFR|$(nmcli radio wifi 2>/dev/null || echo enabled)\"; " +
             "nmcli -t -f ACTIVE,SIGNAL,SSID device wifi list --rescan no 2>/dev/null; " +
             "b=$(brightnessctl -m 2>/dev/null | cut -d, -f4 | tr -d '%'); echo \"BRI|${b:-100}\"; " +
             "echo \"SPK|$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null)\"; echo \"MIC|$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null)\"; " +
@@ -92,6 +93,7 @@ Singleton {
                 const lines = text.trim().split("\n"), type = lines[0] || "none", seen = {}, list = [];
                 let activeSsid = "", activeSig = 0;
                 for (let i = 1; i < lines.length; i++) {
+                    if (lines[i].startsWith("WFR|")) { root.wifiEnabled = (lines[i].split("|")[1] || "enabled").trim() !== "disabled"; continue; }
                     if (lines[i].startsWith("BRI|")) { const bv = Number(lines[i].split("|")[1] || 100); if (!isNaN(bv) && bv > 0) root.brightness = Math.max(0.05, Math.min(1.0, bv / 100.0)); continue; }
                     if (lines[i].startsWith("SPK|")) { const sm = lines[i].match(/Volume:\s*([0-9.]+)/); if (sm) root.spkVol = Math.max(0, Math.min(1, Number(sm[1]))); root.spkMuted = lines[i].includes("[MUTED]"); continue; }
                     if (lines[i].startsWith("MIC|")) { const mm = lines[i].match(/Volume:\s*([0-9.]+)/); if (mm) root.micVol = Math.max(0, Math.min(1, Number(mm[1]))); root.micMuted = lines[i].includes("[MUTED]"); continue; }
@@ -148,6 +150,11 @@ Singleton {
     function reloadWebcam() { netProc.running = true; }
     function playSfx(name) { if (root.sfxEnabled) Quickshell.execDetached(["sh", "-c", "(~/.local/bin/sf sfx play " + name + " || ~/Projects/superfedora/superfedora/lib/sfx.sh play " + name + ") >/dev/null 2>&1"]); }
     function toggleSfx() { root.sfxEnabled = !root.sfxEnabled; Quickshell.execDetached(["sh", "-c", "(~/.local/bin/sf sfx toggle || ~/Projects/superfedora/superfedora/lib/sfx.sh toggle) >/dev/null 2>&1"]); }
+    function toggleWifiRadio(en) {
+        const next = (typeof en === "boolean") ? en : !root.wifiEnabled;
+        root.wifiEnabled = next; if (!next && root.netType === "wifi") { root.netType = "none"; root.ssid = ""; root.signal = 0; root.wifiList = []; }
+        root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "nmcli radio wifi " + (next ? "on" : "off") + "; sleep 0.5 && qs ipc call status refresh >/dev/null 2>&1 || true"]);
+    }
     function toggleSpeakerMute(m) { const next = (typeof m === "boolean") ? m : !root.spkMuted; root.spkMuted = next; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh speaker " + (next ? "mute" : "unmute")]); }
     function setSpeakerVolume(val) { const c = Math.max(0, Math.min(1, val)); root.spkVol = c; Quickshell.execDetached(["sh", "-c", "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ " + Math.round(c * 100) + "%"]); }
     function toggleMicMute(m) { const next = (typeof m === "boolean") ? m : !root.micMuted; root.micMuted = next; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh mic " + (next ? "mute" : "unmute")]); }
@@ -158,6 +165,11 @@ Singleton {
         root.kbdBacklight = next; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh kbd-backlight " + next]);
     }
     function selectAiAgent(id) { root.aiAgent = id; root.playSfx("click"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh set-agent '" + id + "'"]); }
+    function nextAiAgent() {
+        const ids = ["agy", "mcode", "grok", "vibe", "claude", "chatgpt", "ollama"];
+        const idx = ids.indexOf(root.aiAgent);
+        root.selectAiAgent(ids[(idx + 1) % ids.length]);
+    }
 
     function normalizeDeckTab(sec) {
         const s = String(sec || "").toLowerCase();
@@ -170,8 +182,8 @@ Singleton {
         return root.superDeckSection || "ai";
     }
 
-    function syncQuakeAi() {
-        const cmd = (root.superDeckOpen && root.normalizeDeckTab(root.superDeckSection) === "ai") ? "show" : "hide keep-deck";
+    function syncQuakeAi(hdrH) {
+        const cmd = (root.superDeckOpen && root.normalizeDeckTab(root.superDeckSection) === "ai") ? ("show " + (hdrH || 40)) : "hide keep-deck";
         Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh " + cmd + " >/dev/null 2>&1"]);
     }
     onSuperDeckOpenChanged: root.syncQuakeAi()
@@ -214,7 +226,11 @@ Singleton {
     }
     Connections {
         target: Hyprland
-        function onRawEvent(event) { const n = String(event.name || ""); if (n.includes("window") || n.includes("workspace") || n === "focusedmon") clientsProc.running = true; }
+        function onRawEvent(event) {
+            const n = String(event.name || "");
+            if (n.includes("window") || n.includes("workspace") || n.includes("focusedmon")) clientsProc.running = true;
+            if (n.includes("focusedmon") && root.superDeckOpen && root.normalizeDeckTab(root.superDeckSection) === "ai") root.syncQuakeAi();
+        }
     }
     Component.onCompleted: { root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); clientsProc.running = true; }
     IpcHandler {
@@ -227,7 +243,7 @@ Singleton {
         target: "superdeck"
         function toggle(): void { root.toggleSuperDeck(""); }
         function toggleAi(): void { root.toggleSuperDeck("ai"); }
-        function open(sec: string): void { const t = root.normalizeDeckTab(sec); root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; root.superDeckOpen = true; root.syncQuakeAi(); root.refresh(); }
+        function open(sec: string): void { const t = root.normalizeDeckTab(sec), wasOpen = root.superDeckOpen, prev = root.superDeckSection; root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; root.superDeckOpen = true; if (wasOpen && prev === t) root.syncQuakeAi(); root.refresh(); }
         function close(): void { root.superDeckOpen = false; }
     }
     IpcHandler { target: "panels"; function settings(): void { root.toggleSuperDeck("system"); } }

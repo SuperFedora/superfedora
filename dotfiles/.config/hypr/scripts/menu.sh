@@ -17,7 +17,7 @@ float_term() { "$TERM_CMD" --class floating-term -e "$@" & }
 menu_main() {
     case "$(pick "Go" \
         "󰚩  Quake AI" "󰀻  Apps" "  Capture" "󰔡  Toggle" "  Style" "  Setup" "  About" "  System")" in
-        *Quake*)   "$S/quake-ai.sh" toggle ;;
+        *Quake*)   qs ipc call superdeck toggleAi >/dev/null 2>&1 || "$S/quake-ai.sh" toggle ;;
         *Apps*)    fuzzel ;;
         *Capture*) menu_capture ;;
         *Toggle*)  menu_toggle ;;
@@ -39,7 +39,7 @@ menu_capture() {
 
 menu_toggle() {
     case "$(pick "Toggle" "󰚩  Quake AI console" "󰀻  Launchpad App Grid" "󰘔  Dock visibility" "󰕰  Workspace layout" "󰒲  Idle / stay awake" "󰍜  Top bar" "  Gaps" "󰹑  Float active window")" in
-        *Quake*)     "$S/quake-ai.sh" toggle ;;
+        *Quake*)     qs ipc call superdeck toggleAi >/dev/null 2>&1 || "$S/quake-ai.sh" toggle ;;
         *Launchpad*) qs ipc call dock toggleApps ;;
         *Dock*)      qs ipc call dock toggle ;;
         *Workspace*) "$S/toggle-tiling.sh" cycle ;;

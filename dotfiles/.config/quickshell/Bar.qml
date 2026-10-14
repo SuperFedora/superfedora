@@ -163,15 +163,12 @@ PanelWindow {
                 id: pillRow; anchors.centerIn: parent; spacing: 8
 
                 Text {
-                    text: Status.netType === "ethernet" ? "󰀂" : (Status.netType !== "wifi" ? "󰤮" : (Status.signal >= 80 ? "󰤨" : Status.signal >= 60 ? "󰤥" : Status.signal >= 40 ? "󰤢" : Status.signal >= 20 ? "󰤟" : "󰤯"))
-                    color: (Status.superDeckOpen && Status.superDeckSection === "wifi") ? Theme.cyan : (Status.netType === "none" ? Theme.red : Theme.fg)
+                    text: !Status.wifiEnabled ? "󰤮" : (Status.netType === "ethernet" ? "󰀂" : (Status.netType !== "wifi" ? "󰤯" : (Status.signal >= 80 ? "󰤨" : Status.signal >= 60 ? "󰤥" : Status.signal >= 40 ? "󰤢" : Status.signal >= 20 ? "󰤟" : "󰤯")))
+                    color: (Status.superDeckOpen && Status.superDeckSection === "wifi") ? Theme.cyan : (!Status.wifiEnabled || Status.netType === "none" ? Theme.red : Theme.fg)
                     font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
                     MouseArea {
                         anchors { fill: parent; margins: -3 } cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton
-                        onClicked: e => {
-                            if (e.button === Qt.RightButton) { bar.run((Status.netType === "wifi" ? "nmcli radio wifi off" : "nmcli radio wifi on") + "; sleep 0.4"); Status.playSfx("toggle"); Status.refresh(); }
-                            else bar.openDeck("wifi");
-                        }
+                        onClicked: e => { if (e.button === Qt.RightButton) Status.toggleWifiRadio(); else bar.openDeck("wifi"); }
                     }
                 }
                 Text {

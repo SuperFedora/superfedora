@@ -88,7 +88,7 @@ ColumnLayout {
                         Rectangle {
                             implicitWidth: 112; implicitHeight: 28; radius: Theme.radiusSm
                             color: mBtn.containsMouse ? Theme.bgHover : Theme.bg; border.width: 2; border.color: tankCard.modelData.muted ? Theme.red : Theme.green
-                            Text { anchors.centerIn: parent; text: tankCard.modelData.muted ? "[ 󰝟 MUTE ]" : "[ 󰕾 LIVE ]"; color: tankCard.modelData.muted ? Theme.red : Theme.green; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true }
+                            Text { anchors.centerIn: parent; text: "[ " + tankCard.modelData.icon + (tankCard.modelData.muted ? " MUTE ]" : " LIVE ]"); color: tankCard.modelData.muted ? Theme.red : Theme.green; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true }
                             MouseArea {
                                 id: mBtn; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 onClicked: {

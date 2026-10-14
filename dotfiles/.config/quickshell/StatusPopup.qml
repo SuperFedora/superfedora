@@ -42,7 +42,7 @@ PanelWindow {
 
     function focusActiveTab() {
         if (pop.activeTab === "system") catalogView.focusSearch();
-        else if (pop.activeTab !== "ai") keyRoot.forceActiveFocus();
+        else if (pop.activeTab !== "ai") box.forceActiveFocus();
     }
     function selectTab(idx) {
         if (idx < 0 || idx >= pop.tabs.length) return;
@@ -55,19 +55,16 @@ PanelWindow {
     function askConfirm(label, cmd) { pop.confirmLabel = label; pop.confirmCmd = cmd; Status.playSfx("alert"); }
     onVisibleChanged: if (pop.visible) { pop.confirmCmd = ""; pop.agentBarOpen = false; pop.focusActiveTab(); }
     onActiveTabChanged: if (pop.visible) { pop.agentBarOpen = false; pop.focusActiveTab(); }
+    onAgentBarOpenChanged: if (pop.visible && pop.activeTab === "ai") Status.syncQuakeAi(pop.agentBarOpen ? 82 : 40)
 
     Rectangle {
-        id: box; anchors.fill: parent; color: Theme.bg; radius: Theme.radius; border.width: 2
+        id: box; anchors.fill: parent; color: Theme.bg; radius: Theme.radius; border.width: 2; focus: true
         border.color: pop.activeTab === "power" ? Theme.red : Theme.blue
         Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
-
-        Item {
-            id: keyRoot; anchors.fill: parent; focus: true
-            Keys.onPressed: event => {
-                if (event.key === Qt.Key_Escape) { Status.superDeckOpen = false; event.accepted = true; }
-                else if ((event.modifiers & (Qt.AltModifier | Qt.ControlModifier)) && event.key >= Qt.Key_1 && event.key <= Qt.Key_6) { pop.selectTab(event.key - Qt.Key_1); event.accepted = true; }
-                else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { pop.stepTab(event.key === Qt.Key_Backtab || Boolean(event.modifiers & Qt.ShiftModifier)); event.accepted = true; }
-            }
+        Keys.onPressed: event => {
+            if (event.key === Qt.Key_Escape) { Status.superDeckOpen = false; event.accepted = true; }
+            else if ((event.modifiers & (Qt.AltModifier | Qt.ControlModifier)) && event.key >= Qt.Key_1 && event.key <= Qt.Key_6) { pop.selectTab(event.key - Qt.Key_1); event.accepted = true; }
+            else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { pop.stepTab(event.key === Qt.Key_Backtab || Boolean(event.modifiers & Qt.ShiftModifier)); event.accepted = true; }
         }
 
         ColumnLayout {
@@ -105,7 +102,7 @@ PanelWindow {
                     MouseArea {
                         id: agPillM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton
                         onClicked: e => {
-                            if (e.button === Qt.RightButton) pop.runCmd("~/.config/hypr/scripts/quake-ai.sh next-agent", false);
+                            if (e.button === Qt.RightButton) Status.nextAiAgent();
                             else { pop.agentBarOpen = !pop.agentBarOpen; Status.playSfx("click"); }
                         }
                     }
@@ -133,20 +130,20 @@ PanelWindow {
             ColumnLayout {
                 visible: pop.activeTab === "wifi"; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 10
                 Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 58; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: Status.netType === "wifi" ? Theme.green : Theme.blue
+                    Layout.fillWidth: true; implicitHeight: 58; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: Status.wifiEnabled ? Theme.green : Theme.blue
                     Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
                     RowLayout {
                         anchors { fill: parent; leftMargin: 16; rightMargin: 16 } spacing: 12
                         Text {
                             Layout.fillWidth: true
-                            text: "▸ 󰤨  WI-FI: " + (Status.netType === "wifi" ? ((Status.ssid || "CONNECTED") + " (" + Status.signal + "%)") : Status.netType.toUpperCase())
-                            color: Status.netType === "wifi" ? Theme.cyan : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize + 1; font.bold: true; elide: Text.ElideRight
+                            text: "▸ 󰤨  WI-FI: " + (!Status.wifiEnabled ? "RADIO OFF" : (Status.netType === "wifi" ? ((Status.ssid || "CONNECTED") + " (" + Status.signal + "%)") : (Status.netType === "ethernet" ? "STANDBY (ETHERNET ACTIVE)" : "DISCONNECTED")))
+                            color: Status.wifiEnabled ? Theme.cyan : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize + 1; font.bold: true; elide: Text.ElideRight
                         }
                         Rectangle {
                             implicitWidth: 196; implicitHeight: 34; radius: Theme.radiusSm
-                            color: wfTog.containsMouse ? Theme.bgHover : Theme.bg; border.width: 2; border.color: Status.netType === "wifi" ? Theme.green : Theme.red
-                            Text { anchors.centerIn: parent; text: Status.netType === "wifi" ? "[ WI-FI RADIO: ON ]" : "[ WI-FI RADIO: OFF ]"; color: Status.netType === "wifi" ? Theme.green : Theme.red; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true }
-                            MouseArea { id: wfTog; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pop.runCmd((Status.netType === "wifi" ? "nmcli radio wifi off" : "nmcli radio wifi on") + "; sleep 0.4", false) }
+                            color: wfTog.containsMouse ? Theme.bgHover : Theme.bg; border.width: 2; border.color: Status.wifiEnabled ? Theme.green : Theme.red
+                            Text { anchors.centerIn: parent; text: Status.wifiEnabled ? "[ WI-FI RADIO: ON ]" : "[ WI-FI RADIO: OFF ]"; color: Status.wifiEnabled ? Theme.green : Theme.red; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true }
+                            MouseArea { id: wfTog; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.toggleWifiRadio() }
                         }
                     }
                 }
@@ -166,9 +163,9 @@ PanelWindow {
                                     anchors { fill: parent; leftMargin: 12; rightMargin: 12 } spacing: 10
                                     Text { Layout.fillWidth: true; text: (wfRow.modelData.active || wfM.containsMouse ? "▸ " : "  ") + (wfRow.modelData.active ? "[*] " : "[ ] ") + wfRow.modelData.ssid; color: wfRow.modelData.active ? Theme.cyan : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: wfRow.modelData.active === true; elide: Text.ElideRight }
                                     Text { text: wfRow.modelData.active ? "[CONNECTED]" : "[READY]"; color: wfRow.modelData.active ? Theme.green : Theme.muted; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true }
-                                    Text { text: wfRow.modelData.signal + "%"; color: Theme.yellow; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true; Layout.preferredWidth: 44; horizontalAlignment: Text.AlignRight }
+                                    Text { text: (wfRow.modelData.signal >= 75 ? "▂▄▆█ " : wfRow.modelData.signal >= 50 ? "▂▄▆░ " : wfRow.modelData.signal >= 25 ? "▂▄░░ " : "▂░░░ ") + wfRow.modelData.signal + "%"; color: Theme.yellow; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true; Layout.preferredWidth: 88; horizontalAlignment: Text.AlignRight }
                                 }
-                                MouseArea { id: wfM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { const w = wfRow.modelData, s = w.ssid.replace(/'/g, "'\\''"); pop.runCmd(w.active ? ("nmcli connection down '" + s + "'") : ("nmcli device wifi connect '" + s + "'"), false); } }
+                                MouseArea { id: wfM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { const w = wfRow.modelData, s = w.ssid.replace(/'/g, "'\\''"); pop.runCmd((w.active ? ("nmcli connection down '" + s + "'") : ("nmcli device wifi connect '" + s + "'")) + "; sleep 0.5 && qs ipc call status refresh", false); } }
                             }
                         }
                         Item { Layout.fillHeight: true }
