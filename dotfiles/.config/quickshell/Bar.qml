@@ -13,32 +13,16 @@ PanelWindow {
     required property var modelData
     screen: modelData
 
-    readonly property var topCfg: (Status.panels && Status.panels.top) ? Status.panels.top : ({
-        enabled: true, span: "full", percent: 100, thickness: 36, hideMode: "never"
-    })
-    readonly property bool isFull: (topCfg.span || "full") === "full"
     readonly property var hyprMonitor: Hyprland.monitorFor(modelData)
     readonly property int activeWsId: hyprMonitor && hyprMonitor.activeWorkspace
         ? hyprMonitor.activeWorkspace.id
         : (Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1)
-    readonly property bool wsHasWindows: (Status.clients || []).some(c => c.workspace && c.workspace.id === bar.activeWsId)
 
-    visible: (topCfg.enabled !== false) && (
-        (topCfg.hideMode || "never") === "never" ||
-        Status.settingsOpen ||
-        launcherMenu.open || calendarPopup.mode !== "" || statusPopup.tab !== "" ||
-        ((topCfg.hideMode === "intellihide") && !bar.wsHasWindows)
-    )
-
-    anchors { top: true; left: bar.isFull; right: bar.isFull }
-    margins.top: bar.isFull ? 0 : 4
-    exclusionMode: (bar.isFull && (topCfg.hideMode || "never") === "never") ? ExclusionMode.Auto : ExclusionMode.Ignore
-    implicitWidth: bar.isFull
-        ? modelData.width
-        : ((topCfg.span === "percent")
-            ? Math.round(modelData.width * ((topCfg.percent || 85) / 100.0))
-            : (leftRow.implicitWidth + centerClock.implicitWidth + rightRow.implicitWidth + 64))
-    implicitHeight: topCfg.thickness || Theme.barHeight
+    visible: true
+    anchors { top: true; left: true; right: true }
+    exclusionMode: ExclusionMode.Auto
+    implicitWidth: modelData.width
+    implicitHeight: Theme.barHeight
     color: Theme.bg
 
     function run(cmd) { Quickshell.execDetached(["sh", "-c", cmd]); }
@@ -112,34 +96,43 @@ PanelWindow {
     }
 
     // ---------------- Center ----------------
+    Connections {
+        target: Status
+        function onCenterToggleSeqChanged() {
+            if (bar.modelData === Quickshell.screens[0]) bar.toggleCenter("date");
+        }
+    }
+
     RowLayout {
         id: centerClock
         anchors.centerIn: parent
-        spacing: 8
+        spacing: 4
         property date now: new Date()
 
         Timer { interval: 1000; running: true; repeat: true; onTriggered: centerClock.now = new Date() }
 
         BarLabel {
-            pixelSize: Theme.fontSize
-            bold: true
+            pixelSize: Theme.fontSize; bold: true
             color: calendarPopup.mode === "date" ? Theme.blue : Theme.fg
             text: Qt.formatDateTime(centerClock.now, "ddd, MMM d")
             onClicked: bar.toggleCenter("date")
+            onRightClicked: { if (Status.notifAction) Status.notifAction("toggleDnd"); }
         }
 
         BarLabel {
-            pixelSize: Theme.fontSize
-            bold: true
+            pixelSize: Theme.fontSize; bold: true
             color: calendarPopup.mode === "time" ? Theme.blue : Theme.fg
-            text: {
-                const fmt = Status.clock24h
-                    ? (Status.clockSeconds ? "HH:mm:ss" : "HH:mm")
-                    : (Status.clockSeconds ? "h:mm:ss AP" : "h:mm AP");
-                return Qt.formatDateTime(centerClock.now, fmt);
-            }
+            text: Qt.formatDateTime(centerClock.now, Status.clock24h ? (Status.clockSeconds ? "HH:mm:ss" : "HH:mm") : (Status.clockSeconds ? "h:mm:ss AP" : "h:mm AP"))
             onClicked: bar.toggleCenter("time")
             onRightClicked: Status.saveClockPrefs(!Status.clock24h, Status.clockSeconds)
+        }
+
+        BarLabel {
+            pixelSize: Theme.fontSize - 1; bold: Status.notifUnread > 0 || Status.dnd
+            color: Status.dnd ? Theme.yellow : (Status.notifUnread > 0 ? Theme.cyan : (calendarPopup.mode === "date" ? Theme.blue : Theme.fgDim))
+            text: Status.dnd ? ("󰂛" + (Status.notifUnread > 0 ? " " + Status.notifUnread : "")) : (Status.notifUnread > 0 ? ("󰂞 " + Status.notifUnread) : "󰂚")
+            onClicked: bar.toggleCenter("date")
+            onRightClicked: { if (Status.notifAction) Status.notifAction("toggleDnd"); }
         }
     }
 
@@ -160,10 +153,10 @@ PanelWindow {
         }
 
         BarLabel {
-            text: "󰕮"
-            color: Status.settingsOpen ? Theme.cyan : Theme.fgDim
-            onClicked: Status.settingsOpen = !Status.settingsOpen
-            onRightClicked: bar.run("~/.local/bin/superfedora panel toggle bottom")
+            text: "󰀻"
+            color: Status.appGridOpen ? Theme.cyan : Theme.fgDim
+            onClicked: Status.appGridOpen = !Status.appGridOpen
+            onRightClicked: Status.runDockCmd("always toggle")
         }
 
         BarLabel {

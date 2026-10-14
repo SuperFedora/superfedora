@@ -1,19 +1,32 @@
 #!/usr/bin/env bash
-# COSMIC Super+Y: toggle tiling for the whole active workspace.
-# If any window is tiled, float them all; otherwise tile them all.
-ws="$(hyprctl activeworkspace -j | jq -r .id)"
-clients="$(hyprctl clients -j | jq -c --argjson ws "$ws" '[.[] | select(.workspace.id == $ws)]')"
-tiled="$(jq '[.[] | select(.floating == false)] | length' <<<"$clients")"
+# Copyright 2026 SuperFedora Contributors
+# SPDX-License-Identifier: Apache-2.0
+# ==============================================================================
+# toggle-tiling.sh — Omarchy + COSMIC Workspace Layout & Minimize Helper
+# ==============================================================================
+# Usage:
+#   toggle-tiling.sh [cycle|back|tiling|scrolling|floating]
+#   toggle-tiling.sh minimize [address]
+# ==============================================================================
+set -euo pipefail
 
-if [ "$tiled" -gt 0 ]; then
-    target=false   # float the tiled ones
-    msg="Floating"
-else
-    target=true    # tile the floating ones
-    msg="Tiling"
+ACTION="${1:-cycle}"
+[[ $# -gt 0 ]] && shift
+
+if [[ -x "$HOME/.local/bin/superfedora" ]]; then
+    if [[ "$ACTION" == "minimize" ]]; then
+        exec "$HOME/.local/bin/superfedora" dock minimize "$@"
+    else
+        exec "$HOME/.local/bin/superfedora" dock layout "$ACTION" "$@"
+    fi
 fi
 
-cmds="$(jq -r --argjson t "$target" \
-    '.[] | select(.floating == ($t)) | "dispatch togglefloating address:\(.address);"' <<<"$clients")"
-[ -n "$cmds" ] && hyprctl --batch "$cmds" >/dev/null
-notify-send -a Tiling -t 1200 "$msg" "Workspace $ws"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_CTL="$(realpath "$SCRIPT_DIR/../../../../lib/panel-ctl.sh" 2>/dev/null || true)"
+if [[ -n "$REPO_CTL" && -x "$REPO_CTL" ]]; then
+    if [[ "$ACTION" == "minimize" ]]; then
+        exec "$REPO_CTL" minimize "$@"
+    else
+        exec "$REPO_CTL" layout "$ACTION" "$@"
+    fi
+fi

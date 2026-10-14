@@ -1,6 +1,6 @@
 # SuperFedora Keybindings
 
-> Generated from [`bindings.conf`](../dotfiles/.config/hypr/conf/bindings.conf) for **SuperFedora v0.3.0** by `scripts/gen-keybindings-doc.py`. Do not edit by hand.
+> Generated from [`bindings.conf`](../dotfiles/.config/hypr/conf/bindings.conf) for **SuperFedora v0.4.0** by `scripts/gen-keybindings-doc.py`. Do not edit by hand.
 >
 > Bindings mirror Pop!_OS COSMIC defaults. Press **Super + F1** on the desktop for a searchable list.
 
@@ -116,10 +116,12 @@
 | :--- | :--- |
 | Super + O | Toggle orientation |
 | Super + S | Toggle stacking |
-| Super + Y | Toggle tiling on workspace |
+| Super + Y | Cycle workspace layout (tiling/scrolling/floating) |
+| Super + Shift + Y | Previous workspace layout |
 | Super + G | Toggle floating window |
 | Super + X | Swap window (then arrow) |
 | Super + M | Maximize |
+| Super + Shift + M | Minimize window to dock |
 | Super + F11 | Fullscreen |
 | Super + R | Resize mode (grow) |
 | Super + Shift + R | Resize mode (shrink) |
@@ -143,6 +145,7 @@
 | Super + Space | Switch keyboard layout |
 | Super + T | Terminal |
 | Super + A | App library |
+| Super + Shift + A | Launchpad App Grid |
 | Super + W | Workspace / window overview |
 | Super + / | Launcher |
 | Super (tap) | Launcher (tap Super) |
@@ -186,6 +189,7 @@
 | Super + Ctrl + ` | Toggle scratchpad |
 | Super + Alt + Tab | Next tab in stack |
 | Super + Alt + Shift + Tab | Previous tab in stack |
+| Super + V | Toggle notification center |
 | Super + N | Dismiss notification |
 | Super + Shift + N | Dismiss all notifications |
 | Super + Ctrl + N | Toggle do-not-disturb |

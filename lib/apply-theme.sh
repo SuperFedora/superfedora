@@ -126,6 +126,7 @@ apply_all() {
         hyprctl keyword general:col.active_border "rgb($ACCENT)" >/dev/null 2>&1 || true
         hyprctl keyword general:col.inactive_border "rgba(${BORDER}aa)" >/dev/null 2>&1 || true
         hyprctl keyword decoration:rounding "$hypr_round" >/dev/null 2>&1 || true
+        hyprctl keyword misc:allow_session_lock_restore 1 >/dev/null 2>&1 || true
     fi
 
     # 4. Quickshell Top Bar, Docks, OSD, Notifications & Calendar (live IPC update)

@@ -1,0 +1,253 @@
+import QtQuick
+import QtQuick.Layouts
+import Quickshell
+import Quickshell.Hyprland
+import Quickshell.Wayland
+import ".."
+
+// Omarchy-style Dock per monitor: real DesktopEntries icons, running + minimized windows,
+// smart window cycling, drag-to-reorder slots, launch pulse, and right-click context menus.
+PanelWindow {
+    id: win
+    required property var modelData
+    screen: modelData
+
+    readonly property var cfg: Status.dockConfig || ({ position: "bottom", autohide: false, showAlways: true, pinned: [] })
+    readonly property string position: cfg.position || "bottom"
+    readonly property bool isVert: position === "left" || position === "right"
+    readonly property var hyprMon: Hyprland.monitorFor(modelData)
+    readonly property int wsId: hyprMon && hyprMon.activeWorkspace ? hyprMon.activeWorkspace.id : (Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1)
+    readonly property string wsMode: Status.wsModeFor(win.wsId)
+    readonly property bool hasFullscreen: (Status.clients || []).some(c => c.workspace && c.workspace.id === win.wsId && c.fullscreen >= 2)
+    readonly property bool hasMaximized: (Status.clients || []).some(c => c.workspace && c.workspace.id === win.wsId && c.fullscreen === 1)
+    readonly property bool shown: !win.hasFullscreen && (cfg.showAlways !== false || win.wsMode === "floating")
+    readonly property bool autohide: cfg.autohide === true || win.hasMaximized
+
+    property bool edgeHovered: false
+    property bool keepRevealed: false
+    property var menuTarget: null
+    property bool settingsMenu: false
+    property int menuSlotIdx: 0
+    property int dragIdx: -1
+    property real dragStartCoord: 0
+    property var launchingMap: ({})
+
+    readonly property bool menuOpen: win.menuTarget !== null || win.settingsMenu
+    readonly property bool activelyInteracting: win.edgeHovered || bodyHover.hovered || menuHover.hovered || win.menuOpen || win.dragIdx >= 0
+    readonly property bool contentShown: win.shown && (!win.autohide || win.activelyInteracting || win.keepRevealed)
+
+    onActivelyInteractingChanged: {
+        if (win.activelyInteracting) { win.keepRevealed = true; hideTimer.stop(); } else hideTimer.restart();
+    }
+    Timer { id: hideTimer; interval: 350; onTriggered: if (!win.activelyInteracting) win.keepRevealed = false }
+    Timer { interval: 8000; running: Object.keys(win.launchingMap).length > 0; repeat: true; onTriggered: win.launchingMap = ({}) }
+
+    function normId(raw) { return String(raw || "").trim().replace(/\.desktop$/i, ""); }
+    function iconUrl(s) { const v = String(s || ""); return !v ? "" : (v.startsWith("file://") || v.startsWith("image://")) ? v : v.startsWith("/") ? ("file://" + v) : (Quickshell.iconPath(v, true) || ""); }
+
+    function findEntry(idOrClass) {
+        const raw = win.normId(idOrClass);
+        if (!raw) return null;
+        let e = DesktopEntries.byId(raw) || DesktopEntries.byId(raw.toLowerCase());
+        if (e) return e;
+        if (DesktopEntries.heuristicLookup) { e = DesktopEntries.heuristicLookup(raw); if (e) return e; }
+        const low = raw.toLowerCase(), all = (DesktopEntries.applications && DesktopEntries.applications.values) ? DesktopEntries.applications.values : [];
+        for (let i = 0; i < all.length; i++) {
+            const item = all[i], eid = win.normId(item.id).toLowerCase();
+            if (eid === low || eid.endsWith("." + low) || String(item.name || "").toLowerCase() === low) return item;
+        }
+        return null;
+    }
+
+    readonly property var dockItems: {
+        const pinnedIds = Array.isArray(cfg.pinned) ? cfg.pinned : [], clients = Status.clients || [], byKey = {}, order = [];
+        function ensureSlot(key, entry, isPinned) {
+            if (!byKey[key]) {
+                byKey[key] = { key: key, pinned: isPinned, entry: entry, name: entry ? (entry.name || key) : key, icon: entry ? win.iconUrl(entry.icon) : "", windows: [], focused: false, minimizedCount: 0 };
+                order.push(byKey[key]);
+            } else if (isPinned) byKey[key].pinned = true;
+            return byKey[key];
+        }
+        for (let i = 0; i < pinnedIds.length; i++) {
+            const pid = win.normId(pinnedIds[i]);
+            if (!pid) continue;
+            const entry = win.findEntry(pid);
+            ensureSlot(entry ? win.normId(entry.id) : pid, entry, true);
+        }
+        for (let j = 0; j < clients.length; j++) {
+            const c = clients[j], cls = String(c.class || c.initialClass || "");
+            if (!cls || cls === "quake-ai") continue;
+            const entry = win.findEntry(cls), key = entry ? win.normId(entry.id) : cls, slot = ensureSlot(key, entry, false);
+            const isMin = String((c.workspace && c.workspace.name) || "").includes("minimized");
+            slot.windows.push({ address: c.address, workspaceId: c.workspace ? c.workspace.id : 1, minimized: isMin, focused: c.focusHistoryID === 0 });
+            if (c.focusHistoryID === 0 && !isMin) slot.focused = true;
+            if (isMin) slot.minimizedCount++;
+        }
+        return order;
+    }
+
+    function launchItem(item) {
+        if (!item) return;
+        const nextMap = Object.assign({}, win.launchingMap); nextMap[item.key] = Date.now(); win.launchingMap = nextMap;
+        if (item.entry && typeof item.entry.execute === "function") item.entry.execute();
+        else Quickshell.execDetached(["sh", "-c", "gtk-launch '" + item.key + "' 2>/dev/null || " + item.key.toLowerCase()]);
+    }
+
+    function activateItem(item) {
+        if (!item) return;
+        const wins = item.windows || [];
+        if (wins.length === 0) { win.launchItem(item); return; }
+        const sorted = wins.slice().sort((a, b) => (a.minimized ? 1 : (a.workspaceId === win.wsId ? 0 : 2)) - (b.minimized ? 1 : (b.workspaceId === win.wsId ? 0 : 2)));
+        let pick = sorted[0];
+        for (let i = 0; i < sorted.length; i++) if (sorted[i].focused) { pick = sorted[(i + 1) % sorted.length]; break; }
+        if (pick.minimized) Hyprland.dispatch("movetoworkspace " + win.wsId + ",address:" + pick.address);
+        Hyprland.dispatch("focuswindow address:" + pick.address);
+        Status.refresh();
+    }
+
+    function quitItem(item) {
+        if (!item || !item.windows) return;
+        for (let i = 0; i < item.windows.length; i++) Hyprland.dispatch("closewindow address:" + item.windows[i].address);
+        Status.refresh();
+    }
+
+    function movePin(fromIdx, toIdx) {
+        const pins = win.dockItems.filter(x => x.pinned).map(x => x.key);
+        if (fromIdx < 0 || fromIdx >= pins.length || toIdx < 0 || toIdx >= pins.length || fromIdx === toIdx) return;
+        const moved = pins.splice(fromIdx, 1)[0]; pins.splice(toIdx, 0, moved);
+        Status.runDockCmd("pinned " + pins.map(k => "'" + k + "'").join(" "));
+    }
+
+    visible: win.shown; color: "transparent"
+    WlrLayershell.namespace: "superfedora-dock"; WlrLayershell.layer: WlrLayer.Top; WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    exclusionMode: ExclusionMode.Normal; exclusiveZone: 0
+    anchors { bottom: win.position !== "top"; top: win.position !== "bottom"; left: win.position !== "right"; right: win.position !== "left" }
+    implicitWidth: win.isVert ? 250 : modelData.width; implicitHeight: win.isVert ? modelData.height : 240
+
+    mask: Region {
+        item: win.contentShown ? dockBar : null
+        Region { item: (win.shown && win.autohide) ? edgeStrip : null }
+        Region { item: win.menuOpen ? contextPopup : null }
+    }
+
+    Item {
+        id: edgeStrip
+        width: win.isVert ? 6 : Math.max(240, dockBar.width); height: win.isVert ? Math.max(240, dockBar.height) : 6
+        x: win.position === "left" ? 0 : (win.position === "right" ? win.width - 6 : dockBar.x)
+        y: win.position === "top" ? 0 : (win.position === "bottom" ? win.height - 6 : dockBar.y)
+        HoverHandler { id: stripHover; onHoveredChanged: win.edgeHovered = stripHover.hovered }
+    }
+
+    Rectangle {
+        id: dockBar
+        visible: win.contentShown
+        width: win.isVert ? 58 : (dockGrid.implicitWidth + 16); height: win.isVert ? (dockGrid.implicitHeight + 16) : 58
+        x: win.position === "left" ? 6 : (win.position === "right" ? win.width - width - 6 : Math.round((win.width - width) / 2))
+        y: win.position === "top" ? 6 : (win.position === "bottom" ? win.height - height - 6 : Math.round((win.height - height) / 2))
+        radius: Theme.radius; color: Theme.bg; border.width: 2; border.color: Theme.blue
+        HoverHandler { id: bodyHover }
+
+        GridLayout {
+            id: dockGrid; anchors.centerIn: parent
+            columns: win.isVert ? 1 : 99; rows: win.isVert ? 99 : 1; rowSpacing: 6; columnSpacing: 6
+
+            Rectangle {
+                id: appsBtn; implicitWidth: 44; implicitHeight: 44; radius: Theme.radiusSm
+                color: Status.appGridOpen || appsMouse.containsMouse ? Theme.bgHover : Theme.bgAlt
+                border.width: Status.appGridOpen || appsMouse.containsMouse ? 2 : 1
+                border.color: Status.appGridOpen ? Theme.cyan : (appsMouse.containsMouse ? Theme.blue : Theme.border)
+                Text { anchors.centerIn: parent; text: "󰀻"; color: Status.appGridOpen ? Theme.cyan : Theme.blue; font.family: Theme.font; font.pixelSize: 22 }
+                MouseArea {
+                    id: appsMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: e => {
+                        if (e.button === Qt.RightButton) { win.menuTarget = null; win.menuSlotIdx = 0; win.settingsMenu = !win.settingsMenu; }
+                        else { win.menuTarget = null; win.settingsMenu = false; Status.appGridOpen = !Status.appGridOpen; }
+                    }
+                }
+            }
+
+            Repeater {
+                model: win.dockItems
+                Rectangle {
+                    id: slot
+                    required property var modelData
+                    required property int index
+                    readonly property bool running: modelData.windows.length > 0
+                    readonly property bool launching: win.launchingMap[modelData.key] !== undefined && !running
+                    implicitWidth: 44; implicitHeight: 44; radius: Theme.radiusSm
+                    scale: slotMouse.containsMouse ? 1.12 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 110; easing.type: Easing.OutCubic } }
+                    color: slotMouse.containsMouse ? Theme.bgHover : (modelData.focused ? Theme.bgAlt : "transparent")
+                    border.width: modelData.focused || slotMouse.containsMouse ? 2 : 1
+                    border.color: modelData.focused ? Theme.blue : (slotMouse.containsMouse ? Theme.cyan : "transparent")
+
+                    Image { id: appIcon; anchors.centerIn: parent; width: 30; height: 30; sourceSize: Qt.size(64, 64); source: slot.modelData.icon; visible: status === Image.Ready; opacity: slot.running || slot.launching ? 1.0 : 0.68; smooth: true; mipmap: true }
+                    Text { anchors.centerIn: parent; visible: appIcon.status !== Image.Ready; text: "󰣆"; color: slot.modelData.focused ? Theme.cyan : (slot.running ? Theme.fg : Theme.fgDim); font.family: Theme.font; font.pixelSize: 22 }
+                    Rectangle { visible: slot.running || slot.launching; width: slot.modelData.focused ? 12 : (slot.modelData.windows.length > 1 ? 8 : 5); height: 3; radius: 1; color: slot.launching ? Theme.yellow : (slot.modelData.focused ? Theme.cyan : (slot.modelData.minimizedCount > 0 ? Theme.orange : Theme.blue)); anchors { bottom: parent.bottom; bottomMargin: 2; horizontalCenter: parent.horizontalCenter } }
+
+                    MouseArea {
+                        id: slotMouse; anchors.fill: parent; hoverEnabled: true; preventStealing: true
+                        acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton; cursorShape: Qt.PointingHandCursor
+                        property bool dragged: false
+                        onPressed: e => { slotMouse.dragged = false; if (e.button === Qt.LeftButton && slot.modelData.pinned) { win.dragIdx = slot.index; win.dragStartCoord = win.isVert ? e.y : e.x; } }
+                        onPositionChanged: e => {
+                            if (win.dragIdx < 0 || !slot.modelData.pinned) return;
+                            const delta = (win.isVert ? e.y : e.x) - win.dragStartCoord;
+                            if (Math.abs(delta) > 32) { const target = win.dragIdx + (delta > 0 ? 1 : -1); slotMouse.dragged = true; win.movePin(win.dragIdx, target); win.dragIdx = target; }
+                        }
+                        onReleased: win.dragIdx = -1
+                        onClicked: e => {
+                            if (slotMouse.dragged) return;
+                            if (e.button === Qt.RightButton) { win.settingsMenu = false; win.menuSlotIdx = slot.index + 1; win.menuTarget = (win.menuTarget && win.menuTarget.key === slot.modelData.key) ? null : slot.modelData; }
+                            else if (e.button === Qt.MiddleButton) { win.menuTarget = null; win.settingsMenu = false; win.launchItem(slot.modelData); }
+                            else { win.menuTarget = null; win.settingsMenu = false; win.activateItem(slot.modelData); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        id: contextPopup; visible: win.contentShown && win.menuOpen; width: 196; height: menuCol.implicitHeight + 14
+        x: win.position === "left" ? (dockBar.x + dockBar.width + 6) : (win.position === "right" ? (dockBar.x - width - 6) : Math.max(8, Math.min(win.width - width - 8, dockBar.x + win.menuSlotIdx * 50 - 40)))
+        y: win.position === "top" ? (dockBar.y + dockBar.height + 6) : (win.position === "bottom" ? (dockBar.y - height - 6) : Math.max(8, Math.min(win.height - height - 8, dockBar.y + win.menuSlotIdx * 50 - 20)))
+        radius: Theme.radiusSm; color: Theme.bg; border.width: 2; border.color: Theme.blue
+        HoverHandler { id: menuHover }
+        ColumnLayout {
+            id: menuCol; anchors { fill: parent; margins: 7 } spacing: 3
+            Text { text: win.settingsMenu ? "DOCK SETTINGS" : (win.menuTarget ? win.menuTarget.name : ""); color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
+            Repeater {
+                model: win.settingsMenu ? [
+                    { label: (win.position === "bottom" ? "[*] " : "[ ] ") + "Position: Bottom", cmd: "position bottom" },
+                    { label: (win.position === "left"   ? "[*] " : "[ ] ") + "Position: Left",   cmd: "position left" },
+                    { label: (win.position === "right"  ? "[*] " : "[ ] ") + "Position: Right",  cmd: "position right" },
+                    { label: (win.position === "top"    ? "[*] " : "[ ] ") + "Position: Top",    cmd: "position top" },
+                    { label: (cfg.autohide ? "[*] " : "[ ] ") + "Auto-Hide Dock",                cmd: "autohide toggle" },
+                    { label: (cfg.showAlways !== false ? "[*] " : "[ ] ") + "Show on Tiled Workspaces", cmd: "always toggle" }
+                ] : (win.menuTarget ? [
+                    { label: "Open / New Window", act: "launch" },
+                    { label: win.menuTarget.pinned ? "Remove from Dock" : "Keep in Dock", act: "pin" },
+                    { label: "Minimize to Dock", act: "min", hide: win.menuTarget.windows.length === 0 },
+                    { label: "Quit Application", act: "quit", hide: win.menuTarget.windows.length === 0 }
+                ].filter(r => !r.hide) : [])
+                Rectangle {
+                    required property var modelData
+                    Layout.fillWidth: true; implicitHeight: 24; radius: Theme.radiusSm; color: rMouse.containsMouse ? Theme.bgHover : "transparent"
+                    Text { anchors { verticalCenter: parent.verticalCenter; left: parent.left; leftMargin: 6 } text: parent.modelData.label; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2 }
+                    MouseArea {
+                        id: rMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            const m = parent.modelData, t = win.menuTarget; win.menuTarget = null; win.settingsMenu = false;
+                            if (m.cmd) Status.runDockCmd(m.cmd);
+                            else if (m.act === "launch" && t) win.launchItem(t);
+                            else if (m.act === "pin" && t) Status.runDockCmd((t.pinned ? "unpin '" : "pin '") + t.key + "'");
+                            else if (m.act === "min" && t && t.windows.length > 0) Status.runDockCmd("minimize " + t.windows[0].address);
+                            else if (m.act === "quit" && t) win.quitItem(t);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

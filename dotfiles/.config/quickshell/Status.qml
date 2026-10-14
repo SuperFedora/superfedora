@@ -24,6 +24,12 @@ Singleton {
     property string localTz: "Local"
     property bool autoTz: true
     property var worldClocks: []
+    property bool dnd: false
+    property bool sessionLocked: false
+    property int notifUnread: 0
+    property int centerToggleSeq: 0
+    property var notifHistory: []
+    property var notifAction: null
 
     // --- Fast Localhost Telemetry (/proc/stat, /proc/meminfo, /proc/net/dev, thermal, drm) ---
     property var _lastCpu: null
@@ -171,42 +177,50 @@ Singleton {
         onExited: code => root.idleEnabled = code === 0
     }
 
-    // --- Hyprland clients & Multi-Edge Panels Config -------------------
-    property bool settingsOpen: false
+    // --- Hyprland clients, Omarchy Dock & Workspace Layouts ------------
+    property bool appGridOpen: false
     property var clients: []
-    property var dockOrder: ["launcher", "terminal", "browser", "files", "editor", "monitor", "panels", "theme"]
-    property var panels: ({
-        top:    { enabled: true,  span: "full", percent: 100, thickness: 36, hideMode: "never",      start: ["launcher", "workspaces"], center: ["clock"], end: ["tray", "status"] },
-        bottom: { enabled: true,  span: "hug",  percent: 65,  thickness: 52, hideMode: "intellihide", start: [], center: ["apps"], end: [] },
-        left:   { enabled: false, span: "hug",  percent: 70,  thickness: 58, hideMode: "never",       start: [], center: ["hardware"], end: [] },
-        right:  { enabled: false, span: "hug",  percent: 70,  thickness: 58, hideMode: "never",       start: [], center: ["hardware"], end: [] }
+    property var dockConfig: ({
+        position: "bottom",
+        autohide: false,
+        showAlways: true,
+        pinned: ["kitty", "org.mozilla.firefox", "com.google.Chrome", "org.gnome.Nautilus", "nvim", "btop"]
     })
+    property var wsModes: ({})
+    property string defaultWsMode: "dwindle"
 
-    FileView { id: panelsFile; path: Quickshell.env("HOME") + "/.config/superfedora/panels.json" }
+    FileView { id: dockFile; path: Quickshell.env("HOME") + "/.config/superfedora/dock.json" }
+    FileView { id: modesFile; path: Quickshell.env("HOME") + "/.config/superfedora/workspace-modes.json" }
 
-    function reloadPanels(): void {
-        panelsFile.reload();
-        const raw = panelsFile.text().trim();
-        if (!raw) return;
-        try {
-            const d = JSON.parse(raw);
-            if (d && d.top && d.bottom) root.panels = d;
-            if (d && Array.isArray(d.dockOrder) && d.dockOrder.length > 0) root.dockOrder = d.dockOrder;
-        } catch (e) {}
+    function reloadDock(): void {
+        dockFile.reload();
+        const raw = dockFile.text().trim();
+        if (raw) {
+            try {
+                const d = JSON.parse(raw);
+                if (d && typeof d === "object") root.dockConfig = d;
+            } catch (e) {}
+        }
+        modesFile.reload();
+        const mraw = modesFile.text().trim();
+        if (mraw) {
+            try {
+                const m = JSON.parse(mraw);
+                if (m && m.workspaces) root.wsModes = m.workspaces;
+                if (m && m.default) root.defaultWsMode = m.default;
+            } catch (e) {}
+        }
     }
 
-    function saveDockOrder(newOrder): void {
-        root.dockOrder = newOrder;
-        Quickshell.execDetached(["python3", "-c",
-            "import json,os; p=os.path.expanduser('~/.config/superfedora/panels.json'); " +
-            "d=json.load(open(p)) if os.path.exists(p) else {}; d['dockOrder']=" + JSON.stringify(newOrder) + "; " +
-            "json.dump(d,open(p,'w'),indent=2)"]);
+    function wsModeFor(wsId): string {
+        const k = String(wsId);
+        return (root.wsModes && root.wsModes[k]) ? root.wsModes[k] : root.defaultWsMode;
     }
 
-    function updatePanel(edge, key, val): void {
+    function runDockCmd(args): void {
         Quickshell.execDetached(["sh", "-c",
-            "~/.local/bin/superfedora panel set " + edge + " " + key + " '" + val + "' 2>/dev/null || " +
-            "~/Projects/superfedora/superfedora/lib/panel-ctl.sh set " + edge + " " + key + " '" + val + "'"]);
+            "~/.local/bin/superfedora dock " + args + " 2>/dev/null || " +
+            "~/Projects/superfedora/superfedora/lib/panel-ctl.sh " + args]);
     }
 
     Process {
@@ -216,27 +230,25 @@ Singleton {
             onStreamFinished: {
                 try {
                     const arr = JSON.parse(text.trim() || "[]");
-                    root.clients = arr.filter(c => c.mapped && !c.hidden && c.workspace && c.workspace.id > 0);
+                    root.clients = arr.filter(c => c.mapped && c.workspace && (c.workspace.id > 0 || String(c.workspace.name || "").includes("minimized")));
                 } catch (e) {}
             }
         }
     }
 
-    Timer { interval: 800; running: true; repeat: true; triggeredOnStart: true; onTriggered: clientsProc.running = true }
-    Component.onCompleted: root.reloadPanels()
+    Timer { interval: 700; running: true; repeat: true; triggeredOnStart: true; onTriggered: clientsProc.running = true }
+    Component.onCompleted: root.reloadDock()
 
     IpcHandler {
-        target: "panels"
-        function reload(): void { root.reloadPanels(); }
-        function settings(): void { root.settingsOpen = !root.settingsOpen; }
+        target: "dock"
+        function reload(): void { root.reloadDock(); clientsProc.running = true; }
+        function toggleApps(): void { root.appGridOpen = !root.appGridOpen; }
+        function toggle(): void { root.runDockCmd("always toggle"); }
     }
 
     Timer {
         interval: 5000; running: true; repeat: true; triggeredOnStart: true
         onTriggered: { netProc.running = true; idleProc.running = true; tzProc.running = true; }
     }
-
-    function refresh() {
-        netProc.running = true; idleProc.running = true; tzProc.running = true; clientsProc.running = true; root.reloadPanels();
-    }
+    function refresh() { netProc.running = true; idleProc.running = true; tzProc.running = true; clientsProc.running = true; root.reloadDock(); }
 }

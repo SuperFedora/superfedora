@@ -4,7 +4,7 @@ import Quickshell
 import Quickshell.Io
 import "panels"
 
-// Entry point: multi-edge bars/docks per monitor + notification popups + OSD + Panel Studio.
+// Entry point: Omarchy-style Top Bar + Dock per monitor + Launchpad AppGrid + Notifications + OSD + LockScreen.
 ShellRoot {
     id: root
     property bool barVisible: true
@@ -16,20 +16,10 @@ ShellRoot {
 
     Variants {
         model: root.barVisible ? Quickshell.screens : []
-        EdgePanel { edge: "bottom" }
+        Dock {}
     }
 
-    Variants {
-        model: root.barVisible ? Quickshell.screens : []
-        EdgePanel { edge: "left" }
-    }
-
-    Variants {
-        model: root.barVisible ? Quickshell.screens : []
-        EdgePanel { edge: "right" }
-    }
-
-    PanelSettingsPopup {}
+    AppGrid {}
     Notifications {}
     Osd {}
     LockScreen {}

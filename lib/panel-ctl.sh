@@ -1,73 +1,128 @@
 #!/usr/bin/env bash
+# Copyright 2026 SuperFedora Contributors
+# SPDX-License-Identifier: Apache-2.0
 # ==============================================================================
-# panel-ctl.sh — Multi-Edge Panels & Dock Configuration Engine
+# panel-ctl.sh — Omarchy-Style Dock & Workspace Layout Engine
 # ==============================================================================
 # Usage:
-#   sf panel status                           Print current edge configuration
-#   sf panel toggle <edge>                    Toggle top|bottom|left|right on/off
-#   sf panel set <edge> <key> <value>         Update enabled|span|percent|thickness|hideMode
-#   sf panel preset <name>                    Apply preset (default|top-only|dock-left|quad)
-#   sf panel reset                            Restore default layout
+#   sf dock status                           Print dock & workspace layout status
+#   sf dock position <bottom|top|left|right> Move dock to a screen edge
+#   sf dock autohide <on|off|toggle>         Configure dock auto-hide
+#   sf dock always <on|off|toggle>           Show dock on all workspaces or floating-only
+#   sf dock pinned <id...>                   Replace pinned .desktop app IDs
+#   sf dock pin <id> [index]                 Pin a .desktop app to the dock
+#   sf dock unpin <id>                       Remove a pinned .desktop app
+#   sf dock apps                             Toggle fullscreen Launchpad App Grid
+#   sf dock reset                            Restore default dock config
+#   sf dock layout [cycle|tiling|scrolling|floating] [ws]  Switch workspace layout
+#   sf dock minimize [address]               Minimize window to dock (special:minimized)
 # ==============================================================================
 set -euo pipefail
 
 STATE_DIR="$HOME/.config/superfedora"
-PANELS_JSON="$STATE_DIR/panels.json"
+DOCK_JSON="$STATE_DIR/dock.json"
+MODES_JSON="$STATE_DIR/workspace-modes.json"
 mkdir -p "$STATE_DIR"
 
 write_default() {
-    cat > "$PANELS_JSON" <<'EOF'
+    cat > "$DOCK_JSON" <<'EOF'
 {
-  "top": {
-    "enabled": true,
-    "span": "full",
-    "percent": 100,
-    "thickness": 36,
-    "hideMode": "never",
-    "start": ["launcher", "workspaces"],
-    "center": ["clock"],
-    "end": ["tray", "status"]
-  },
-  "bottom": {
-    "enabled": true,
-    "span": "hug",
-    "percent": 65,
-    "thickness": 52,
-    "hideMode": "intellihide",
-    "start": [],
-    "center": ["apps"],
-    "end": []
-  },
-  "left": {
-    "enabled": false,
-    "span": "hug",
-    "percent": 70,
-    "thickness": 58,
-    "hideMode": "never",
-    "start": [],
-    "center": ["hardware"],
-    "end": []
-  },
-  "right": {
-    "enabled": false,
-    "span": "hug",
-    "percent": 70,
-    "thickness": 58,
-    "hideMode": "never",
-    "start": [],
-    "center": ["hardware"],
-    "end": []
-  }
+  "position": "bottom",
+  "autohide": false,
+  "showAlways": true,
+  "pinned": [
+    "kitty",
+    "org.mozilla.firefox",
+    "com.google.Chrome",
+    "org.gnome.Nautilus",
+    "nvim",
+    "btop"
+  ]
 }
 EOF
 }
 
-[[ -f "$PANELS_JSON" ]] || write_default
+[[ -f "$DOCK_JSON" ]] || write_default
+[[ -f "$MODES_JSON" ]] || echo '{"default":"dwindle","workspaces":{}}' > "$MODES_JSON"
 
-notify_quickshell() {
+notify_dock() {
     if command -v qs >/dev/null 2>&1 && pgrep -x quickshell >/dev/null 2>&1; then
-        qs ipc call panels reload >/dev/null 2>&1 || true
+        qs ipc call dock reload >/dev/null 2>&1 || true
+        qs ipc call workspaces reload >/dev/null 2>&1 || true
     fi
+}
+
+cmd_layout() {
+    local sub="${1:-cycle}"
+    local ws="${2:-}"
+    if [[ -z "$ws" ]]; then
+        ws="$(hyprctl activeworkspace -j 2>/dev/null | jq -r '.id // 1')"
+    fi
+    local next_mode
+    next_mode="$(python3 - "$MODES_JSON" "$sub" "$ws" <<'PY'
+import json, os, sys
+path, sub, ws = sys.argv[1], sys.argv[2].lower(), str(sys.argv[3])
+d = json.load(open(path)) if os.path.exists(path) else {"default": "dwindle", "workspaces": {}}
+ws_map = d.setdefault("workspaces", {})
+cur = ws_map.get(ws, d.get("default", "dwindle"))
+order = ["dwindle", "scrolling", "floating"]
+if sub in ("tiling", "dwindle"):
+    nxt = "dwindle"
+elif sub in ("scrolling", "master"):
+    nxt = "scrolling"
+elif sub == "floating":
+    nxt = "floating"
+elif sub == "back":
+    nxt = order[(order.index(cur) - 1) % 3] if cur in order else "dwindle"
+elif sub == "current":
+    print(cur)
+    sys.exit(0)
+else:
+    nxt = order[(order.index(cur) + 1) % 3] if cur in order else "scrolling"
+ws_map[ws] = nxt
+json.dump(d, open(path, "w"), indent=2)
+print(nxt)
+PY
+)"
+    [[ "$sub" == "current" ]] && { echo "$next_mode"; return 0; }
+
+    local clients
+    clients="$(hyprctl clients -j 2>/dev/null || echo '[]')"
+    local batch=""
+    if [[ "$next_mode" == "floating" ]]; then
+        while IFS= read -r addr; do
+            [[ -n "$addr" ]] && batch+="dispatch setfloating address:${addr};dispatch resizewindowpixel exact 72% 74%,address:${addr};dispatch centerwindow 1;"
+        done < <(jq -r --argjson w "$ws" '.[] | select(.workspace.id == $w and .mapped and (.floating | not)) | .address' <<<"$clients")
+        hyprctl keyword input:follow_mouse 0 >/dev/null 2>&1 || true
+    else
+        while IFS= read -r addr; do
+            [[ -n "$addr" ]] && batch+="dispatch settiled address:${addr};"
+        done < <(jq -r --argjson w "$ws" '.[] | select(.workspace.id == $w and .mapped and .floating) | .address' <<<"$clients")
+        if [[ "$next_mode" == "scrolling" ]]; then
+            hyprctl keyword general:layout master >/dev/null 2>&1 || true
+        else
+            hyprctl keyword general:layout dwindle >/dev/null 2>&1 || true
+        fi
+        hyprctl keyword input:follow_mouse 1 >/dev/null 2>&1 || true
+    fi
+    [[ -n "$batch" ]] && hyprctl --batch "$batch" >/dev/null 2>&1 || true
+    local label="$next_mode"
+    [[ "$label" == "dwindle" ]] && label="tiling"
+    notify-send -a "SuperFedora" -t 1400 "Workspace $ws layout" "Mode: ${label^}" 2>/dev/null || true
+    notify_dock
+}
+
+cmd_minimize() {
+    local addr="${1:-}"
+    local ws=""
+    if [[ -n "$addr" ]]; then
+        ws="$(hyprctl clients -j 2>/dev/null | jq -r --arg a "$addr" 'first(.[] | select(.address == $a) | .workspace.id) // empty')"
+    else
+        read -r addr ws < <(hyprctl activewindow -j 2>/dev/null | jq -r '"\(.address // "") \(.workspace.id // "")"')
+    fi
+    [[ -n "$addr" && "$ws" =~ ^[0-9]+$ ]] || exit 0
+    hyprctl --batch "dispatch movetoworkspacesilent special:minimized,address:${addr};dispatch workspace ${ws}" >/dev/null 2>&1 || true
+    notify_dock
 }
 
 ACTION="${1:-status}"
@@ -75,103 +130,125 @@ ACTION="${1:-status}"
 
 case "$ACTION" in
     status|list)
-        python3 - "$PANELS_JSON" <<'PY'
+        python3 - "$DOCK_JSON" "$MODES_JSON" <<'PY'
 import json, sys
-with open(sys.argv[1]) as f:
-    d = json.load(f)
-print("EDGE    STATE  SPAN      PCT   SIZE  HIDE MODE    SLOTS (START | CENTER | END)")
-print("------  -----  --------  ----  ----  -----------  ----------------------------")
-for edge in ("top", "bottom", "left", "right"):
-    c = d.get(edge, {})
-    st = "ON " if c.get("enabled") else "OFF"
-    sp = c.get("span", "hug")
-    pct = f"{c.get('percent', 100)}%"
-    th = f"{c.get('thickness', 36)}px"
-    hm = c.get("hideMode", "never")
-    slots = f"{','.join(c.get('start',[]))} | {','.join(c.get('center',[]))} | {','.join(c.get('end',[]))}"
-    print(f"{edge:<6}  [{st}]  {sp:<8}  {pct:<4}  {th:<4}  {hm:<11}  {slots}")
+d = json.load(open(sys.argv[1]))
+m = json.load(open(sys.argv[2]))
+print(f"Dock Position : {d.get('position', 'bottom')}")
+print(f"Auto-Hide     : {'on' if d.get('autohide') else 'off'}")
+print(f"Show Always   : {'on (all workspaces)' if d.get('showAlways', True) else 'off (floating workspaces only)'}")
+print(f"Pinned Apps   : {', '.join(d.get('pinned', []))}")
+ws = m.get("workspaces", {})
+if ws:
+    modes_str = ", ".join(f"WS{k}={v}" for k, v in sorted(ws.items()))
+    print(f"WS Layouts    : {modes_str}")
 PY
         ;;
-    init)
-        [[ -f "$PANELS_JSON" ]] || write_default
-        notify_quickshell
-        ;;
-    reset)
-        write_default
-        notify_quickshell
-        echo "[OK] Panels reset to default (Top Bar + Bottom Intellihide Dock)"
-        ;;
-    toggle)
-        EDGE="${1:-bottom}"
-        python3 - "$PANELS_JSON" "$EDGE" <<'PY'
+    position|edge)
+        POS="${1:-bottom}"
+        python3 - "$DOCK_JSON" "$POS" <<'PY'
 import json, sys
-path, edge = sys.argv[1], sys.argv[2].lower()
-if edge not in ("top", "bottom", "left", "right"):
-    sys.exit(f"Invalid edge: {edge}")
-with open(path) as f:
-    d = json.load(f)
-d.setdefault(edge, {})["enabled"] = not bool(d.get(edge, {}).get("enabled", False))
-with open(path, "w") as f:
-    json.dump(d, f, indent=2)
-state = "ON" if d[edge]["enabled"] else "OFF"
-print(f"[OK] Panel '{edge}' is now {state}")
+p, pos = sys.argv[1], sys.argv[2].lower()
+if pos not in ("bottom", "top", "left", "right"):
+    sys.exit("Position must be bottom, top, left, or right")
+d = json.load(open(p))
+d["position"] = pos
+json.dump(d, open(p, "w"), indent=2)
+print(f"[OK] Dock position set to {pos}")
 PY
-        notify_quickshell
+        notify_dock
         ;;
-    set)
-        EDGE="${1:-}"
-        KEY="${2:-}"
-        VAL="${3:-}"
-        [[ -n "$EDGE" && -n "$KEY" && -n "$VAL" ]] || { echo "Usage: sf panel set <top|bottom|left|right> <enabled|span|percent|thickness|hideMode|start|center|end> <value>" >&2; exit 2; }
-        python3 - "$PANELS_JSON" "$EDGE" "$KEY" "$VAL" <<'PY'
+    autohide)
+        VAL="${1:-toggle}"
+        python3 - "$DOCK_JSON" "$VAL" <<'PY'
 import json, sys
-path, edge, key, val = sys.argv[1], sys.argv[2].lower(), sys.argv[3], sys.argv[4]
-if edge not in ("top", "bottom", "left", "right"):
-    sys.exit(f"Invalid edge: {edge}")
-with open(path) as f:
-    d = json.load(f)
-cfg = d.setdefault(edge, {})
-if key == "enabled":
-    cfg["enabled"] = val.lower() in ("1", "true", "on", "yes")
-elif key == "span":
-    if val not in ("full", "hug", "percent"):
-        sys.exit("span must be full, hug, or percent")
-    cfg["span"] = val
-elif key == "percent":
-    cfg["percent"] = max(20, min(100, int(val)))
-elif key == "thickness":
-    cfg["thickness"] = max(26, min(84, int(val)))
-elif key == "hideMode":
-    if val not in ("never", "intellihide", "autohide"):
-        sys.exit("hideMode must be never, intellihide, or autohide")
-    cfg["hideMode"] = val
-elif key in ("start", "center", "end"):
-    cfg[key] = [x.strip() for x in val.split(",") if x.strip()] if val != "none" else []
+p, val = sys.argv[1], sys.argv[2].lower()
+d = json.load(open(p))
+if val == "toggle":
+    d["autohide"] = not bool(d.get("autohide", False))
 else:
-    sys.exit(f"Unknown key: {key}")
-with open(path, "w") as f:
-    json.dump(d, f, indent=2)
-print(f"[OK] Updated {edge}.{key} = {cfg[key]}")
+    d["autohide"] = val in ("on", "true", "1", "yes")
+json.dump(d, open(p, "w"), indent=2)
+print(f"[OK] Dock autohide {'enabled' if d['autohide'] else 'disabled'}")
 PY
-        notify_quickshell
+        notify_dock
         ;;
-    preset)
-        PRESET="${1:-default}"
+    always|show-always|toggle)
+        VAL="${1:-toggle}"
+        [[ "$VAL" == "bottom" || "$VAL" == "top" || "$VAL" == "left" || "$VAL" == "right" ]] && VAL="toggle"
+        python3 - "$DOCK_JSON" "$VAL" <<'PY'
+import json, sys
+p, val = sys.argv[1], sys.argv[2].lower()
+d = json.load(open(p))
+if val == "toggle":
+    d["showAlways"] = not bool(d.get("showAlways", True))
+else:
+    d["showAlways"] = val in ("on", "true", "1", "yes")
+json.dump(d, open(p, "w"), indent=2)
+print(f"[OK] Dock visibility: {'all workspaces' if d['showAlways'] else 'floating workspaces only'}")
+PY
+        notify_dock
+        ;;
+    pinned)
+        python3 - "$DOCK_JSON" "$@" <<'PY'
+import json, sys
+p = sys.argv[1]
+pins = [x.removesuffix(".desktop") for x in sys.argv[2:] if x.strip()]
+d = json.load(open(p))
+d["pinned"] = pins
+json.dump(d, open(p, "w"), indent=2)
+PY
+        notify_dock
+        ;;
+    pin)
+        APP="${1:-}"
+        IDX="${2:--1}"
+        [[ -n "$APP" ]] || exit 2
+        python3 - "$DOCK_JSON" "$APP" "$IDX" <<'PY'
+import json, sys
+p, app, idx = sys.argv[1], sys.argv[2].removesuffix(".desktop"), int(sys.argv[3])
+d = json.load(open(p))
+pins = [x for x in d.get("pinned", []) if x != app]
+if 0 <= idx <= len(pins):
+    pins.insert(idx, app)
+else:
+    pins.append(app)
+d["pinned"] = pins
+json.dump(d, open(p, "w"), indent=2)
+print(f"[OK] Pinned {app} to dock")
+PY
+        notify_dock
+        ;;
+    unpin)
+        APP="${1:-}"
+        [[ -n "$APP" ]] || exit 2
+        python3 - "$DOCK_JSON" "$APP" <<'PY'
+import json, sys
+p, app = sys.argv[1], sys.argv[2].removesuffix(".desktop")
+d = json.load(open(p))
+d["pinned"] = [x for x in d.get("pinned", []) if x != app]
+json.dump(d, open(p, "w"), indent=2)
+print(f"[OK] Unpinned {app} from dock")
+PY
+        notify_dock
+        ;;
+    apps|grid|launchpad)
+        qs ipc call dock toggleApps >/dev/null 2>&1 || true
+        ;;
+    layout|mode)
+        cmd_layout "$@"
+        ;;
+    minimize)
+        cmd_minimize "$@"
+        ;;
+    reset|init|preset)
         write_default
-        if [[ "$PRESET" == "top-only" ]]; then
-            "$0" set bottom enabled false >/dev/null
-        elif [[ "$PRESET" == "dock-left" ]]; then
-            "$0" set bottom enabled false >/dev/null
-            "$0" set left enabled true >/dev/null
-        elif [[ "$PRESET" == "quad" ]]; then
-            "$0" set left enabled true >/dev/null
-            "$0" set right enabled true >/dev/null
-        fi
-        notify_quickshell
-        echo "[OK] Applied panel preset: $PRESET"
+        echo '{"default":"dwindle","workspaces":{}}' > "$MODES_JSON"
+        notify_dock
+        echo "[OK] Dock reset to Omarchy defaults"
         ;;
     *)
-        sed -n '4,10p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '6,18p' "$0" | sed 's/^# \{0,1\}//'
         exit 2
         ;;
 esac

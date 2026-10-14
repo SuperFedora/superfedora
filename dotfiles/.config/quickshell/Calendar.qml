@@ -1,8 +1,10 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import "panels"
 
-// Center popover: mode === "date" (Month Calendar) or mode === "time" (Clock & World Clocks).
+// Center popover: mode === "date" (GNOME/COSMIC Notification Center + Month Calendar)
+// or mode === "time" (Clock & World Clocks).
 PanelWindow {
     id: cal
 
@@ -14,11 +16,10 @@ PanelWindow {
     visible: cal.mode !== ""
     screen: cal.targetScreen
     color: "transparent"
-
     anchors.top: true
     margins.top: Theme.barHeight + 6
     exclusionMode: ExclusionMode.Ignore
-    implicitWidth: cal.mode === "time" ? 300 : 280
+    implicitWidth: cal.mode === "time" ? 300 : 616
     implicitHeight: box.implicitHeight
 
     function resetToToday() {
@@ -28,12 +29,9 @@ PanelWindow {
     }
 
     function stepMonth(delta) {
-        let m = cal.viewMonth + delta;
-        let y = cal.viewYear;
-        if (m < 0) { m = 11; y -= 1; }
-        else if (m > 11) { m = 0; y += 1; }
-        cal.viewMonth = m;
-        cal.viewYear = y;
+        let m = cal.viewMonth + delta, y = cal.viewYear;
+        if (m < 0) { m = 11; y -= 1; } else if (m > 11) { m = 0; y += 1; }
+        cal.viewMonth = m; cal.viewYear = y;
     }
 
     function runShell(cmd, closeAfter) {
@@ -77,64 +75,64 @@ PanelWindow {
     Rectangle {
         id: box
         width: parent.width
-        implicitHeight: (cal.mode === "date" ? dateCol.implicitHeight : timeCol.implicitHeight) + 24
-        color: Theme.bg
-        radius: Theme.radius
-        border.width: 2
-        border.color: Theme.blue
+        implicitHeight: (cal.mode === "date" ? dateRow.implicitHeight : timeCol.implicitHeight) + 24
+        color: Theme.bg; radius: Theme.radius; border.width: 2; border.color: Theme.blue
 
-        // ---------------- Date Mode: Month Calendar ----------------
-        ColumnLayout {
-            id: dateCol
+        // ---------------- Date Mode: GNOME/COSMIC Notification Center + Month Calendar ----------------
+        RowLayout {
+            id: dateRow
             visible: cal.mode === "date"
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: 12
-            spacing: 8
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
+            spacing: 12
 
-            RowLayout {
-                Layout.fillWidth: true
-                BarLabel { text: "<"; bold: true; pixelSize: Theme.fontSize; onClicked: cal.stepMonth(-1) }
-                Item {
+            NotificationList { Layout.fillWidth: true; Layout.preferredWidth: 320; Layout.alignment: Qt.AlignTop }
+            Rectangle { width: 1; Layout.fillHeight: true; color: Theme.border }
+
+            ColumnLayout {
+                id: dateCol
+                Layout.preferredWidth: 256; Layout.alignment: Qt.AlignTop; spacing: 8
+
+                RowLayout {
                     Layout.fillWidth: true
-                    implicitHeight: Theme.barHeight
-                    Text {
-                        anchors.centerIn: parent
-                        text: Qt.formatDate(new Date(cal.viewYear, cal.viewMonth, 1), "MMMM yyyy")
-                        color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true
-                    }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: cal.resetToToday() }
-                }
-                BarLabel { text: ">"; bold: true; pixelSize: Theme.fontSize; onClicked: cal.stepMonth(1) }
-            }
-
-            GridLayout {
-                Layout.fillWidth: true
-                columns: 7; columnSpacing: 2; rowSpacing: 2
-
-                Repeater {
-                    model: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+                    BarLabel { text: "<"; bold: true; pixelSize: Theme.fontSize; onClicked: cal.stepMonth(-1) }
                     Item {
-                        required property string modelData
-                        Layout.fillWidth: true; implicitHeight: 24
+                        Layout.fillWidth: true; implicitHeight: Theme.barHeight
                         Text {
-                            anchors.centerIn: parent; text: parent.modelData; color: Theme.blue
-                            font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true
+                            anchors.centerIn: parent
+                            text: Qt.formatDate(new Date(cal.viewYear, cal.viewMonth, 1), "MMMM yyyy")
+                            color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true
+                        }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: cal.resetToToday() }
+                    }
+                    BarLabel { text: ">"; bold: true; pixelSize: Theme.fontSize; onClicked: cal.stepMonth(1) }
+                }
+
+                GridLayout {
+                    Layout.fillWidth: true; columns: 7; columnSpacing: 2; rowSpacing: 2
+
+                    Repeater {
+                        model: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+                        Item {
+                            required property string modelData
+                            Layout.fillWidth: true; implicitHeight: 24
+                            Text {
+                                anchors.centerIn: parent; text: parent.modelData; color: Theme.blue
+                                font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true
+                            }
                         }
                     }
-                }
 
-                Repeater {
-                    model: cal.cells
-                    Rectangle {
-                        required property var modelData
-                        Layout.fillWidth: true; implicitHeight: 28; radius: Theme.radiusSm
-                        color: modelData.isToday ? Theme.blue : "transparent"
-                        Text {
-                            anchors.centerIn: parent; text: String(parent.modelData.day)
-                            color: parent.modelData.isToday ? Theme.bg : (parent.modelData.inMonth ? Theme.fg : Theme.muted)
-                            font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: parent.modelData.isToday
+                    Repeater {
+                        model: cal.cells
+                        Rectangle {
+                            required property var modelData
+                            Layout.fillWidth: true; implicitHeight: 28; radius: Theme.radiusSm
+                            color: modelData.isToday ? Theme.blue : "transparent"
+                            Text {
+                                anchors.centerIn: parent; text: String(parent.modelData.day)
+                                color: parent.modelData.isToday ? Theme.bg : (parent.modelData.inMonth ? Theme.fg : Theme.muted)
+                                font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: parent.modelData.isToday
+                            }
                         }
                     }
                 }
@@ -145,10 +143,7 @@ PanelWindow {
         ColumnLayout {
             id: timeCol
             visible: cal.mode === "time"
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: 12
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
             spacing: 4
 
             Repeater {
@@ -158,13 +153,11 @@ PanelWindow {
                     Layout.fillWidth: true; spacing: 2
 
                     Text {
-                        visible: parent.modelData.header !== undefined
-                        text: parent.modelData.header || ""
+                        visible: parent.modelData.header !== undefined; text: parent.modelData.header || ""
                         color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true
                     }
                     Text {
-                        visible: parent.modelData.info !== undefined
-                        text: parent.modelData.info || ""
+                        visible: parent.modelData.info !== undefined; text: parent.modelData.info || ""
                         color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1
                     }
                     Rectangle {
@@ -172,7 +165,7 @@ PanelWindow {
                         Layout.fillWidth: true; implicitHeight: 26; radius: Theme.radiusSm
                         color: tmMouse.containsMouse ? Theme.bgHover : "transparent"
                         Text {
-                            anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 6
+                            anchors { verticalCenter: parent.verticalCenter; left: parent.left; leftMargin: 6 }
                             text: parent.parent.modelData.label || ""; color: Theme.fg
                             font.family: Theme.font; font.pixelSize: Theme.fontSize - 1
                         }
@@ -190,7 +183,6 @@ PanelWindow {
                 }
             }
 
-            // World Clocks list
             Repeater {
                 model: Status.worldClocks
                 Rectangle {
@@ -198,11 +190,10 @@ PanelWindow {
                     Layout.fillWidth: true; implicitHeight: 26; radius: Theme.radiusSm
                     color: wcMouse.containsMouse ? Theme.bgHover : Theme.bgAlt
                     RowLayout {
-                        anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
+                        anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
                         Text {
                             Layout.fillWidth: true; text: parent.parent.modelData.tz
-                            color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2
-                            elide: Text.ElideMiddle
+                            color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; elide: Text.ElideMiddle
                         }
                         Text {
                             text: wcMouse.containsMouse ? "Remove [x]" : parent.parent.modelData.time
@@ -221,7 +212,6 @@ PanelWindow {
                 }
             }
 
-            // Add World Clock + More Settings
             Repeater {
                 model: [
                     { label: "+ Add World Clock...", accent: false,
@@ -234,7 +224,7 @@ PanelWindow {
                     Layout.fillWidth: true; implicitHeight: 28; radius: Theme.radiusSm
                     color: actM.containsMouse ? Theme.bgHover : (modelData.accent ? Theme.bgAlt : "transparent")
                     Text {
-                        anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 6
+                        anchors { verticalCenter: parent.verticalCenter; left: parent.left; leftMargin: 6 }
                         text: parent.modelData.label; color: parent.modelData.accent ? Theme.blue : Theme.fg
                         font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: parent.modelData.accent
                     }

@@ -5,6 +5,16 @@ All notable changes to SuperFedora. Every change ships as a tagged release
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-10-14
+
+### Added
+- **GNOME-Style Wayland Lock Screen (`LockScreen.qml`):** Rebuilt the lock screen using Quickshell's native `WlSessionLock` and `PamContext` (`password-auth` for reliable first-attempt password unlock), featuring a top-right System & Power popover menu, bottom-right Desktop Environment (`󰒓`) gear selector, centered GNOME modal confirmation dialogs with 60-second auto-confirm countdowns, unread notification / DND badge, and crash-proof session lock recovery (`misc:allow_session_lock_restore = true` and hot-reload suppression while locked).
+- **Square (`90°`) vs. Rounded Theme Geometry (`sf theme corners`):** Added `THEME_CORNERS` (`square` vs. `rounded`) across `apply-theme.sh`, `Theme.qml`, Hyprland window borders, Fuzzel, and the lock screen.
+- **Desktop Environment Session Controller (`sf session` / `sf de`):** Added `lib/session-ctl.sh` to list, select, and switch installed Wayland sessions (`hyprland`, `hyprland-uwsm`, `gnome`, `gnome-classic`) synced with GDM `AccountsService`.
+- **Omarchy-Style Dock, Launchpad App Grid & Workspace Layout Engine (`sf dock`):** Added `Dock.qml`, `AppGrid.qml`, `toggle-tiling.sh`, and `lib/panel-ctl.sh` with per-workspace tiling/scrolling/floating mode switching, minimize-to-dock (`special:minimized`), drag-to-reorder pinned apps, and fullscreen Launchpad app grid.
+- **Notification Center, History & Do Not Disturb (`sf notify`):** Added `NotificationList.qml`, persistent `Notifications.qml` history, and `lib/notify-ctl.sh`.
+- **Remote Ollama Discovery & Streaming Chat (`sf-ollama`):** Added `/api/ps` and `/api/tags` probing plus a zero-dependency streaming chat client for remote Ollama hosts in `Quake AI` and `AiPopup.qml`, disabled Hyprland startup update/donation nag banners, and hardened RPM Fusion and vendor CLI installer retries.
+
 ## [0.3.0] — 2026-10-14
 
 ### Added

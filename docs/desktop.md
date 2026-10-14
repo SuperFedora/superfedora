@@ -111,11 +111,11 @@ Hypridle owns `org.freedesktop.ScreenSaver` on Hyprland and drives IdleScreen:
 
 | File | Purpose |
 | :--- | :--- |
-| `shell.qml` | Multi-edge bars/docks per screen, Panel Studio, notifications, OSD |
-| `Bar.qml` | Menu button, workspaces, submap indicator, clock, tray, Quake AI icon (`󰚩`), Panel Studio, stay-awake, Bluetooth, network, audio, CPU, battery, power |
-| `Workspaces.qml` | COSMIC dynamic workspace compaction |
+| `shell.qml` | Omarchy-style Top Bar + Dock per screen, Launchpad App Grid, notifications, OSD, LockScreen |
+| `Bar.qml` | Menu button, workspaces, submap indicator, clock, tray, Quake AI icon (`󰚩`), App Grid / Dock toggle (`󰀻`), stay-awake, Bluetooth, network, audio, CPU, battery, power |
+| `Workspaces.qml` | COSMIC dynamic workspace compaction + Omarchy per-workspace layout cycling (Tiling / Scrolling / Floating) |
 | `panels/AiPopup.qml` | Top-bar AI agent selector (`agy`, `mcode`, `grok`, `vibe`, `claude`, `chatgpt`, `ollama` `ip:port`, and custom agents) |
-| `panels/EdgePanel.qml`, `panels/DockApps.qml`, `panels/HardwareTelemetry.qml`, `panels/PanelSettingsPopup.qml` | Bottom/Left/Right docks, hardware telemetry, and Panel Studio |
+| `panels/Dock.qml`, `panels/AppGrid.qml` | Omarchy-style repositionable Dock (`bottom`/`left`/`right`/`top`, `autohide`, `.desktop` icons, window cycling, minimize-to-dock) and fullscreen Launchpad App Grid |
 | `Notifications.qml` | Notification server and popups; IPC `notifications` (`dismiss`, `dismissAll`, `toggleDnd`) |
 | `Osd.qml` | Volume popup |
 | `Status.qml`, `Theme.qml`, `BarLabel.qml`, `Tray.qml`, `LauncherMenu.qml`, `Calendar.qml`, `StatusPopup.qml` | Shared state, 16-bit palette tokens, widgets, and popovers |

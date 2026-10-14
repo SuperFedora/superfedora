@@ -3,21 +3,31 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 
-// COSMIC DE dynamic workspaces:
+// Omarchy + COSMIC dynamic workspaces:
 // - Occupied workspaces compact to 1..N with zero empty gaps in between.
-// - Workspace N+1 is always shown at the end as the trailing empty workspace.
+// - Focused workspace displays its layout glyph (Square = Tiling, Circle = Scrolling, Triangle = Floating);
+//   clicking the focused workspace cycles its layout mode (like Super + Y).
 Grid {
     id: root
     property var monitor: null
     property bool vertical: false
     property int thickness: Theme.barHeight
     property int occupiedCount: 1
+    property real wheelAccum: 0
     columns: root.vertical ? 1 : Math.max(1, root.shown.length)
     spacing: 0
 
     readonly property int activeId: monitor && monitor.activeWorkspace
         ? monitor.activeWorkspace.id
         : (Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1)
+
+    readonly property string activeMode: Status.wsModeFor(root.activeId)
+
+    function modeGlyph(mode) {
+        if (mode === "scrolling") return "󰄯"; // Circle = Scrolling
+        if (mode === "floating") return "󰐊";  // Triangle = Floating
+        return "󱓻";                           // Square = Tiling (dwindle)
+    }
 
     readonly property var shown: {
         const total = Math.max(root.occupiedCount + 1, root.activeId, 1);
@@ -71,6 +81,11 @@ Grid {
         onTriggered: compactProc.running = true
     }
 
+    IpcHandler {
+        target: "workspaces"
+        function reload(): void { Status.reloadDock(); }
+    }
+
     Connections {
         target: Hyprland
         function onRawEvent(event) {
@@ -97,8 +112,10 @@ Grid {
 
             Text {
                 anchors.centerIn: parent
-                text: parent.active ? "󱓻" : (parent.isTrailingEmpty ? "+" : String(parent.modelData))
-                color: parent.active ? Theme.blue : (parent.used ? Theme.fg : Theme.muted)
+                text: parent.active ? root.modeGlyph(root.activeMode) : (parent.isTrailingEmpty ? "+" : String(parent.modelData))
+                color: parent.active
+                    ? (root.activeMode === "floating" ? Theme.cyan : (root.activeMode === "scrolling" ? Theme.yellow : Theme.blue))
+                    : (parent.used ? Theme.fg : Theme.muted)
                 font.family: Theme.font
                 font.pixelSize: parent.active ? Theme.iconSize : Theme.fontSize
                 font.bold: parent.isTrailingEmpty
@@ -107,15 +124,26 @@ Grid {
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
-                onClicked: Hyprland.dispatch("workspace " + parent.modelData)
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onClicked: e => {
+                    if (parent.active) {
+                        Status.runDockCmd(e.button === Qt.RightButton ? "layout back " + parent.modelData : "layout cycle " + parent.modelData);
+                    } else {
+                        Hyprland.dispatch("workspace " + parent.modelData);
+                    }
+                }
             }
         }
     }
 
-    // Scroll anywhere on the strip to move between workspaces (including trailing empty)
+    // Touchpad-friendly scroll accumulator across workspaces
     WheelHandler {
         onWheel: e => {
-            if (e.angleDelta.y > 0) {
+            root.wheelAccum += e.angleDelta.y;
+            if (Math.abs(root.wheelAccum) < 120) return;
+            const dir = root.wheelAccum > 0 ? 1 : -1;
+            root.wheelAccum = 0;
+            if (dir > 0) {
                 if (root.activeId > 1) Hyprland.dispatch("workspace r-1");
             } else {
                 if (root.activeId <= root.occupiedCount) Hyprland.dispatch("workspace r+1");

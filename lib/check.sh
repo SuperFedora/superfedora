@@ -197,7 +197,11 @@ need_script_tool() {
         command -v "$bin" >/dev/null 2>&1 || [[ -x "$HOME/.local/bin/$bin" || -x "$HOME/.minimax-code/bin/$bin" || -x "$HOME/.grok/bin/$bin" || -x "$HOME/.cargo/bin/$bin" ]]
     }
     _st_i() {
-        curl -fsSL "$url" | "$sh" -s -- "${args[@]}" || true
+        local attempt
+        for attempt in 1 2 3; do
+            if curl -fsSL --retry 3 "$url" | "$sh" -s -- "${args[@]}"; then break; fi
+            sleep "$attempt"
+        done
         mkdir -p "$HOME/.local/bin"
         for dir in "$HOME/.minimax-code/bin" "$HOME/.grok/bin" "$HOME/.cargo/bin"; do
             if [[ -x "$dir/$bin" && ! -e "$HOME/.local/bin/$bin" ]]; then

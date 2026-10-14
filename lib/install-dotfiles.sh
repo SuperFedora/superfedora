@@ -94,6 +94,7 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP="$STATE_DIR/backups/$STAMP"
 changed=0
 shell_changed=0
+idle_changed=0
 units_changed=0
 
 for rel in "${FILES[@]}"; do
@@ -111,6 +112,7 @@ for rel in "${FILES[@]}"; do
     echo "  installed ~/$rel"
     changed=$((changed + 1))
     [[ "$rel" == .config/quickshell/* ]] && shell_changed=1
+    [[ "$rel" == .config/hypr/hypridle.conf ]] && idle_changed=1
     [[ "$rel" == .config/systemd/user/* ]] && units_changed=1
 done
 
@@ -164,11 +166,18 @@ if [[ $RELOAD -eq 1 && $changed -gt 0 && -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]
         exit 1
     fi
     echo "Hyprland reloaded (no config errors)"
-    if [[ $shell_changed -eq 1 ]] && { pgrep -x quickshell >/dev/null || pgrep -x qs >/dev/null; }; then
+    target_rt="${XDG_RUNTIME_DIR:-/run/user/$(id -u "$TARGET_USER")}"
+    if [[ $shell_changed -eq 1 ]] && [ ! -f "$target_rt/superfedora.locked" ] && [ ! -f "/tmp/superfedora.locked" ] && { pgrep -x quickshell >/dev/null || pgrep -x qs >/dev/null; }; then
         pkill -x quickshell || true
         pkill -x qs || true
         sleep 0.5
         hyprctl dispatch exec quickshell >/dev/null
         echo "Quickshell restarted"
+    fi
+    if [[ $idle_changed -eq 1 ]] && pgrep -x hypridle >/dev/null; then
+        pkill -x hypridle || true
+        sleep 0.2
+        hyprctl dispatch exec hypridle >/dev/null
+        echo "Hypridle restarted"
     fi
 fi

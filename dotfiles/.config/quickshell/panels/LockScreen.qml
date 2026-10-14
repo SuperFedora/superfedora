@@ -19,22 +19,18 @@ Scope {
         { id: "hyprland", name: "Hyprland" }, { id: "hyprland-uwsm", name: "Hyprland (uwsm-managed)" },
         { id: "gnome", name: "GNOME" },       { id: "gnome-classic", name: "GNOME Classic" }
     ]
-    property bool sysMenuOpen: false
-    property bool deMenuOpen: false
-    property string authError: ""
-    property bool authBusy: false
-    property string pendingPass: ""
-    property string confirmAct: ""
-    property string confirmTitle: ""
-    property string confirmBody: ""
-    property string confirmBtn: ""
-    property string confirmCmd: ""
-    property bool confirmDanger: false
+    property bool sysMenuOpen: false; property bool deMenuOpen: false
+    property string authError: ""; property bool authBusy: false; property string pendingPass: ""
+    property string confirmAct: ""; property string confirmTitle: ""; property string confirmBody: ""
+    property string confirmBtn: ""; property string confirmCmd: ""; property bool confirmDanger: false
     property int countdown: 60
 
+    Component.onCompleted: Quickshell.execDetached(["sh", "-c", "[ -f \"${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/superfedora.locked\" ] && for _ in $(seq 1 30); do qs ipc --any-display call lock activate >/dev/null 2>&1 && break; sleep 0.1; done || true"])
     onLockedChanged: {
-        if (root.locked) Quickshell.execDetached(["sh", "-c", "touch \"${XDG_RUNTIME_DIR:-/tmp}/superfedora.locked\"; PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" idlescreen stop >/dev/null 2>&1 || true"]);
-        else Quickshell.execDetached(["sh", "-c", "rm -f \"${XDG_RUNTIME_DIR:-/tmp}/superfedora.locked\""]);
+        Quickshell.watchFiles = !root.locked;
+        if ("sessionLocked" in Status) Status.sessionLocked = root.locked;
+        if (root.locked) Quickshell.execDetached(["sh", "-c", "hyprctl keyword misc:allow_session_lock_restore 1 >/dev/null 2>&1 || true; touch \"${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/superfedora.locked\"; PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" idlescreen stop >/dev/null 2>&1 || true"]);
+        else Quickshell.execDetached(["sh", "-c", "rm -f \"${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/superfedora.locked\""]);
     }
 
     FileView { id: wallFile; path: Quickshell.env("HOME") + "/.config/hypr/.current-wallpaper" }
@@ -54,12 +50,13 @@ Scope {
     PamContext {
         id: pam; config: "password-auth"; user: root.userName
         onResponseRequiredChanged: { if (pam.responseRequired && root.pendingPass !== "") { const p = root.pendingPass; root.pendingPass = ""; pam.respond(p); } }
-        onCompleted: res => { root.authBusy = false; if (res === PamResult.Success) { root.authError = ""; root.locked = false; } else { root.authError = "Incorrect password — please try again"; pam.start(); } }
-        onError: err => { root.authBusy = false; root.authError = "Authentication error — try again"; pam.start(); }
+        onCompleted: res => { root.authBusy = false; if (res === PamResult.Success) { root.authError = ""; root.locked = false; } else { root.authError = "Incorrect password — please try again"; Qt.callLater(() => { if (root.locked && !pam.active) pam.start(); }); } }
+        onError: err => { root.authBusy = false; root.authError = "Authentication error — try again"; Qt.callLater(() => { if (root.locked && !pam.active) pam.start(); }); }
     }
     Timer { id: countTimer; interval: 1000; repeat: true; running: root.confirmAct !== ""; onTriggered: { if (root.countdown > 1) root.countdown -= 1; else root.executeConfirm(); } }
 
     function activateLock() {
+        if (root.locked) return;
         wallFile.reload(); const w = wallFile.text().trim(); if (w) root.wallPath = w;
         deProc.running = true; root.sysMenuOpen = false; root.deMenuOpen = false; root.confirmAct = "";
         root.authError = ""; root.authBusy = false; root.pendingPass = ""; root.locked = true;
@@ -140,14 +137,22 @@ Scope {
                 }
             }
 
-            // 2. GNOME Lower-Third Floating User Stack (Avatar + Username + Password Input)
+            // 2. GNOME Lower-Third Floating User Stack (Avatar + Username + Unread Badge + Password Input)
             ColumnLayout {
-                anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottomMargin: 42; spacing: 12
+                anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottomMargin: 42; spacing: 10
                 Rectangle {
                     Layout.alignment: Qt.AlignHCenter; width: 84; height: 84; radius: Theme.corners === "rounded" ? 42 : 0; color: Theme.bgAlt; border.width: 2; border.color: Theme.blue
                     Image { anchors.fill: parent; anchors.margins: 4; source: "file://" + Quickshell.env("HOME") + "/Pictures/Wallpapers/avatar.jpg"; fillMode: Image.PreserveAspectCrop }
                 }
                 Text { Layout.alignment: Qt.AlignHCenter; text: root.userName; color: Theme.fg; font.family: Theme.font; font.pixelSize: 17; font.bold: true }
+                Rectangle {
+                    visible: Status.notifUnread > 0 || Status.dnd
+                    Layout.alignment: Qt.AlignHCenter; width: lockNotifTxt.implicitWidth + 24; height: 26; radius: Theme.corners === "rounded" ? 13 : 0; color: Theme.bgAlt; border.width: 1; border.color: Status.dnd ? Theme.yellow : Theme.cyan
+                    Text {
+                        id: lockNotifTxt; anchors.centerIn: parent; font.family: Theme.font; font.pixelSize: 12; font.bold: true; color: Status.dnd ? Theme.yellow : Theme.cyan
+                        text: (Status.dnd ? "󰂛  Do Not Disturb" : "󰂞") + (Status.notifUnread > 0 ? ((Status.dnd ? " · " : "  ") + Status.notifUnread + (Status.notifUnread === 1 ? " Unread Notification" : " Unread Notifications")) : "")
+                    }
+                }
                 Rectangle {
                     Layout.alignment: Qt.AlignHCenter; width: 300; height: 44; radius: Theme.corners === "rounded" ? 22 : 0; color: Theme.bg
                     border.width: 2; border.color: root.authError !== "" ? Theme.red : (passInput.activeFocus ? Theme.cyan : Theme.blue)

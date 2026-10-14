@@ -38,12 +38,15 @@ menu_capture() {
 }
 
 menu_toggle() {
-    case "$(pick "Toggle" "󰚩  Quake AI console" "󰒲  Idle / stay awake" "󰍜  Top bar" "  Gaps" "󰹑  Float active window")" in
-        *Quake*) "$S/quake-ai.sh" toggle ;;
-        *Idle*)  "$S/toggle-idle.sh" ;;
-        *bar*)   qs ipc call bar toggle ;;
-        *Gaps*)  "$S/toggle-gaps.sh" ;;
-        *Float*) hyprctl dispatch togglefloating >/dev/null ;;
+    case "$(pick "Toggle" "󰚩  Quake AI console" "󰀻  Launchpad App Grid" "󰘔  Dock visibility" "󰕰  Workspace layout" "󰒲  Idle / stay awake" "󰍜  Top bar" "  Gaps" "󰹑  Float active window")" in
+        *Quake*)     "$S/quake-ai.sh" toggle ;;
+        *Launchpad*) qs ipc call dock toggleApps ;;
+        *Dock*)      qs ipc call dock toggle ;;
+        *Workspace*) "$S/toggle-tiling.sh" cycle ;;
+        *Idle*)      "$S/toggle-idle.sh" ;;
+        *bar*)       qs ipc call bar toggle ;;
+        *Gaps*)      "$S/toggle-gaps.sh" ;;
+        *Float*)     hyprctl dispatch togglefloating >/dev/null ;;
     esac
 }
 
@@ -75,7 +78,7 @@ menu_setup() {
 
 menu_system() {
     case "$(pick "System" "  Lock" "󰤄  Suspend" "󰍃  Log out" "󰜉  Restart" "󰐥  Shut down")" in
-        *Lock*)     qs ipc call lock activate >/dev/null 2>&1 || loginctl lock-session ;;
+        *Lock*)     qs ipc --any-display call lock activate >/dev/null 2>&1 || loginctl lock-session ;;
         *Suspend*)  systemctl suspend ;;
         *Log*)      hyprctl dispatch exit ;;
         *Restart*)  systemctl reboot ;;
@@ -84,10 +87,19 @@ menu_system() {
 }
 
 restart_shell() {
-    pkill -x quickshell || true
-    pkill -x qs || true
-    sleep 0.3
-    hyprctl dispatch exec quickshell >/dev/null
+    local lock_file="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/superfedora.locked"
+    if [ ! -f "$lock_file" ]; then
+        pkill -x quickshell || true
+        pkill -x qs || true
+        sleep 0.3
+        hyprctl dispatch exec quickshell >/dev/null
+    elif ! pgrep -x quickshell >/dev/null && ! pgrep -x qs >/dev/null; then
+        hyprctl dispatch exec quickshell >/dev/null
+        for _ in $(seq 1 30); do
+            qs ipc --any-display call lock activate >/dev/null 2>&1 && break
+            sleep 0.1
+        done
+    fi
 }
 
 toggle_screenreader() {
