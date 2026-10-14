@@ -1,0 +1,286 @@
+#!/usr/bin/env python3
+# Copyright 2026 SuperFedora Contributors
+# SPDX-License-Identifier: Apache-2.0
+"""sf-ollama — SuperFedora Ollama Server Probe (/api/ps & /api/tags) & Streaming Chat REPL."""
+import json
+import os
+import readline  # noqa: F401
+import sys
+import urllib.error
+import urllib.request
+
+STATE_FILE = os.path.expanduser("~/.config/superfedora/quake-ai.env")
+
+
+def norm_host(h: str) -> str:
+    h = (h or "127.0.0.1:11434").strip()
+    for pfx in ("http://", "https://"):
+        if h.startswith(pfx):
+            h = h[len(pfx):]
+    h = h.rstrip("/")
+    if "/" in h:
+        h = h.split("/", 1)[0]
+    if ":" not in h:
+        h = f"{h}:11434"
+    return h
+
+
+def fetch_json(url: str, timeout: float = 3.0):
+    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8", errors="replace"))
+
+
+def probe_server(host: str, preferred: str = "", timeout: float = 3.0):
+    host = norm_host(host)
+    ps_models, tag_models = [], []
+    online = False
+
+    try:
+        ps_data = fetch_json(f"http://{host}/api/ps", timeout=timeout)
+        ps_models = ps_data.get("models") or []
+        online = True
+    except Exception:
+        pass
+
+    try:
+        tag_data = fetch_json(f"http://{host}/api/tags", timeout=timeout)
+        tag_models = tag_data.get("models") or []
+        online = True
+    except Exception:
+        pass
+
+    loaded_names = []
+    meta = {}
+    for m in ps_models:
+        name = m.get("name") or m.get("model") or ""
+        if name and name not in loaded_names:
+            loaded_names.append(name)
+            det = m.get("details") or {}
+            meta[name] = (det.get("parameter_size") or "", det.get("quantization_level") or "")
+
+    all_names = list(loaded_names)
+    for m in tag_models:
+        name = m.get("name") or m.get("model") or ""
+        if name:
+            det = m.get("details") or {}
+            if name not in meta or not meta[name][0]:
+                meta[name] = (det.get("parameter_size") or "", det.get("quantization_level") or "")
+            if name not in all_names:
+                all_names.append(name)
+
+    models = []
+    for name in all_names:
+        is_loaded = name in loaded_names
+        psize, quant = meta.get(name, ("", ""))
+        spec = " ".join(x for x in (psize, quant) if x)
+        if is_loaded:
+            badge = f"[LOADED - {spec}]" if spec else "[LOADED]"
+        else:
+            badge = f"[{spec}]" if spec else "[READY]"
+        models.append({
+            "name": name,
+            "loaded": is_loaded,
+            "size": psize,
+            "quant": quant,
+            "display": f"{name}  {badge}",
+        })
+
+    if preferred and preferred in all_names:
+        best = preferred
+    elif loaded_names:
+        best = loaded_names[0]
+    elif all_names:
+        best = all_names[0]
+    else:
+        best = preferred or "llama3.2"
+
+    return {"host": host, "online": online, "best": best, "models": models, "loaded": loaded_names}
+
+
+def save_envModel(host: str, model: str):
+    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+    lines = []
+    found_h = found_m = False
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE, "r", encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith("OLLAMA_HOST="):
+                    lines.append(f"OLLAMA_HOST={host}\n")
+                    found_h = True
+                elif line.startswith("OLLAMA_MODEL="):
+                    lines.append(f"OLLAMA_MODEL={model}\n")
+                    found_m = True
+                else:
+                    lines.append(line)
+    if not found_h:
+        lines.append(f"OLLAMA_HOST={host}\n")
+    if not found_m:
+        lines.append(f"OLLAMA_MODEL={model}\n")
+    with open(STATE_FILE, "w", encoding="utf-8") as fh:
+        fh.writelines(lines)
+
+
+def cmd_probe(host: str, preferred: str):
+    info = probe_server(host, preferred)
+    print(
+        f"OLLAMA_STATUS|{info['host']}|{1 if info['online'] else 0}|"
+        f"{info['best']}|{len(info['loaded'])}|{len(info['models'])}"
+    )
+    for m in info["models"]:
+        print(
+            f"OLLAMA_MODEL|{m['name']}|{1 if m['loaded'] else 0}|"
+            f"{m['size']}|{m['quant']}|{m['display']}"
+        )
+
+
+def cmd_fuzzel(host: str, preferred: str):
+    info = probe_server(host, preferred)
+    if not info["online"]:
+        print(f"[!] Cannot reach http://{info['host']} (verify host:port)")
+        return
+    if not info["models"]:
+        print(f"[!] No models installed on http://{info['host']}")
+        return
+    for m in info["models"]:
+        print(m["display"])
+
+
+def print_models_table(info):
+    if not info["online"]:
+        print(f"  \033[1;31m[OFFLINE]\033[0m Cannot reach http://{info['host']}")
+        return
+    if not info["models"]:
+        print(f"  \033[1;33m[EMPTY]\033[0m Server http://{info['host']} is online but has no models.")
+        return
+    for idx, m in enumerate(info["models"], 1):
+        tag = "\033[1;32m[LOADED in VRAM]\033[0m" if m["loaded"] else "\033[0;36m[INSTALLED]\033[0m"
+        spec = " ".join(x for x in (m["size"], m["quant"]) if x)
+        spec_s = f" ({spec})" if spec else ""
+        print(f"  {idx}) \033[1m{m['name']}\033[0m{spec_s} {tag}")
+
+
+def cmd_chat(host: str, model: str):
+    info = probe_server(host, model)
+    host = info["host"]
+    model = info["best"]
+    save_envModel(host, model)
+
+    print("\033[1;34m=== SUPERFEDORA OLLAMA REMOTE/LOCAL STREAMING CONSOLE ===\033[0m")
+    status_str = "\033[1;32mONLINE\033[0m" if info["online"] else "\033[1;31mOFFLINE\033[0m"
+    loaded_str = ", ".join(info["loaded"]) if info["loaded"] else "none (loads on first prompt)"
+    print(f"  Server       : http://{host} [{status_str}]")
+    print(f"  VRAM Loaded  : {loaded_str}")
+    print(f"  Active Model : \033[1;36m{model}\033[0m")
+    print("  Commands     : /models  /ps  /model <name|#>  /clear  /help  /exit\n")
+
+    history = []
+    while True:
+        try:
+            prompt = f"\033[1;34m[{host} // {model}]\033[0m \033[1;32m>\033[0m "
+            user_in = input(prompt).strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+
+        if not user_in:
+            continue
+        if user_in in ("/exit", "/quit", "exit", "quit"):
+            break
+        if user_in == "/help":
+            print("  /models          List all models on server (loaded + installed)")
+            print("  /ps              Show models currently loaded in VRAM (/api/ps)")
+            print("  /model <name|#>  Switch active model by number or name")
+            print("  /clear           Clear conversation context")
+            print("  /exit            Close session")
+            continue
+        if user_in == "/clear":
+            history.clear()
+            print("  [OK] Conversation history cleared.")
+            continue
+        if user_in in ("/models", "/ps"):
+            info = probe_server(host, model)
+            print_models_table(info)
+            continue
+        if user_in.startswith("/model"):
+            arg = user_in[6:].strip()
+            info = probe_server(host, model)
+            if not arg:
+                print_models_table(info)
+                arg = input("  Select model (# or name): ").strip()
+            if arg:
+                if arg.isdigit() and 1 <= int(arg) <= len(info["models"]):
+                    model = info["models"][int(arg) - 1]["name"]
+                else:
+                    model = arg.split()[0]
+                save_envModel(host, model)
+                print(f"  [OK] Active model set to: \033[1;36m{model}\033[0m")
+            continue
+
+        history.append({"role": "user", "content": user_in})
+        payload = json.dumps({"model": model, "messages": history, "stream": True}).encode("utf-8")
+        req = urllib.request.Request(
+            f"http://{host}/api/chat",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        reply_parts = []
+        in_think = False
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                for raw_line in resp:
+                    line = raw_line.decode("utf-8", errors="replace").strip()
+                    if not line:
+                        continue
+                    chunk = json.loads(line)
+                    msg = chunk.get("message") or {}
+                    think = msg.get("thinking") or ""
+                    content = msg.get("content") or ""
+                    if think:
+                        if not in_think:
+                            sys.stdout.write("\033[2m")
+                            in_think = True
+                        sys.stdout.write(think)
+                        sys.stdout.flush()
+                    if content:
+                        if in_think:
+                            sys.stdout.write("\033[0m\n")
+                            in_think = False
+                        sys.stdout.write(content)
+                        sys.stdout.flush()
+                        reply_parts.append(content)
+                    if chunk.get("done"):
+                        break
+            if in_think:
+                sys.stdout.write("\033[0m")
+            print("\n")
+            if reply_parts:
+                history.append({"role": "assistant", "content": "".join(reply_parts)})
+        except KeyboardInterrupt:
+            print("\033[0m\n  [Interrupted]")
+        except Exception as exc:
+            print(f"\033[0m\n  \033[1;31m[Error]\033[0m http://{host}/api/chat ({model}): {exc}")
+            history.pop()
+
+
+def main():
+    cmd = sys.argv[1] if len(sys.argv) > 1 else "probe"
+    host = sys.argv[2] if len(sys.argv) > 2 else os.environ.get("OLLAMA_HOST", "127.0.0.1:11434")
+    model = sys.argv[3] if len(sys.argv) > 3 else os.environ.get("OLLAMA_MODEL", "")
+    if cmd == "probe":
+        cmd_probe(host, model)
+    elif cmd == "best-model":
+        print(probe_server(host, model)["best"])
+    elif cmd == "fuzzel-models":
+        cmd_fuzzel(host, model)
+    elif cmd == "table":
+        print_models_table(probe_server(host, model))
+    elif cmd == "chat":
+        cmd_chat(host, model)
+    else:
+        cmd_probe(host, model)
+
+
+if __name__ == "__main__":
+    main()
