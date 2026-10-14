@@ -241,9 +241,10 @@ for a in "$@"; do
     esac
 done
 CMD="${ARGS[0]:-status}"
+# shellcheck disable=SC2046
 case "$CMD" in
     status|list|presets|env|flags) print_status ;;
-    deps) t="${ARGS[1]:-hyprland}"; echo "Dependencies for $t: $(preset_deps "$t")"; [[ $INSTALL_DEPS -eq 1 ]] && ensure_pkgs $(preset_deps "$t") || true ;; # shellcheck disable=SC2046
+    deps) t="${ARGS[1]:-hyprland}"; echo "Dependencies for $t: $(preset_deps "$t")"; [[ $INSTALL_DEPS -eq 1 ]] && ensure_pkgs $(preset_deps "$t") || true ;;
     webapp|web|pwa) forge_webapp "${ARGS[1]:?url required}" "${ARGS[2]:-}" "$PROF_MODE" "$DRY" ;;
     remove|rm|uninstall|unforge) remove_forge "${ARGS[1]:?target required}" ;;
     update|upgrade) update_forge "$DRY" ;;
