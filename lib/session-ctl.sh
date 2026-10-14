@@ -93,6 +93,8 @@ case "${1:-status}" in
                 --object-path /org/gnome/DisplayManager/LocalDisplayFactory \
                 --method org.gnome.DisplayManager.LocalDisplayFactory.CreateTransientDisplay >/dev/null 2>&1 || true
         fi
+        systemctl --user stop hyprland-session.target >/dev/null 2>&1 || true
+        systemctl --user reset-failed >/dev/null 2>&1 || true
         hyprctl dispatch exit >/dev/null 2>&1 || loginctl terminate-user "$USER" >/dev/null 2>&1 || true ;;
     pick)
         choice="$(for i in "${!SESS_IDS[@]}"; do printf '%s: %s\n' "${SESS_IDS[$i]}" "${SESS_NAMES[$i]}"; done \
