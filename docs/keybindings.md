@@ -4,7 +4,7 @@
 >
 > Bindings mirror Pop!_OS COSMIC defaults. Press **Super + F1** on the desktop for a searchable list.
 
-## COSMIC: session
+## COSMIC: session & close
 
 | Keys | Action |
 | :--- | :--- |
@@ -12,11 +12,6 @@
 | Super + Shift + Esc | Log out / power menu |
 | Super + Alt + Esc | Exit Hyprland |
 | Super + Ctrl + Esc | Debug: reload config |
-
-## COSMIC: close
-
-| Keys | Action |
-| :--- | :--- |
 | Super + Q | Close window |
 | Alt + F4 | Close window |
 
@@ -48,20 +43,20 @@
 | Super + Shift + K | Move window up |
 | Super + Shift + L | Move window right |
 
-## COSMIC: workspaces
+## COSMIC: workspaces (switches SuperDesk [1]..[0] tabs when SuperDesk is open)
 
 | Keys | Action |
 | :--- | :--- |
-| Super + 1 | Workspace 1 |
-| Super + 2 | Workspace 2 |
-| Super + 3 | Workspace 3 |
-| Super + 4 | Workspace 4 |
-| Super + 5 | Workspace 5 |
-| Super + 6 | Workspace 6 |
-| Super + 7 | Workspace 7 |
-| Super + 8 | Workspace 8 |
-| Super + 9 | Workspace 9 |
-| Super + 0 | Last (empty) workspace |
+| Super + 1 | Workspace 1 / SuperDesk [1] Harness |
+| Super + 2 | Workspace 2 / SuperDesk [2] Wi-Fi |
+| Super + 3 | Workspace 3 / SuperDesk [3] Bluetooth |
+| Super + 4 | Workspace 4 / SuperDesk [4] Audio & Cam |
+| Super + 5 | Workspace 5 / SuperDesk [5] Display & Kbd |
+| Super + 6 | Workspace 6 / SuperDesk [6] Theme & SFX |
+| Super + 7 | Workspace 7 / SuperDesk [7] Bar & Dock |
+| Super + 8 | Workspace 8 / SuperDesk [8] Source Forge |
+| Super + 9 | Workspace 9 / SuperDesk [9] Btrfs State |
+| Super + 0 | Last Workspace / SuperDesk [0] Power |
 | Super + Shift + 1 | Move window to workspace 1 |
 | Super + Shift + 2 | Move window to workspace 2 |
 | Super + Shift + 3 | Move window to workspace 3 |
@@ -155,20 +150,33 @@
 | Super + Shift + Tab | Window switcher (previous) |
 | Print | Screenshot |
 
-## COSMIC: hardware keys
+## COSMIC & ThinkPad: hardware keys (Fn+F1..F12 & XF86*)
 
 | Keys | Action |
 | :--- | :--- |
-| AudioRaiseVolume | Volume up |
-| AudioLowerVolume | Volume down |
-| AudioMute | Mute |
-| AudioMicMute | Mute microphone |
-| MonBrightnessUp | Brightness up |
-| MonBrightnessDown | Brightness down |
+| AudioMute | Mute speakers (Fn+F1) |
+| AudioLowerVolume | Volume down (Fn+F2) |
+| AudioRaiseVolume | Volume up (Fn+F3) |
+| AudioMicMute | Mute microphone (Fn+F4) |
+| MonBrightnessDown | Brightness down (Fn+F5) |
+| MonBrightnessUp | Brightness up (Fn+F6) |
+| Display | Display & keyboard settings (Fn+F7) |
+| WLAN | Wi-Fi deck (Fn+F8) |
+| RFKill | Wireless / RFKill deck (Fn+F8) |
+| Tools | Theme & system settings deck (Fn+F9) |
+| Bluetooth | Bluetooth deck (Fn+F10) |
+| Search | Bluetooth / search deck (Fn+F10) |
+| Keyboard | ThinkPad keyboard backlight (Fn+F11) |
+| KbdBrightnessUp | Keyboard backlight up (Fn+Space) |
+| KbdBrightnessDown | Keyboard backlight down |
+| Favorites | SuperDesk AI Agent (Fn+F12) |
+| WebCam | Toggle web camera kill-switch |
+| PowerOff | Power deck |
+| Sleep | Power / sleep deck |
+| Suspend | Power / suspend deck |
 | AudioPlay | Play / pause |
 | AudioPrev | Previous track |
 | AudioNext | Next track |
-| PowerOff | Power menu |
 | TouchpadToggle | Toggle touchpad |
 | Super + Ctrl + TouchpadToggle | Toggle touchpad |
 | LaunchA | Workspace / window overview |
@@ -179,16 +187,16 @@
 | :--- | :--- |
 | Super + F1 | Show all keybindings |
 | Super + Enter | Terminal |
-| Super + Alt + Space | Unified SuperDeck (Menu & Quick Settings) |
-| Super + Shift + , | Unified SuperDeck Settings |
+| Super + Alt + Space | Unified SuperDesk (Quick Actions) |
+| Super + Shift + , | SuperFedora Settings App |
 | Super + Alt + Home | Save workspace window layout |
 | Super + Home | Restore workspace window layout |
 | Ctrl + Alt + Delete | Power menu |
 | Super + Shift + T | Activity monitor (btop) |
 | Super + Shift + B | Private browser window |
 | Super + P | Pin floating window |
-| Super + ` | Quake AI drop-down console |
-| Super + Shift + ` | Switch Quake AI agent |
+| Super + ` | SuperDesk drop-down AI & settings console |
+| Super + Shift + ` | Quake AI TTY terminal console |
 | Super + Ctrl + ` | Toggle scratchpad |
 | Super + Alt + Tab | Next tab in stack |
 | Super + Alt + Shift + Tab | Previous tab in stack |
@@ -203,20 +211,15 @@
 | Super + Ctrl + Space | Next 16-bit theme |
 | Super + Ctrl + Shift + Space | Pick 16-bit theme |
 | Super + Ctrl + Alt + Space | Toggle dark/light theme |
-| Super + Ctrl + A | Audio settings (wiremix TUI) |
-| Super + Ctrl + W | Wi-Fi settings (wlctl TUI) |
-| Super + Ctrl + B | Bluetooth settings (bluetui TUI) |
+| Super + Ctrl + A | Audio & sensors deck |
+| Super + Ctrl + W | Wi-Fi perimeter deck |
+| Super + Ctrl + B | Bluetooth perimeter deck |
 | Super + Backspace | Toggle gaps |
 | Super + Shift + Space | Toggle top bar |
 | Super + Alt + R | Reload Hyprland + bar |
 | Super + Shift + I | Start IdleScreen now |
 | Super + Ctrl + I | Toggle idle (stay awake) |
 | Calculator | Calculator |
-
-## Mouse
-
-| Keys | Action |
-| :--- | :--- |
 | Super + Scroll down | Next workspace |
 | Super + Scroll up | Previous workspace |
 | Super + Mouse forward | Next workspace (mouse forward) |
