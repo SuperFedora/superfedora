@@ -163,22 +163,19 @@ Singleton {
 
     function normalizeDeckTab(sec) {
         const s = String(sec || "").toLowerCase();
-        if (s === "ai" || s === "agent" || s === "1") return "ai";
+        if (s === "ai" || s === "harness" || s === "agent" || s === "1") return "ai";
         if (s === "wifi" || s === "net" || s === "wlan" || s === "2") return "wifi";
         if (s === "bluetooth" || s === "bt" || s === "3") return "bluetooth";
         if (s === "audio" || s === "sensors" || s === "cam" || s === "mic" || s === "speaker" || s === "io" || s === "zerotrust" || s === "4") return "audio";
-        if (s === "system" || s === "state" || s === "software" || s === "surface" || s === "forge" || s === "5") return "system";
-        if (s === "power" || s === "battery" || s === "session" || s === "6") return "power";
-        return root.superDeckSection || "ai";
+        if (s === "display" || s === "screen" || s === "kbd" || s === "input" || s === "5") return "display";
+        if (s === "theme" || s === "appearance" || s === "surface" || s === "6") return "theme";
+        if (s === "shell" || s === "bar" || s === "dock" || s === "7") return "shell";
+        if (s === "forge" || s === "software" || s === "build" || s === "8") return "forge";
+        if (s === "state" || s === "snapshots" || s === "btrfs" || s === "system" || s === "9") return "state";
+        return (s === "power" || s === "battery" || s === "session" || s === "0" || s === "10") ? "power" : (root.superDeckSection || "ai");
     }
-
     property bool _quakeShown: false
-    function syncQuakeAi(hdrH) {
-        const want = root.superDeckOpen && root.normalizeDeckTab(root.superDeckSection) === "ai";
-        if (!want && !root._quakeShown) return;
-        root._quakeShown = want;
-        Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh " + (want ? ("show " + (hdrH || 40)) : "hide keep-deck") + " >/dev/null 2>&1"]);
-    }
+    function syncQuakeAi(hdrH) { const want = root.superDeckOpen && root.normalizeDeckTab(root.superDeckSection) === "ai"; if (!want && !root._quakeShown) return; root._quakeShown = want; Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh " + (want ? ("show " + (hdrH || 40)) : "hide keep-deck") + " >/dev/null 2>&1"]); }
     onSuperDeckOpenChanged: root.syncQuakeAi()
     onSuperDeckSectionChanged: if (root.superDeckOpen) root.syncQuakeAi()
 
@@ -244,8 +241,8 @@ Singleton {
     Connections { target: Hyprland; function onRawEvent(event) { const n = String(event.name || ""); if (n.includes("window") || n.includes("workspace") || n.includes("focusedmon")) clientsProc.running = true; if (n.includes("focusedmon") && root.superDeckOpen && root.normalizeDeckTab(root.superDeckSection) === "ai") root.syncQuakeAi(); } }
     Component.onCompleted: { root.reloadBarIcons(); root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); clientsProc.running = true; }
     IpcHandler { target: "dock"; function reload(): void { root.reloadDock(); clientsProc.running = true; } function toggleApps(): void { root.appGridOpen = !root.appGridOpen; root.playSfx("click"); } function toggle(): void { root.runDockCmd("always toggle"); } }
-    IpcHandler { target: "superdeck"; function toggle(): void { root.toggleSuperDeck(""); } function toggleAi(): void { root.toggleSuperDeck("ai"); } function open(sec: string): void { const t = root.normalizeDeckTab(sec), wasOpen = root.superDeckOpen, prev = root.superDeckSection; root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; root.superDeckOpen = true; if (wasOpen && prev === t) root.syncQuakeAi(); root.refresh(); } function close(): void { root.superDeckOpen = false; } }
-    IpcHandler { target: "panels"; function settings(): void { root.toggleSuperDeck("system"); } }
+    IpcHandler { target: "superdeck"; function toggle(): void { root.toggleSuperDeck(""); } function toggleAi(): void { root.toggleSuperDeck("ai"); } function open(sec: string): void { const t = root.normalizeDeckTab(sec), wasOpen = root.superDeckOpen, prev = root.superDeckSection; root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; root.superDeckOpen = true; if (wasOpen && prev === t) root.syncQuakeAi(); root.refresh(); } function numkey(n: string): void { if (root.superDeckOpen) { const t = root.normalizeDeckTab(n), prev = root.superDeckSection; root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; if (prev === t) root.syncQuakeAi(); root.refresh(); root.playSfx("click"); } else Hyprland.dispatch("workspace " + (n === "0" ? "empty" : n)); } function close(): void { root.superDeckOpen = false; } }
+    IpcHandler { target: "panels"; function settings(): void { root.toggleSuperDeck("theme"); } }
     IpcHandler { target: "status"; function refresh(): void { root.refresh(); } function reloadBar(): void { root.reloadBarIcons(); } }
     Timer { interval: 4500; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
     function refresh() { netProc.running = true; idleProc.running = true; tzProc.running = true; clientsProc.running = true; root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); }

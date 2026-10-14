@@ -139,7 +139,7 @@ else printf '\033[1;33m[!]\033[0m %s (%s) is not installed yet. Configure via To
 exec "${SHELL:-/bin/bash}"
 EOF
     } > "$runner"; chmod +x "$runner"
-    hyprctl dispatch exec "[workspace special:ai silent; float; size $Q_W $Q_H; move $Q_X $Q_Y] kitty --class quake-ai -o 'map escape launch --type=background $SELF hide' -o 'map shift+escape send_text all \x1b' -o 'map alt+2 launch --type=background qs ipc call superdeck open wifi' -o 'map alt+3 launch --type=background qs ipc call superdeck open bluetooth' -o 'map alt+4 launch --type=background qs ipc call superdeck open audio' -o 'map alt+5 launch --type=background qs ipc call superdeck open system' -o 'map alt+6 launch --type=background qs ipc call superdeck open power' --title 'Quake AI — $safe_title' -e $runner" >/dev/null
+    hyprctl dispatch exec "[workspace special:ai silent; float; size $Q_W $Q_H; move $Q_X $Q_Y] kitty --class quake-ai -o 'map escape launch --type=background $SELF hide' -o 'map shift+escape send_text all \x1b' -o 'map alt+2 launch --type=background qs ipc call superdeck open 2' -o 'map alt+3 launch --type=background qs ipc call superdeck open 3' -o 'map alt+4 launch --type=background qs ipc call superdeck open 4' -o 'map alt+5 launch --type=background qs ipc call superdeck open 5' -o 'map alt+6 launch --type=background qs ipc call superdeck open 6' -o 'map alt+7 launch --type=background qs ipc call superdeck open 7' -o 'map alt+8 launch --type=background qs ipc call superdeck open 8' -o 'map alt+9 launch --type=background qs ipc call superdeck open 9' -o 'map alt+0 launch --type=background qs ipc call superdeck open 0' --title 'Quake AI — $safe_title' -e $runner" >/dev/null
     for _ in {1..30}; do has_quake_client && break; sleep 0.04; done
 }
 
