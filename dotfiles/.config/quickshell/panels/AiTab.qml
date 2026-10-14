@@ -4,58 +4,77 @@ import Quickshell
 import Quickshell.Services.Pipewire
 import ".."
 
-// SuperDesk 16-Bit SNES Helper: [1] HARNESS Inline Agent Bar + [4] AUDIO (Privacy Gates & PipeWire) + [5] DISPLAY (Brightness, Kbd & Idle).
+// SuperDesk 16-Bit Quick Actions: [1] AI (Quick AI Prompt & Terminal) + [4] AUDIO (Privacy & PipeWire) + [5] DISPLAY (Brightness, Kbd & Idle).
 ColumnLayout {
     id: audioDeck
     property string activeTab: "ai"
-    property bool agentBarOpen: false
-    signal executeCommand(string cmd, bool closeAfter)
-    signal agentSelected()
+    signal executeCommand(string cmd, bool closeAfter); signal switchTabRequested(int tabIndex)
+    signal cycleTabRequested(bool backward); signal closeRequested()
     Layout.fillWidth: true; Layout.fillHeight: true; spacing: 8
+    function focusInput() { if (audioDeck.activeTab === "ai") aiPromptInput.forceActiveFocus(); }
 
     readonly property var sink: Pipewire.defaultAudioSink; readonly property bool audioReady: sink !== null && sink.audio !== null
     readonly property real vol: audioReady ? sink.audio.volume : Status.spkVol; readonly property bool muted: audioReady ? sink.audio.muted : Status.spkMuted
     readonly property var source: Pipewire.defaultAudioSource; readonly property bool micReady: source !== null && source.audio !== null
     readonly property real micVol: micReady ? source.audio.volume : Status.micVol; readonly property bool micMuted: micReady ? source.audio.muted : Status.micMuted
 
-    readonly property var agentList: [
-        { id: "agy", label: "AGY" }, { id: "mcode", label: "MCODE" }, { id: "grok", label: "GROK" },
-        { id: "vibe", label: "VIBE" }, { id: "claude", label: "CLAUDE" }, { id: "chatgpt", label: "CHATGPT" },
-        { id: "ollama", label: "OLLAMA" }
-    ]
+    function submitAiPrompt() { const q = String(aiPromptInput.text || "").trim(); if (!q) return; Status.askQuickAi(q); aiPromptInput.text = ""; }
 
-    // ---------------- [1] HARNESS: Compact Inline 16-Bit Agent Picker Bar ----------------
-    Rectangle {
-        visible: audioDeck.activeTab === "ai" && audioDeck.agentBarOpen
-        Layout.fillWidth: true; implicitHeight: 36; radius: Theme.radius; color: Theme.bg; border.width: 2; border.color: Theme.cyan
-        Rectangle { anchors { fill: parent; margins: 2 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
-        RowLayout {
-            anchors { fill: parent; leftMargin: 8; rightMargin: 8 } spacing: 6
-            Text { text: "SELECT HARNESS ▸"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true }
-            Repeater {
-                model: audioDeck.agentList
-                Rectangle {
-                    required property var modelData; readonly property bool isCur: Status.aiAgent === modelData.id
-                    Layout.fillWidth: true; implicitHeight: 24; radius: Theme.radiusSm
-                    color: agM.containsMouse ? Theme.blue : (isCur ? Theme.bgAlt : Theme.bg)
-                    border.width: isCur ? 2 : 1; border.color: isCur ? Theme.cyan : Theme.border
-                    Text { anchors.centerIn: parent; text: (parent.isCur ? "▸ " : "") + parent.modelData.label; color: agM.containsMouse ? Theme.bg : (parent.isCur ? Theme.cyan : Theme.fg); font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
-                    MouseArea { id: agM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Status.selectAiAgent(parent.modelData.id); audioDeck.agentSelected(); } }
+    // ---------------- [1] AI: Quick AI Prompt & Response Console (Same Size & Animation as All Tabs) ----------------
+    ColumnLayout {
+        visible: audioDeck.activeTab === "ai"; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 8
+        Rectangle {
+            Layout.fillWidth: true; implicitHeight: 88; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: Theme.blue
+            Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
+            ColumnLayout {
+                anchors { fill: parent; margins: 12 } spacing: 8
+                RowLayout {
+                    Layout.fillWidth: true; spacing: 8
+                    Text { Layout.fillWidth: true; text: "▸ QUICK AI  —  ACTIVE HARNESS: " + Status.aiAgent.toUpperCase(); color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true }
+                    Rectangle { implicitWidth: 156; implicitHeight: 26; radius: Theme.radiusSm; color: ttyM.containsMouse ? Theme.blue : Theme.bg; border.width: 1; border.color: Theme.cyan; Text { anchors.centerIn: parent; text: "[ 󰆍 OPEN TERMINAL ]"; color: ttyM.containsMouse ? Theme.bg : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: ttyM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: audioDeck.executeCommand("~/.config/hypr/scripts/quake-ai.sh toggle", true) } }
+                }
+                RowLayout {
+                    Layout.fillWidth: true; spacing: 8
+                    Rectangle {
+                        Layout.fillWidth: true; implicitHeight: 34; radius: Theme.radiusSm; color: Theme.bg; border.width: 2; border.color: aiPromptInput.activeFocus ? Theme.cyan : Theme.border
+                        TextInput {
+                            id: aiPromptInput; anchors { fill: parent; leftMargin: 10; rightMargin: 10 } verticalAlignment: TextInput.AlignVCenter
+                            color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; clip: true; Keys.onReturnPressed: audioDeck.submitAiPrompt()
+                            Keys.onPressed: event => {
+                                if (event.key === Qt.Key_Escape) { audioDeck.closeRequested(); event.accepted = true; }
+                                else if ((event.modifiers & (Qt.MetaModifier | Qt.AltModifier | Qt.ControlModifier)) && ((event.key >= Qt.Key_1 && event.key <= Qt.Key_9) || event.key === Qt.Key_0)) { audioDeck.switchTabRequested(event.key === Qt.Key_0 ? 9 : (event.key - Qt.Key_1)); event.accepted = true; }
+                                else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { audioDeck.cycleTabRequested(event.key === Qt.Key_Backtab || Boolean(event.modifiers & Qt.ShiftModifier)); event.accepted = true; }
+                            }
+                            Text { visible: aiPromptInput.text === ""; anchors.verticalCenter: parent.verticalCenter; text: "Ask Quick AI anything and press Enter..."; color: Theme.muted; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1 }
+                        }
+                    }
+                    Rectangle { implicitWidth: 112; implicitHeight: 34; radius: Theme.radiusSm; color: askM.containsMouse ? Theme.cyan : Theme.blue; Text { anchors.centerIn: parent; text: Status.aiBusy ? "[ ... ]" : "[ ASK AI ]"; color: Theme.bg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true } MouseArea { id: askM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: audioDeck.submitAiPrompt() } }
                 }
             }
-            Rectangle {
-                implicitWidth: 96; implicitHeight: 24; radius: Theme.radiusSm; color: rspM.containsMouse ? Theme.yellow : Theme.bgAlt; border.width: 1; border.color: Theme.yellow
-                Text { anchors.centerIn: parent; text: "󰑐 RESPAWN"; color: rspM.containsMouse ? Theme.bg : Theme.yellow; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
-                MouseArea { id: rspM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { audioDeck.agentSelected(); audioDeck.executeCommand("~/.config/hypr/scripts/quake-ai.sh restart", false); } }
+        }
+        Rectangle {
+            Layout.fillWidth: true; Layout.fillHeight: true; clip: true; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: Theme.blue
+            Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
+            ColumnLayout {
+                anchors { fill: parent; margins: 12 } spacing: 6
+                RowLayout {
+                    Layout.fillWidth: true
+                    Text { Layout.fillWidth: true; text: Status.aiBusy ? "▸ PROCESSING PROMPT..." : "▸ RESPONSE OUTPUT"; color: Status.aiBusy ? Theme.yellow : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true }
+                    Rectangle { implicitWidth: 82; implicitHeight: 22; radius: Theme.radiusSm; color: clrM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: Theme.border; Text { anchors.centerIn: parent; text: "[ CLEAR ]"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: clrM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.aiReply = "Ready. Type a prompt above and press Enter." } }
+                }
+                Flickable {
+                    Layout.fillWidth: true; Layout.fillHeight: true; contentHeight: aiOutTxt.implicitHeight; clip: true
+                    Text { id: aiOutTxt; width: parent.width; text: Status.aiReply; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; wrapMode: Text.Wrap }
+                }
             }
         }
     }
 
     // ---------------- [4] AUDIO: Hardware Privacy Gates & PipeWire Routing ----------------
     ColumnLayout {
-        visible: audioDeck.activeTab === "audio"; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 10
+        visible: audioDeck.activeTab === "audio"; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 8
         RowLayout {
-            Layout.fillWidth: true; implicitHeight: 68; spacing: 10
+            Layout.fillWidth: true; implicitHeight: 58; spacing: 10
             Repeater {
                 model: [
                     { id: "cam", label: Status.webcamEnabled ? "[ 󰄀 CAMERA: ON ]" : "[ 󰗟 CAMERA: OFF ]", col: Status.webcamEnabled ? Theme.green : Theme.red },
@@ -66,16 +85,8 @@ ColumnLayout {
                     id: gateCard; required property var modelData; Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radius
                     color: gMouse.containsMouse ? Theme.bgHover : Theme.bgAlt; border.width: 2; border.color: modelData.col
                     Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
-                    Text { anchors.centerIn: parent; text: (gMouse.containsMouse ? "▸ " : "") + gateCard.modelData.label; color: gateCard.modelData.col; font.family: Theme.font; font.pixelSize: Theme.fontSize + 1; font.bold: true }
-                    MouseArea {
-                        id: gMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            const k = gateCard.modelData.id;
-                            if (k === "cam") Status.toggleWebcam();
-                            else if (k === "mic") { const m = !audioDeck.micMuted; if (audioDeck.micReady) audioDeck.source.audio.muted = m; Status.toggleMicMute(m); }
-                            else { const m = !audioDeck.muted; if (audioDeck.audioReady) audioDeck.sink.audio.muted = m; Status.toggleSpeakerMute(m); }
-                        }
-                    }
+                    Text { anchors.centerIn: parent; text: (gMouse.containsMouse ? "▸ " : "") + gateCard.modelData.label; color: gateCard.modelData.col; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true }
+                    MouseArea { id: gMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { const k = gateCard.modelData.id; if (k === "cam") Status.toggleWebcam(); else if (k === "mic") { const m = !audioDeck.micMuted; if (audioDeck.micReady) audioDeck.source.audio.muted = m; Status.toggleMicMute(m); } else { const m = !audioDeck.muted; if (audioDeck.audioReady) audioDeck.sink.audio.muted = m; Status.toggleSpeakerMute(m); } } }
                 }
             }
         }
@@ -85,37 +96,15 @@ ColumnLayout {
                 { id: "mic", title: "󰍬  MICROPHONE GAIN", val: audioDeck.micVol, muted: audioDeck.micMuted, col: Theme.green, hiCol: Theme.cyan }
             ]
             Rectangle {
-                id: tankCard; required property var modelData; Layout.fillWidth: true; implicitHeight: 82; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: modelData.muted ? Theme.red : Theme.blue
+                id: tankCard; required property var modelData; Layout.fillWidth: true; implicitHeight: 74; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: modelData.muted ? Theme.red : Theme.blue
                 Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
                 ColumnLayout {
-                    anchors { fill: parent; margins: 12 } spacing: 8
-                    RowLayout {
-                        Layout.fillWidth: true; spacing: 10
-                        Text { text: "▸ " + tankCard.modelData.title; color: tankCard.modelData.muted ? Theme.red : tankCard.modelData.hiCol; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true; Layout.fillWidth: true }
-                        Text { text: (tankCard.modelData.muted ? "[MUTED] " : "") + Math.round(tankCard.modelData.val * 100) + "%"; color: tankCard.modelData.muted ? Theme.red : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true }
-                    }
+                    anchors { fill: parent; margins: 10 } spacing: 6
+                    RowLayout { Layout.fillWidth: true; spacing: 10; Text { text: "▸ " + tankCard.modelData.title; color: tankCard.modelData.muted ? Theme.red : tankCard.modelData.hiCol; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true; Layout.fillWidth: true } Text { text: (tankCard.modelData.muted ? "[MUTED] " : "") + Math.round(tankCard.modelData.val * 100) + "%"; color: tankCard.modelData.muted ? Theme.red : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true } }
                     Item {
-                        Layout.fillWidth: true; height: 24
-                        RowLayout {
-                            anchors.fill: parent; spacing: 4
-                            Repeater {
-                                model: 16
-                                Rectangle {
-                                    required property int index; readonly property bool lit: (index + 1) / 16.0 <= tankCard.modelData.val + 0.02
-                                    Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; border.width: 1; border.color: lit ? Theme.cyan : Theme.border
-                                    color: !lit ? Theme.bg : (tankCard.modelData.muted ? Theme.muted : (index >= 12 ? tankCard.modelData.hiCol : tankCard.modelData.col))
-                                }
-                            }
-                        }
-                        MouseArea {
-                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            function apply(mx) {
-                                const v = Math.max(0, Math.min(1, Math.round((mx / width) * 16) / 16.0));
-                                if (tankCard.modelData.id === "spk") { if (audioDeck.audioReady) audioDeck.sink.audio.volume = v; Status.setSpeakerVolume(v); }
-                                else { if (audioDeck.micReady) audioDeck.source.audio.volume = v; Status.setMicVolume(v); }
-                            }
-                            onPressed: e => apply(e.x); onPositionChanged: e => { if (pressed) apply(e.x); }
-                        }
+                        Layout.fillWidth: true; height: 22
+                        RowLayout { anchors.fill: parent; spacing: 4; Repeater { model: 16; Rectangle { required property int index; readonly property bool lit: (index + 1) / 16.0 <= tankCard.modelData.val + 0.02; Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; border.width: 1; border.color: lit ? Theme.cyan : Theme.border; color: !lit ? Theme.bg : (tankCard.modelData.muted ? Theme.muted : (index >= 12 ? tankCard.modelData.hiCol : tankCard.modelData.col)) } } }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; function apply(mx) { const v = Math.max(0, Math.min(1, Math.round((mx / width) * 16) / 16.0)); if (tankCard.modelData.id === "spk") { if (audioDeck.audioReady) audioDeck.sink.audio.volume = v; Status.setSpeakerVolume(v); } else { if (audioDeck.micReady) audioDeck.source.audio.volume = v; Status.setMicVolume(v); } } onPressed: e => apply(e.x); onPositionChanged: e => { if (pressed) apply(e.x); } }
                     }
                 }
             }
@@ -124,32 +113,16 @@ ColumnLayout {
             Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: Theme.blue
             Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
             ColumnLayout {
-                anchors { fill: parent; margins: 12 } spacing: 10
+                anchors { fill: parent; margins: 10 } spacing: 8
                 RowLayout {
                     Layout.fillWidth: true; Layout.fillHeight: true; spacing: 6
-                    Text { text: "OUTPUT DEVICE:"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true; Layout.preferredWidth: 132 }
-                    Repeater {
-                        model: Status.audioSinks
-                        Rectangle {
-                            id: snkBtn; required property var modelData; Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm
-                            color: snkM.containsMouse ? Theme.bgHover : (modelData.active ? Theme.blue : Theme.bg); border.width: modelData.active ? 2 : 1; border.color: modelData.active ? Theme.cyan : Theme.border
-                            Text { anchors.centerIn: parent; width: parent.width - 12; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight; text: (snkBtn.modelData.active ? "▸ " : "") + snkBtn.modelData.name; color: snkBtn.modelData.active ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true }
-                            MouseArea { id: snkM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.setAudioDefault(snkBtn.modelData.id) }
-                        }
-                    }
+                    Text { text: "OUTPUT DEVICE:"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true; Layout.preferredWidth: 124 }
+                    Repeater { model: Status.audioSinks; Rectangle { id: snkBtn; required property var modelData; Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; color: snkM.containsMouse ? Theme.bgHover : (modelData.active ? Theme.blue : Theme.bg); border.width: modelData.active ? 2 : 1; border.color: modelData.active ? Theme.cyan : Theme.border; Text { anchors.centerIn: parent; width: parent.width - 12; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight; text: (snkBtn.modelData.active ? "▸ " : "") + snkBtn.modelData.name; color: snkBtn.modelData.active ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true } MouseArea { id: snkM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.setAudioDefault(snkBtn.modelData.id) } } }
                 }
                 RowLayout {
                     Layout.fillWidth: true; Layout.fillHeight: true; spacing: 6
-                    Text { text: "INPUT DEVICE:"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true; Layout.preferredWidth: 132 }
-                    Repeater {
-                        model: Status.audioSources
-                        Rectangle {
-                            id: srcBtn; required property var modelData; Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm
-                            color: srcM.containsMouse ? Theme.bgHover : (modelData.active ? Theme.blue : Theme.bg); border.width: modelData.active ? 2 : 1; border.color: modelData.active ? Theme.cyan : Theme.border
-                            Text { anchors.centerIn: parent; width: parent.width - 12; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight; text: (srcBtn.modelData.active ? "▸ " : "") + srcBtn.modelData.name; color: srcBtn.modelData.active ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true }
-                            MouseArea { id: srcM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.setAudioDefault(srcBtn.modelData.id) }
-                        }
-                    }
+                    Text { text: "INPUT DEVICE:"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true; Layout.preferredWidth: 124 }
+                    Repeater { model: Status.audioSources; Rectangle { id: srcBtn; required property var modelData; Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; color: srcM.containsMouse ? Theme.bgHover : (modelData.active ? Theme.blue : Theme.bg); border.width: modelData.active ? 2 : 1; border.color: modelData.active ? Theme.cyan : Theme.border; Text { anchors.centerIn: parent; width: parent.width - 12; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight; text: (srcBtn.modelData.active ? "▸ " : "") + srcBtn.modelData.name; color: srcBtn.modelData.active ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true } MouseArea { id: srcM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.setAudioDefault(srcBtn.modelData.id) } } }
                 }
             }
         }
@@ -157,59 +130,29 @@ ColumnLayout {
 
     // ---------------- [5] DISPLAY: Display Brightness, Keyboard Backlight & Idle Controls ----------------
     ColumnLayout {
-        visible: audioDeck.activeTab === "display"; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 10
+        visible: audioDeck.activeTab === "display"; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 8
         Rectangle {
-            Layout.fillWidth: true; implicitHeight: 96; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: Theme.blue
+            Layout.fillWidth: true; implicitHeight: 88; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: Theme.blue
             Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
             ColumnLayout {
-                anchors { fill: parent; margins: 14 } spacing: 10
-                RowLayout {
-                    Layout.fillWidth: true
-                    Text { text: "▸ 󰃠  DISPLAY BACKLIGHT BRIGHTNESS"; color: Theme.yellow; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true; Layout.fillWidth: true }
-                    Text { text: Math.round(Status.brightness * 100) + "%"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize + 1; font.bold: true }
-                }
+                anchors { fill: parent; margins: 12 } spacing: 8
+                RowLayout { Layout.fillWidth: true; Text { text: "▸ 󰃠  DISPLAY BACKLIGHT BRIGHTNESS"; color: Theme.yellow; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true; Layout.fillWidth: true } Text { text: Math.round(Status.brightness * 100) + "%"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize + 1; font.bold: true } }
                 Item {
-                    Layout.fillWidth: true; height: 28
-                    RowLayout {
-                        anchors.fill: parent; spacing: 4
-                        Repeater {
-                            model: 16
-                            Rectangle {
-                                required property int index; readonly property bool lit: (index + 1) / 16.0 <= Status.brightness + 0.02
-                                Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; border.width: 1; border.color: lit ? Theme.yellow : Theme.border; color: lit ? Theme.yellow : Theme.bg
-                            }
-                        }
-                    }
-                    MouseArea {
-                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                        function apply(mx) { Status.setBrightness(Math.max(0.06, Math.min(1, Math.round((mx / width) * 16) / 16.0))); }
-                        onPressed: e => apply(e.x); onPositionChanged: e => { if (pressed) apply(e.x); }
-                    }
+                    Layout.fillWidth: true; height: 24
+                    RowLayout { anchors.fill: parent; spacing: 4; Repeater { model: 16; Rectangle { required property int index; readonly property bool lit: (index + 1) / 16.0 <= Status.brightness + 0.02; Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; border.width: 1; border.color: lit ? Theme.yellow : Theme.border; color: lit ? Theme.yellow : Theme.bg } } }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; function apply(mx) { Status.setBrightness(Math.max(0.06, Math.min(1, Math.round((mx / width) * 16) / 16.0))); } onPressed: e => apply(e.x); onPositionChanged: e => { if (pressed) apply(e.x); } }
                 }
             }
         }
         Rectangle {
-            Layout.fillWidth: true; implicitHeight: 112; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: Theme.blue
+            Layout.fillWidth: true; implicitHeight: 96; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: Theme.blue
             Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
             ColumnLayout {
-                anchors { fill: parent; margins: 14 } spacing: 10
-                RowLayout {
-                    Layout.fillWidth: true
-                    Text { text: "▸ 󰌌  THINKPAD KEYBOARD BACKLIGHT & DPMS SYNC"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true; Layout.fillWidth: true }
-                    Text { text: "AUTO-OFF WITH SCREEN: ENABLED"; color: Theme.green; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
-                }
+                anchors { fill: parent; margins: 12 } spacing: 8
+                RowLayout { Layout.fillWidth: true; Text { text: "▸ 󰌌  KEYBOARD BACKLIGHT"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true; Layout.fillWidth: true } Text { text: "AUTO-OFF WITH SCREEN: ENABLED"; color: Theme.green; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } }
                 RowLayout {
                     Layout.fillWidth: true; Layout.fillHeight: true; spacing: 10
-                    Repeater {
-                        model: [ { lvl: 0, label: "[ OFF (0%) ]" }, { lvl: 1, label: "[ LOW (50%) ]" }, { lvl: 2, label: "[ HIGH (100%) ]" } ]
-                        Rectangle {
-                            id: kbBtn; required property var modelData; readonly property bool isCur: Status.kbdBacklight === modelData.lvl
-                            Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; color: kbBM.containsMouse ? Theme.bgHover : (isCur ? Theme.blue : Theme.bg)
-                            border.width: isCur ? 2 : 1; border.color: isCur ? Theme.cyan : Theme.border
-                            Text { anchors.centerIn: parent; text: (kbBtn.isCur ? "▸ " : "") + kbBtn.modelData.label; color: kbBtn.isCur ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true }
-                            MouseArea { id: kbBM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.setKbdBacklight(kbBtn.modelData.lvl) }
-                        }
-                    }
+                    Repeater { model: [ { lvl: 0, label: "[ OFF (0%) ]" }, { lvl: 1, label: "[ LOW (50%) ]" }, { lvl: 2, label: "[ HIGH (100%) ]" } ]; Rectangle { id: kbBtn; required property var modelData; readonly property bool isCur: Status.kbdBacklight === modelData.lvl; Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; color: kbBM.containsMouse ? Theme.bgHover : (isCur ? Theme.blue : Theme.bg); border.width: isCur ? 2 : 1; border.color: isCur ? Theme.cyan : Theme.border; Text { anchors.centerIn: parent; text: (kbBtn.isCur ? "▸ " : "") + kbBtn.modelData.label; color: kbBtn.isCur ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true } MouseArea { id: kbBM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.setKbdBacklight(kbBtn.modelData.lvl) } } }
                 }
             }
         }
@@ -217,18 +160,14 @@ ColumnLayout {
             Layout.fillWidth: true; Layout.fillHeight: true; spacing: 10
             Repeater {
                 model: [
-                    { label: Status.idleEnabled ? "[ 󰒲 AUTO-IDLE: ENABLED ]" : "[ 󰅶 STAY AWAKE: ACTIVE ]", sub: "Super + Ctrl + I  ·  Toggle hypridle", cmd: "~/.config/hypr/scripts/toggle-idle.sh", close: false, col: Status.idleEnabled ? Theme.cyan : Theme.yellow },
-                    { label: "[ 󰍹 START IDLESCREEN NOW ]", sub: "Super + Shift + I  ·  16-Bit Arcade Saver", cmd: "PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" idlescreen start", close: true, col: Theme.green },
-                    { label: "[ 󰍸 TOGGLE TOUCHPAD ]", sub: "Enable / Disable ELAN Touchpad", cmd: "~/.config/hypr/scripts/toggle-touchpad.sh touchpad", close: false, col: Theme.blue }
+                    { label: Status.idleEnabled ? "[ 󰒲 AUTO-IDLE: ON ]" : "[ 󰅶 STAY AWAKE ]", sub: "Super + Ctrl + I", cmd: "~/.config/hypr/scripts/toggle-idle.sh", close: false, col: Status.idleEnabled ? Theme.cyan : Theme.yellow },
+                    { label: "[ 󰍹 START IDLESCREEN ]", sub: "Super + Shift + I", cmd: "PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" idlescreen start", close: true, col: Theme.green },
+                    { label: "[ 󰍸 TOGGLE TOUCHPAD ]", sub: "ELAN Touchpad", cmd: "~/.config/hypr/scripts/toggle-touchpad.sh touchpad", close: false, col: Theme.blue }
                 ]
                 Rectangle {
                     id: dpCard; required property var modelData; Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radius; color: dpM.containsMouse ? Theme.bgHover : Theme.bgAlt; border.width: 2; border.color: dpCard.modelData.col
                     Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
-                    ColumnLayout {
-                        anchors.centerIn: parent; spacing: 6
-                        Text { Layout.alignment: Qt.AlignHCenter; text: (dpM.containsMouse ? "▸ " : "") + dpCard.modelData.label; color: dpCard.modelData.col; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true }
-                        Text { Layout.alignment: Qt.AlignHCenter; text: dpCard.modelData.sub; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
-                    }
+                    ColumnLayout { anchors.centerIn: parent; spacing: 4; Text { Layout.alignment: Qt.AlignHCenter; text: (dpM.containsMouse ? "▸ " : "") + dpCard.modelData.label; color: dpCard.modelData.col; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true } Text { Layout.alignment: Qt.AlignHCenter; text: dpCard.modelData.sub; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } }
                     MouseArea { id: dpM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: audioDeck.executeCommand(dpCard.modelData.cmd, dpCard.modelData.close) }
                 }
             }

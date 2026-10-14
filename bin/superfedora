@@ -55,6 +55,7 @@ CMD="${1:-}"; [[ $# -gt 0 ]] && shift
 [[ "$CMD" == "forge" ]] && exec "$SF_ROOT/lib/forge.sh" "$@"
 [[ "$CMD" == "sfx" || "$CMD" == "sound" ]] && exec "$SF_ROOT/lib/sfx.sh" "$@"
 [[ "$CMD" == "tui" || "$CMD" == "welcome" || "$CMD" == "deck" ]] && exec "$SF_ROOT/lib/tui.sh" "$CMD" "$@"
+[[ "$CMD" == "settings" || "$CMD" == "config" ]] && { if [[ -n "${1:-}" ]]; then qs ipc call settings open "$1"; else qs ipc call settings toggle; fi; exit 0; }
 [[ "$CMD" == "rollback" || "$CMD" == "snapshots" ]] && exec "$SF_ROOT/lib/tui.sh" rollback "$@"
 [[ "$CMD" == "ai" || "$CMD" == "quake" ]] && exec "$SF_ROOT/dotfiles/.config/hypr/scripts/quake-ai.sh" "$@"
 [[ "$CMD" == "webcam" || "$CMD" == "camera" || "$CMD" == "mic" || "$CMD" == "speaker" ]] && exec "$SF_ROOT/dotfiles/.config/hypr/scripts/toggle-touchpad.sh" "$CMD" "$@"

@@ -174,7 +174,8 @@ forge_generic_dir() {
 }
 
 forge_target() {
-    local raw="$1" force="${2:-0}" dry="${3:-0}"
+    local raw="${1%/}" force="${2:-0}" dry="${3:-0}"
+    raw="${raw%.git}"; raw="${raw#https://github.com/}"; raw="${raw#http://github.com/}"; raw="${raw#github.com/}"
     detect_hw
     local name="$raw" repo="" bin="$raw" cargo_args="" local_src="" git_branch=""
     case "${raw,,}" in
@@ -190,8 +191,8 @@ forge_target() {
         fuzzel|dnkl/fuzzel) name="fuzzel"; repo="https://codeberg.org/dnkl/fuzzel.git"; bin="fuzzel" ;;
         hyprland|hyprwm/hyprland) name="hyprland"; repo="https://github.com/hyprwm/Hyprland.git"; bin="Hyprland"; git_branch="v$(rpm -q --qf '%{VERSION}' hyprland 2>/dev/null || echo 0.56.2)" ;;
         quickshell|outfoxxed/quickshell|quickshell-mirror/quickshell) name="quickshell"; repo="https://github.com/quickshell-mirror/quickshell.git"; bin="quickshell" ;;
-        */*) name="${raw##*/}"; name="${name%.git}"; bin="$name"; [[ "$raw" == http*://* || "$raw" == git@* ]] && repo="$raw" || repo="https://github.com/${raw}.git" ;;
-        *) echo "error: unknown preset '$raw' (use <owner>/<repo> or preset: ripgrep, fastfetch, idlescreen, fd, zoxide, btop, hyprland, quickshell)" >&2; return 2 ;;
+        */*) name="${raw##*/}"; bin="$name"; [[ "$raw" == http*://* || "$raw" == git@* ]] && repo="${raw}.git" || repo="https://github.com/${raw}.git" ;;
+        *) echo "error: unknown target '$raw' (paste a GitHub URL https://github.com/owner/repo or owner/repo)" >&2; return 2 ;;
     esac
     if [[ "$dry" -eq 1 ]]; then
         printf '[DRY-RUN] Would forge %s (%s -> %s/%s) with -march=%s (%s threads, linker=%s)\n  Deps: %s\n' "$name" "$repo" "$BIN_DIR" "$bin" "$MARCH_TARGET" "$CPU_JOBS" "$LINKER" "$(preset_deps "$name")"; return 0

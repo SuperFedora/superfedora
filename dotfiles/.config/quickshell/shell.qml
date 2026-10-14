@@ -4,7 +4,7 @@ import Quickshell
 import Quickshell.Io
 import "panels"
 
-// Entry point: Omarchy-style Top Bar + Dock per monitor + Launchpad AppGrid + Notifications + OSD + LockScreen.
+// Entry point: Omarchy-style Top Bar + Dock per monitor + Launchpad AppGrid + SettingsWindow + Notifications + OSD + LockScreen.
 ShellRoot {
     id: root
     property bool barVisible: true
@@ -17,6 +17,11 @@ ShellRoot {
     Variants {
         model: root.barVisible ? Quickshell.screens : []
         Dock {}
+    }
+
+    Variants {
+        model: Quickshell.screens
+        SettingsWindow { required property var modelData; targetScreen: modelData }
     }
 
     AppGrid {}
@@ -37,4 +42,3 @@ ShellRoot {
         function setAgent(agent: string): void { Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh select-agent '" + agent + "'"]); }
     }
 }
-

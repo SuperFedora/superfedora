@@ -1,11 +1,10 @@
 pragma Singleton
-
 import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 
-// Consolidated system state & event-driven probes (CPU, RAM, GPU, Temp, Net, Wi-Fi, Brightness, SFX, Dock, SuperDeck).
+// Consolidated system state & event-driven probes (CPU, RAM, GPU, Temp, Net, Wi-Fi, Brightness, SFX, Dock, SuperDesk, Settings).
 Singleton {
     id: root
 
@@ -14,9 +13,12 @@ Singleton {
     property string netType: "none"; property bool wifiEnabled: true; property string ssid: ""; property int signal: 0; property var wifiList: []; property var savedWifiList: []
     property real brightness: 1.0; property bool idleEnabled: true; property bool sfxEnabled: true
     property real spkVol: 0.6; property bool spkMuted: false; property real micVol: 1.0; property bool micMuted: false; property bool webcamEnabled: true
-    property var audioSinks: []; property var audioSources: []
+    property var audioSinks: []; property var audioSources: []; property var startupApps: []
     property int kbdBacklight: 0; property bool bat0Present: false; property string bat0Threshold: "Standard (0% - 100%)"; property string aiAgent: "agy"
+    property string aiReply: "Ready. Type a prompt above and press Enter for an instant answer, or click [ OPEN TERMINAL ] for an interactive session."
+    property bool aiBusy: false; property string _pendingAiPrompt: ""
     property bool pocketOpen: false; property bool superDeckOpen: false; property string superDeckSection: "ai"; property bool superDeckPowerHighlight: false
+    property bool settingsOpen: false; property string settingsPage: "wifi"
     property bool clock24h: true; property bool clockSeconds: false; property string localTz: "Local"; property bool autoTz: true
     property var worldClocks: []; property bool dnd: false; property bool sessionLocked: false
     property int notifUnread: 0; property int centerToggleSeq: 0; property var notifHistory: []; property var notifAction: null
@@ -78,10 +80,11 @@ Singleton {
             "echo \"CAM|$(cat ~/.config/superfedora/webcam-enabled 2>/dev/null || echo on)\"; " +
             "~/.config/hypr/scripts/toggle-touchpad.sh dpms sync >/dev/null 2>&1 || true; k=$(cat /sys/class/leds/tpacpi::kbd_backlight/brightness ~/.config/superfedora/kbd-backlight 2>/dev/null | head -n1); echo \"KBD|${k:-0}\"; " +
             "ag=$(grep '^AI_AGENT=' ~/.config/superfedora/quake-ai.env 2>/dev/null | cut -d= -f2 | tr -d \"'\\\"\"); echo \"AGY|${ag:-agy}\"; " +
+            "awk -F'=' '/^[[:space:]]*exec-once[[:space:]]*=/{c=$2; sub(/^[[:space:]]+/,\"\",c); if(c!~/(systemctl|superfedora\\.locked|hyprpolkitagent|sfx play startup)/) print \"STA|\"c}' ~/.config/hypr/conf/autostart.conf 2>/dev/null || true; " +
             "if [ -d /sys/class/power_supply/BAT0 ]; then bs=$(cat /sys/class/power_supply/BAT0/charge_control_start_threshold /sys/class/power_supply/BAT0/charge_start_threshold 2>/dev/null | head -n1); be=$(cat /sys/class/power_supply/BAT0/charge_control_end_threshold /sys/class/power_supply/BAT0/charge_stop_threshold 2>/dev/null | head -n1); echo \"BAT0|1|${bs:-0}|${be:-100}\"; fi"]
         stdout: StdioCollector {
             onStreamFinished: {
-                const lines = text.trim().split("\n"), type = lines[0] || "none", byName = {}, list = [], saved = [], sinks = [], sources = [];
+                const lines = text.trim().split("\n"), type = lines[0] || "none", byName = {}, list = [], saved = [], sinks = [], sources = [], stApps = [];
                 let activeSsid = "", activeSig = 0;
                 for (let i = 1; i < lines.length; i++) {
                     if (lines[i].startsWith("WFR|")) { root.wifiEnabled = (lines[i].split("|")[1] || "enabled").trim() !== "disabled"; continue; }
@@ -93,6 +96,7 @@ Singleton {
                     if (lines[i].startsWith("CAM|")) { const cv = (lines[i].split("|")[1] || "on").trim().toLowerCase(); root.webcamEnabled = (cv !== "off" && cv !== "0" && cv !== "false"); continue; }
                     if (lines[i].startsWith("KBD|")) { root.kbdBacklight = Math.max(0, Math.min(2, Number(lines[i].split("|")[1] || 0))); continue; }
                     if (lines[i].startsWith("AGY|")) { root.aiAgent = (lines[i].split("|")[1] || "agy").trim(); continue; }
+                    if (lines[i].startsWith("STA|")) { const sc = lines[i].slice(4).trim(); if (sc) stApps.push(sc); continue; }
                     if (lines[i].startsWith("BAT0|")) { const bp = lines[i].split("|"); root.bat0Present = true; root.bat0Threshold = "Start " + (bp[2] || "0") + "% / Stop " + (bp[3] || "100") + "%"; continue; }
                     const parts = lines[i].split(":"); if (parts.length < 4) continue;
                     const act = parts[0] === "yes", sig = Number(parts[1] || 0), sec = (parts[2] || "").trim(), name = parts.slice(3).join(":").replace(/\\:/g, ":").replace(/\\\\/g, "\\").trim(), open = (!sec || sec === "--");
@@ -102,22 +106,17 @@ Singleton {
                     else if (list.length < 8 || act) { const item = { ssid: name, signal: sig, active: act, open: open, security: open ? "OPEN" : "WPA", saved: saved.indexOf(name) !== -1 }; byName[name] = item; list.push(item); }
                 }
                 list.sort((a, b) => (b.active - a.active) || (b.signal - a.signal));
-                root.savedWifiList = saved; root.audioSinks = sinks; root.audioSources = sources;
+                root.savedWifiList = saved; root.audioSinks = sinks; root.audioSources = sources; root.startupApps = stApps;
                 root.wifiList = list.slice(0, 8); root.netType = (type === "wifi" || type === "ethernet") ? type : "none";
                 root.signal = type === "wifi" ? activeSig : 0; root.ssid = type === "wifi" ? activeSsid : "";
             }
         }
     }
 
+    Process { id: aiAskProc; command: ["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh ask " + JSON.stringify(root._pendingAiPrompt)]; stdout: StdioCollector { onStreamFinished: { root.aiReply = text.trim() || "Done."; root.aiBusy = false; } } }
     Process {
         id: tzProc
-        command: ["sh", "-c",
-            "mkdir -p ~/.config/superfedora; f=~/.config/superfedora/clock.conf; [ -f \"$f\" ] && . \"$f\"; " +
-            "w=~/.config/superfedora/world-clocks.txt; [ -f \"$w\" ] || printf 'UTC\\nAmerica/New_York\\nAmerica/Los_Angeles\\nEurope/London\\n' > \"$w\"; " +
-            "c24=\"${CLOCK_24H:-1}\"; csec=\"${CLOCK_SECONDS:-0}\"; tz=$(timedatectl show -p Timezone --value 2>/dev/null || echo Local); abbr=$(date +%Z); " +
-            "auto=$(gsettings get org.gnome.desktop.datetime automatic-timezone 2>/dev/null || echo true); echo \"CFG|$c24|$csec|$tz ($abbr)|$auto\"; " +
-            "fmt=$([ \"$c24\" = \"1\" ] && echo '%a %H:%M' || echo '%a %I:%M %p'); " +
-            "while IFS= read -r z; do [ -n \"$z\" ] && printf 'WC|%s|%s\\n' \"$z\" \"$(TZ=\"$z\" date +\"$fmt\")\"; done < \"$w\""]
+        command: ["sh", "-c", "mkdir -p ~/.config/superfedora; f=~/.config/superfedora/clock.conf; [ -f \"$f\" ] && . \"$f\"; w=~/.config/superfedora/world-clocks.txt; [ -f \"$w\" ] || printf 'UTC\\nAmerica/New_York\\nAmerica/Los_Angeles\\nEurope/London\\n' > \"$w\"; c24=\"${CLOCK_24H:-1}\"; csec=\"${CLOCK_SECONDS:-0}\"; tz=$(timedatectl show -p Timezone --value 2>/dev/null || echo Local); abbr=$(date +%Z); auto=$(gsettings get org.gnome.desktop.datetime automatic-timezone 2>/dev/null || echo true); echo \"CFG|$c24|$csec|$tz ($abbr)|$auto\"; fmt=$([ \"$c24\" = \"1\" ] && echo '%a %H:%M' || echo '%a %I:%M %p'); while IFS= read -r z; do [ -n \"$z\" ] && printf 'WC|%s|%s\\n' \"$z\" \"$(TZ=\"$z\" date +\"$fmt\")\"; done < \"$w\""]
         stdout: StdioCollector {
             onStreamFinished: {
                 const wc = [];
@@ -131,34 +130,24 @@ Singleton {
         }
     }
 
-    function saveClockPrefs(use24h, showSec) {
-        root.clock24h = use24h; root.clockSeconds = showSec;
-        Quickshell.execDetached(["sh", "-c", "mkdir -p ~/.config/superfedora && printf 'CLOCK_24H=%s\\nCLOCK_SECONDS=%s\\n' " + (use24h ? "1" : "0") + " " + (showSec ? "1" : "0") + " > ~/.config/superfedora/clock.conf"]);
-        tzProc.running = true;
-    }
+    function askQuickAi(prompt) { const q = String(prompt || "").trim(); if (!q || root.aiBusy) return; root._pendingAiPrompt = q; root.aiBusy = true; root.aiReply = "Querying " + root.aiAgent.toUpperCase() + "..."; root.playSfx("confirm"); aiAskProc.running = true; }
+    function addStartupApp(cmd) { const c = String(cmd || "").trim().replace(/'/g, ""); if (!c) return; root.playSfx("confirm"); Quickshell.execDetached(["sh", "-c", "grep -Fqx 'exec-once = " + c + "' ~/.config/hypr/conf/autostart.conf 2>/dev/null || printf '\\nexec-once = %s\\n' '" + c + "' >> ~/.config/hypr/conf/autostart.conf; [ -f ~/Projects/superfedora/superfedora/dotfiles/.config/hypr/conf/autostart.conf ] && cp -f ~/.config/hypr/conf/autostart.conf ~/Projects/superfedora/superfedora/dotfiles/.config/hypr/conf/autostart.conf; qs ipc call status refresh"]); }
+    function removeStartupApp(cmd) { const c = String(cmd || "").trim().replace(/'/g, ""); if (!c) return; root.playSfx("click"); Quickshell.execDetached(["sh", "-c", "awk -v t='exec-once = " + c + "' '$0 != t' ~/.config/hypr/conf/autostart.conf > ~/.config/hypr/conf/autostart.conf.tmp && mv ~/.config/hypr/conf/autostart.conf.tmp ~/.config/hypr/conf/autostart.conf; [ -f ~/Projects/superfedora/superfedora/dotfiles/.config/hypr/conf/autostart.conf ] && cp -f ~/.config/hypr/conf/autostart.conf ~/Projects/superfedora/superfedora/dotfiles/.config/hypr/conf/autostart.conf; qs ipc call status refresh"]); }
+    function saveClockPrefs(use24h, showSec) { root.clock24h = use24h; root.clockSeconds = showSec; Quickshell.execDetached(["sh", "-c", "mkdir -p ~/.config/superfedora && printf 'CLOCK_24H=%s\\nCLOCK_SECONDS=%s\\n' " + (use24h ? "1" : "0") + " " + (showSec ? "1" : "0") + " > ~/.config/superfedora/clock.conf"]); tzProc.running = true; }
     function setBrightness(val) { const c = Math.max(0.05, Math.min(1.0, val)); root.brightness = c; Quickshell.execDetached(["sh", "-c", "brightnessctl -e4 -n2 set " + Math.round(c * 100) + "% >/dev/null 2>&1 || true"]); }
     function reloadSfx() { sfxFile.reload(); root.sfxEnabled = !sfxFile.text().trim().includes("SFX_ENABLED=0"); }
     function reloadWebcam() { netProc.running = true; }
     function playSfx(name) { if (root.sfxEnabled) Quickshell.execDetached(["sh", "-c", "(~/.local/bin/sf sfx play " + name + " || ~/Projects/superfedora/superfedora/lib/sfx.sh play " + name + ") >/dev/null 2>&1"]); }
     function toggleSfx() { root.sfxEnabled = !root.sfxEnabled; Quickshell.execDetached(["sh", "-c", "(~/.local/bin/sf sfx toggle || ~/Projects/superfedora/superfedora/lib/sfx.sh toggle) >/dev/null 2>&1"]); }
-    function toggleWifiRadio(en) {
-        const next = (typeof en === "boolean") ? en : !root.wifiEnabled;
-        root.wifiEnabled = next; if (!next && root.netType === "wifi") { root.netType = "none"; root.ssid = ""; root.signal = 0; root.wifiList = []; }
-        root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "nmcli radio wifi " + (next ? "on" : "off") + "; sleep 0.5 && qs ipc call status refresh >/dev/null 2>&1 || true"]);
-    }
+    function toggleWifiRadio(en) { const next = (typeof en === "boolean") ? en : !root.wifiEnabled; root.wifiEnabled = next; if (!next && root.netType === "wifi") { root.netType = "none"; root.ssid = ""; root.signal = 0; root.wifiList = []; } root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "nmcli radio wifi " + (next ? "on" : "off") + "; sleep 0.5 && qs ipc call status refresh >/dev/null 2>&1 || true"]); }
     function toggleSpeakerMute(m) { const next = (typeof m === "boolean") ? m : !root.spkMuted; root.spkMuted = next; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh speaker " + (next ? "mute" : "unmute")]); }
     function setSpeakerVolume(val) { const c = Math.max(0, Math.min(1, val)); root.spkVol = c; Quickshell.execDetached(["sh", "-c", "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ " + Math.round(c * 100) + "%"]); }
     function toggleMicMute(m) { const next = (typeof m === "boolean") ? m : !root.micMuted; root.micMuted = next; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh mic " + (next ? "mute" : "unmute")]); }
     function setMicVolume(val) { const c = Math.max(0, Math.min(1, val)); root.micVol = c; Quickshell.execDetached(["sh", "-c", "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SOURCE@ " + Math.round(c * 100) + "%"]); }
-    function setAudioDefault(id) {
-        const sid = String(id);
-        if (root.audioSinks.some(s => s.id === sid)) root.audioSinks = root.audioSinks.map(s => ({ id: s.id, active: s.id === sid, name: s.name }));
-        if (root.audioSources.some(s => s.id === sid)) root.audioSources = root.audioSources.map(s => ({ id: s.id, active: s.id === sid, name: s.name }));
-        root.playSfx("click"); Quickshell.execDetached(["sh", "-c", "wpctl set-default " + sid + "; sleep 0.2 && qs ipc call status refresh >/dev/null 2>&1 || true"]);
-    }
+    function setAudioDefault(id) { const sid = String(id); if (root.audioSinks.some(s => s.id === sid)) root.audioSinks = root.audioSinks.map(s => ({ id: s.id, active: s.id === sid, name: s.name })); if (root.audioSources.some(s => s.id === sid)) root.audioSources = root.audioSources.map(s => ({ id: s.id, active: s.id === sid, name: s.name })); root.playSfx("click"); Quickshell.execDetached(["sh", "-c", "wpctl set-default " + sid + "; sleep 0.2 && qs ipc call status refresh >/dev/null 2>&1 || true"]); }
     function toggleWebcam() { root.webcamEnabled = !root.webcamEnabled; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh webcam " + (root.webcamEnabled ? "on" : "off")]); }
     function setKbdBacklight(lvl) { const next = (typeof lvl === "number") ? Math.max(0, Math.min(2, lvl)) : ((root.kbdBacklight + 1) % 3); root.kbdBacklight = next; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh kbd-backlight " + next]); }
-    function selectAiAgent(id) { root.aiAgent = id; root.playSfx("click"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh set-agent '" + id + "'"]); }
+    function selectAiAgent(id) { root.aiAgent = id; root.playSfx("click"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh select-agent '" + id + "'"]); }
     function nextAiAgent() { const ids = ["agy", "mcode", "grok", "vibe", "claude", "chatgpt", "ollama"]; root.selectAiAgent(ids[(ids.indexOf(root.aiAgent) + 1) % ids.length]); }
 
     function normalizeDeckTab(sec) {
@@ -174,16 +163,25 @@ Singleton {
         if (s === "state" || s === "snapshots" || s === "btrfs" || s === "system" || s === "9") return "state";
         return (s === "power" || s === "battery" || s === "session" || s === "0" || s === "10") ? "power" : (root.superDeckSection || "ai");
     }
-    property bool _quakeShown: false
-    function syncQuakeAi(hdrH) { const want = root.superDeckOpen && root.normalizeDeckTab(root.superDeckSection) === "ai"; if (!want && !root._quakeShown) return; root._quakeShown = want; Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh " + (want ? ("show " + (hdrH || 40)) : "hide keep-deck") + " >/dev/null 2>&1"]); }
-    onSuperDeckOpenChanged: root.syncQuakeAi()
-    onSuperDeckSectionChanged: if (root.superDeckOpen) root.syncQuakeAi()
-
+    function normalizeSettingsPage(p) {
+        const s = String(p || "").toLowerCase();
+        if (s === "wifi" || s === "2") return "wifi"; if (s === "network" || s === "net") return "network"; if (s === "bluetooth" || s === "bt" || s === "3") return "bluetooth";
+        if (s === "display" || s === "displays" || s === "5") return "displays"; if (s === "audio" || s === "sound" || s === "4") return "sound"; if (s === "power" || s === "0") return "power";
+        if (s === "shell" || s === "multitasking" || s === "dock" || s === "bar" || s === "7") return "multitasking"; if (s === "theme" || s === "appearance" || s === "6") return "appearance";
+        if (s === "startup" || s === "apps" || s === "autostart") return "startup"; if (s === "input" || s === "keyboard" || s === "mouse") return "input"; if (s === "forge" || s === "8") return "forge";
+        return (s === "state" || s === "system" || s === "ai" || s === "1" || s === "9") ? "system" : (root.settingsPage || "wifi");
+    }
+    function openSettings(page) { root.superDeckOpen = false; if (page) root.settingsPage = root.normalizeSettingsPage(page); root.settingsOpen = true; root.refresh(); root.playSfx("click"); }
+    function toggleSettings(page) {
+        if (!page) { root.superDeckOpen = false; root.settingsOpen = !root.settingsOpen; }
+        else { const p = root.normalizeSettingsPage(page); if (root.settingsOpen && root.settingsPage === p) root.settingsOpen = false; else { root.superDeckOpen = false; root.settingsPage = p; root.settingsOpen = true; } }
+        if (root.settingsOpen) root.refresh(); root.playSfx("click");
+    }
     function toggleSuperDeck(sec) {
+        root.settingsOpen = false;
         if (!sec || sec === "last") { root.superDeckPowerHighlight = false; root.superDeckOpen = !root.superDeckOpen; }
         else { const t = root.normalizeDeckTab(sec); if (root.superDeckOpen && root.superDeckSection === t) root.superDeckOpen = false; else { root.superDeckSection = t; root.superDeckPowerHighlight = (t === "power"); root.superDeckOpen = true; } }
-        if (root.superDeckOpen) root.refresh();
-        root.playSfx("click");
+        if (root.superDeckOpen) root.refresh(); root.playSfx("click");
     }
 
     Process { id: idleProc; command: ["pgrep", "-x", "hypridle"]; onExited: code => root.idleEnabled = code === 0 }
@@ -238,11 +236,12 @@ Singleton {
     function wsModeFor(wsId): string { const k = String(wsId); return (root.wsModes && root.wsModes[k]) ? root.wsModes[k] : root.defaultWsMode; }
     function runDockCmd(args): void { Quickshell.execDetached(["sh", "-c", "~/.local/bin/superfedora dock " + args + " 2>/dev/null || ~/Projects/superfedora/superfedora/lib/panel-ctl.sh " + args]); }
     Process { id: clientsProc; command: ["sh", "-c", "hyprctl clients -j 2>/dev/null || echo '[]'"]; stdout: StdioCollector { onStreamFinished: { try { const arr = JSON.parse(text.trim() || "[]"); root.clients = arr.filter(c => c.mapped && c.workspace && (c.workspace.id > 0 || String(c.workspace.name || "").includes("minimized"))); } catch (e) {} } } }
-    Connections { target: Hyprland; function onRawEvent(event) { const n = String(event.name || ""); if (n.includes("window") || n.includes("workspace") || n.includes("focusedmon")) clientsProc.running = true; if (n.includes("focusedmon") && root.superDeckOpen && root.normalizeDeckTab(root.superDeckSection) === "ai") root.syncQuakeAi(); } }
+    Connections { target: Hyprland; function onRawEvent(event) { const n = String(event.name || ""); if (n.includes("window") || n.includes("workspace") || n.includes("focusedmon")) clientsProc.running = true; } }
     Component.onCompleted: { root.reloadBarIcons(); root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); clientsProc.running = true; }
     IpcHandler { target: "dock"; function reload(): void { root.reloadDock(); clientsProc.running = true; } function toggleApps(): void { root.appGridOpen = !root.appGridOpen; root.playSfx("click"); } function toggle(): void { root.runDockCmd("always toggle"); } }
-    IpcHandler { target: "superdeck"; function toggle(): void { root.toggleSuperDeck(""); } function toggleAi(): void { root.toggleSuperDeck("ai"); } function open(sec: string): void { const t = root.normalizeDeckTab(sec), wasOpen = root.superDeckOpen, prev = root.superDeckSection; root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; root.superDeckOpen = true; if (wasOpen && prev === t) root.syncQuakeAi(); root.refresh(); } function numkey(n: string): void { if (root.superDeckOpen) { const t = root.normalizeDeckTab(n), prev = root.superDeckSection; root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; if (prev === t) root.syncQuakeAi(); root.refresh(); root.playSfx("click"); } else Hyprland.dispatch("workspace " + (n === "0" ? "empty" : n)); } function close(): void { root.superDeckOpen = false; } }
-    IpcHandler { target: "panels"; function settings(): void { root.toggleSuperDeck("theme"); } }
+    IpcHandler { target: "superdeck"; function toggle(): void { root.toggleSuperDeck(""); } function toggleAi(): void { root.toggleSuperDeck("ai"); } function open(sec: string): void { const t = root.normalizeDeckTab(sec); root.settingsOpen = false; root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; root.superDeckOpen = true; root.refresh(); } function numkey(n: string): void { if (root.superDeckOpen) { const t = root.normalizeDeckTab(n); root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; root.refresh(); root.playSfx("click"); } else Hyprland.dispatch("workspace " + (n === "0" ? "empty" : n)); } function close(): void { root.superDeckOpen = false; } }
+    IpcHandler { target: "settings"; function toggle(): void { root.toggleSettings(""); } function open(page: string): void { root.openSettings(page); } function close(): void { root.settingsOpen = false; } }
+    IpcHandler { target: "panels"; function settings(): void { root.toggleSettings(""); } }
     IpcHandler { target: "status"; function refresh(): void { root.refresh(); } function reloadBar(): void { root.reloadBarIcons(); } }
     Timer { interval: 4500; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
     function refresh() { netProc.running = true; idleProc.running = true; tzProc.running = true; clientsProc.running = true; root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); }
