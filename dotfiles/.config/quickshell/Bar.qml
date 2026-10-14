@@ -159,13 +159,15 @@ PanelWindow {
                 if (id === "speaker") return quickPill.muted ? "󰝟" : quickPill.vol >= 0.66 ? "󰕾" : quickPill.vol >= 0.33 ? "󰖀" : "󰕿";
                 if (id === "mic") return quickPill.micMuted ? "󰍭" : "󰍬";
                 if (id === "camera") return Status.webcamEnabled ? "󰄀" : "󰗟";
+                if (id === "idle") return Status.idleEnabled ? "󰒲" : "󰅶";
                 if (id === "battery") return quickPill.batCharging ? "󰂄" : (quickPill.batPct <= 15 ? "󰁺" : quickPill.batPct <= 40 ? "󰁼" : quickPill.batPct <= 75 ? "󰂀" : "󰁹");
                 return "󰐥";
             }
             function iconSection(id) {
-                return (id === "wifi" || id === "bluetooth") ? id : ((id === "battery" || id === "power") ? "power" : "audio");
+                return (id === "wifi" || id === "bluetooth") ? id : ((id === "idle" || id === "battery" || id === "power") ? "power" : "audio");
             }
             function iconColor(id, hovered) {
+                if (id === "idle" && !Status.idleEnabled) return Theme.yellow;
                 if (Status.superDeckOpen && Status.superDeckSection === quickPill.iconSection(id)) return Theme.cyan;
                 if (hovered) return id === "power" ? Theme.red : Theme.cyan;
                 if (id === "wifi") return (!Status.wifiEnabled || Status.netType === "none") ? Theme.muted : Theme.fg;
@@ -173,6 +175,7 @@ PanelWindow {
                 if (id === "speaker") return quickPill.muted ? Theme.muted : Theme.fg;
                 if (id === "mic") return quickPill.micMuted ? Theme.muted : Theme.fg;
                 if (id === "camera") return Status.webcamEnabled ? Theme.fg : Theme.muted;
+                if (id === "idle") return Theme.fgDim;
                 if (id === "battery") return quickPill.batCharging ? Theme.cyan : (quickPill.batPct <= 15 ? Theme.red : Theme.fg);
                 return Theme.fgDim;
             }
@@ -182,6 +185,7 @@ PanelWindow {
                 else if (id === "speaker") { const m = !quickPill.muted; if (quickPill.audioReady) quickPill.sink.audio.muted = m; Status.toggleSpeakerMute(m); }
                 else if (id === "mic") { const m = !quickPill.micMuted; if (quickPill.micReady) quickPill.source.audio.muted = m; Status.toggleMicMute(m); }
                 else if (id === "camera") Status.toggleWebcam();
+                else if (id === "idle") Status.toggleIdle();
                 else bar.openDeck("power");
             }
 
@@ -218,7 +222,7 @@ PanelWindow {
                                     const dx = e.x - dragStartX;
                                     if (Math.abs(dx) >= 24) { didDrag = true; Status.moveBarIcon(slotItem.modelData, dx > 0 ? 1 : -1); dragStartX = e.x; }
                                 }
-                                onClicked: e => { if (!didDrag) { if (e.button === Qt.RightButton) quickPill.toggleHardware(slotItem.modelData); else bar.openDeck(quickPill.iconSection(slotItem.modelData)); } }
+                                onClicked: e => { if (!didDrag) { if (slotItem.modelData === "idle") { if (e.button === Qt.RightButton) bar.openDeck("power"); else Status.toggleIdle(); } else if (e.button === Qt.RightButton) quickPill.toggleHardware(slotItem.modelData); else bar.openDeck(quickPill.iconSection(slotItem.modelData)); } }
                                 onWheel: wheel => {
                                     const step = wheel.angleDelta.y > 0 ? 0.05 : -0.05;
                                     if (slotItem.modelData === "speaker") { const v = Math.max(0, Math.min(1, quickPill.vol + step)); if (quickPill.audioReady) quickPill.sink.audio.volume = v; Status.setSpeakerVolume(v); }

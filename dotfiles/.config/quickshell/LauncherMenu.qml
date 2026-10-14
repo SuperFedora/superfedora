@@ -23,7 +23,7 @@ ColumnLayout {
         { id: "13-indigo",  label: "INDIGO",  hex: "#6c71c4" }, { id: "14-violet",  label: "VIOLET",  hex: "#bb9af7" },
         { id: "15-orchid",  label: "ORCHID",  hex: "#cba6f7" }, { id: "16-fuchsia", label: "FUCHSIA", hex: "#f43f5e" }
     ]
-    readonly property var barIconLabels: ({ wifi: "󰤨 WIFI", bluetooth: "󰂯 BT", speaker: "󰕾 SPK", mic: "󰍬 MIC", camera: "󰄀 CAM", battery: "󰁹 BAT", power: "󰐥 PWR" })
+    readonly property var barIconLabels: ({ wifi: "󰤨 WIFI", bluetooth: "󰂯 BT", speaker: "󰕾 SPK", mic: "󰍬 MIC", camera: "󰄀 CAM", idle: "󰅶 AWAKE", battery: "󰁹 BAT", power: "󰐥 PWR" })
 
     function asciiBar(pct) { const f = Math.max(0, Math.min(16, Math.round((pct / 100.0) * 16))); return "[" + "█".repeat(f) + "░".repeat(16 - f) + "]"; }
     function runForge(target) {
@@ -232,7 +232,8 @@ ColumnLayout {
                 RowLayout {
                     Layout.fillWidth: true
                     Text { text: Status.bat0Present ? ("THINKPAD BAT0 CHARGE THRESHOLD: " + Status.bat0Threshold) : "POWER SUPPLY: STANDARD ACPI / THINKPAD BAT0 READY"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true; Layout.fillWidth: true }
-                    Rectangle { implicitWidth: 196; implicitHeight: 24; radius: Theme.radiusSm; color: dpmsM.containsMouse ? Theme.blue : Theme.bg; border.width: 1; border.color: Theme.cyan; Text { anchors.centerIn: parent; text: "[ 󰍹 SCREEN + KBD OFF ]"; color: dpmsM.containsMouse ? Theme.bg : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: dpmsM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: deckBody.executeCommand("sleep 0.2; ~/.config/hypr/scripts/toggle-touchpad.sh dpms off", true) } }
+                    Rectangle { implicitWidth: 196; implicitHeight: 24; radius: Theme.radiusSm; color: !Status.idleEnabled ? Theme.yellow : (awakeM.containsMouse ? Theme.blue : Theme.bg); border.width: 1; border.color: !Status.idleEnabled ? Theme.yellow : Theme.cyan; Text { anchors.centerIn: parent; text: !Status.idleEnabled ? "[ 󰅶 KEEP SCREEN ON: ON ]" : "[ 󰒲 KEEP SCREEN ON: OFF ]"; color: (!Status.idleEnabled || awakeM.containsMouse) ? Theme.bg : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: awakeM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.toggleIdle() } }
+                    Rectangle { implicitWidth: 186; implicitHeight: 24; radius: Theme.radiusSm; color: dpmsM.containsMouse ? Theme.blue : Theme.bg; border.width: 1; border.color: Theme.cyan; Text { anchors.centerIn: parent; text: "[ 󰍹 SCREEN + KBD OFF ]"; color: dpmsM.containsMouse ? Theme.bg : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: dpmsM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: deckBody.executeCommand("sleep 0.2; ~/.config/hypr/scripts/toggle-touchpad.sh dpms off", true) } }
                 }
             }
         }

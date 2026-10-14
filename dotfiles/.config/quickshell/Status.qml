@@ -189,13 +189,14 @@ Singleton {
         if (root.superDeckOpen) root.refresh(); root.playSfx("click");
     }
 
-    Process { id: idleProc; command: ["pgrep", "-x", "hypridle"]; onExited: code => root.idleEnabled = code === 0 }
+    function toggleIdle() { root.idleEnabled = !root.idleEnabled; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-idle.sh"]); }
+    Process { id: idleProc; command: ["sh", "-c", "[ ! -f ~/.config/superfedora/stay-awake ] && pgrep -x hypridle >/dev/null"]; onExited: code => root.idleEnabled = code === 0 }
     property bool appGridOpen: false; property var clients: []
     property var dockConfig: ({ position: "bottom", autohide: false, showAlways: true, opacity: 1.0, pinned: ["kitty", "org.mozilla.firefox", "com.google.Chrome", "org.gnome.Nautilus", "nvim", "btop"] })
     property var wsModes: ({}); property string defaultWsMode: "dwindle"
-    readonly property var defaultBarIcons: ["wifi", "bluetooth", "|", "speaker", "mic", "camera", "|", "battery", "power"]
-    readonly property var coreBarIcons: ["wifi", "bluetooth", "speaker", "mic", "camera", "battery", "power"]
-    property var barIcons: ["wifi", "bluetooth", "|", "speaker", "mic", "camera", "|", "battery", "power"]
+    readonly property var defaultBarIcons: ["wifi", "bluetooth", "|", "speaker", "mic", "camera", "|", "idle", "battery", "power"]
+    readonly property var coreBarIcons: ["wifi", "bluetooth", "speaker", "mic", "camera", "idle", "battery", "power"]
+    property var barIcons: ["wifi", "bluetooth", "|", "speaker", "mic", "camera", "|", "idle", "battery", "power"]
     property var barHiddenIcons: []
     FileView { id: dockFile; path: Quickshell.env("HOME") + "/.config/superfedora/dock.json" }
     FileView { id: modesFile; path: Quickshell.env("HOME") + "/.config/superfedora/workspace-modes.json" }
@@ -230,7 +231,7 @@ Singleton {
     }
     function toggleBarDividers(): void {
         if (root.barIcons.indexOf("|") !== -1) root.barIcons = root.barIcons.filter(x => x !== "|");
-        else { const c = root.barIcons.filter(x => x !== "|"); root.barIcons = [c[0], c[1], "|", c[2], c[3], c[4], "|", c[5], c[6]].filter(Boolean); }
+        else { const c = root.barIcons.filter(x => x !== "|"); root.barIcons = [c[0], c[1], "|", c[2], c[3], c[4], "|", c[5], c[6], c[7]].filter(Boolean); }
         root.playSfx("toggle"); root.saveBarIcons();
     }
     function resetBarIcons(): void { root.barIcons = root.defaultBarIcons.slice(); root.barHiddenIcons = []; root.playSfx("toggle"); root.saveBarIcons(); }
