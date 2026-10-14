@@ -105,20 +105,21 @@ PanelWindow {
                         MouseArea { id: tMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pop.selectTab(parent.index) }
                     }
                 }
+                Item { implicitWidth: 12; implicitHeight: 22; Rectangle { anchors.centerIn: parent; width: 1; height: 20; color: Theme.border } }
                 Rectangle {
                     visible: pop.activeTab === "ai"; implicitWidth: agPillTxt.implicitWidth + 14; implicitHeight: 30; radius: Theme.radiusSm
-                    color: agPillM.containsMouse ? Theme.blue : Theme.bgAlt; border.width: 2; border.color: Theme.cyan
-                    Text { id: agPillTxt; anchors.centerIn: parent; text: "[" + (Status.aiAgent === "ollama" ? "OLLAMA (PI)" : Status.aiAgent.toUpperCase()) + (pop.agentBarOpen ? " ▴]" : " ▾]"); color: agPillM.containsMouse ? Theme.bg : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
+                    color: agPillM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: agPillM.containsMouse ? Theme.cyan : Theme.border
+                    Text { id: agPillTxt; anchors.centerIn: parent; text: "󰚩 " + (Status.aiAgent === "ollama" ? "OLLAMA (PI)" : Status.aiAgent.toUpperCase()) + (pop.agentBarOpen ? " ▴" : " ▾"); color: agPillM.containsMouse ? Theme.cyan : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
                     MouseArea { id: agPillM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: e => { if (e.button === Qt.RightButton) Status.nextAiAgent(); else { pop.agentBarOpen = !pop.agentBarOpen; Status.playSfx("click"); } } }
                 }
                 Rectangle {
-                    implicitWidth: 92; implicitHeight: 30; radius: Theme.radiusSm; color: setM.containsMouse ? Theme.cyan : Theme.bgAlt; border.width: 2; border.color: Theme.cyan
-                    Text { anchors.centerIn: parent; text: "[ 󰒓 SETTINGS ]"; color: setM.containsMouse ? Theme.bg : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
+                    implicitWidth: 88; implicitHeight: 30; radius: Theme.radiusSm; color: setM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: setM.containsMouse ? Theme.cyan : Theme.border
+                    Text { anchors.centerIn: parent; text: "󰒓 SETTINGS"; color: setM.containsMouse ? Theme.cyan : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
                     MouseArea { id: setM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettings(pop.activeTab) }
                 }
                 Rectangle {
-                    implicitWidth: 48; implicitHeight: 30; radius: Theme.radiusSm; color: escM.containsMouse ? Theme.red : Theme.bgAlt; border.width: 2; border.color: escM.containsMouse ? Theme.red : Theme.border
-                    Text { anchors.centerIn: parent; text: "[ESC]"; color: escM.containsMouse ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
+                    implicitWidth: 42; implicitHeight: 30; radius: Theme.radiusSm; color: escM.containsMouse ? Theme.red : Theme.bg; border.width: 1; border.color: escM.containsMouse ? Theme.red : Theme.border
+                    Text { anchors.centerIn: parent; text: "ESC"; color: escM.containsMouse ? Theme.bg : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
                     MouseArea { id: escM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.superDeckOpen = false }
                 }
             }
