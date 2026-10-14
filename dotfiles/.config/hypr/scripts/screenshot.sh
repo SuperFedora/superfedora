@@ -37,26 +37,6 @@ case "${1:-region}" in
         hex="$(hyprpicker -a 2>/dev/null | tr -d '[:space:]')"
         [ -n "$hex" ] && notify-send -a SuperFedora "Color Picker" "Copied $hex to clipboard"
         exit 0 ;;
-    vox)
-        if command -v voxtype >/dev/null 2>&1; then
-            if pgrep -x voxtype >/dev/null; then pkill -INT -x voxtype; else nohup voxtype >/dev/null 2>&1 & fi
-        elif pgrep -f 'pw-record.*superfedora-vox' >/dev/null; then
-            pkill -INT -f 'pw-record.*superfedora-vox' || true
-            notify-send -a SuperFedora "Vox Dictation Stopped" "Audio note saved to ~/Documents/VoiceNotes"
-        else
-            ndir="$HOME/Documents/VoiceNotes"
-            mkdir -p "$ndir"
-            vout="$ndir/superfedora-vox-$(date +%Y%m%d-%H%M%S).wav"
-            nohup pw-record "$vout" >/dev/null 2>&1 &
-            notify-send -a SuperFedora "Vox Dictation Active" "Recording microphone... Click mic icon again to stop."
-        fi
-        sleep 0.2
-        qs ipc call status refresh >/dev/null 2>&1 || true
-        exit 0 ;;
-    weather)
-        w="$(curl -fsSL --max-time 4 'https://wttr.in/?format=%l:+%c+%t+(Feels+like+%f),+%w+wind,+%h+humidity' 2>/dev/null | sed 's/+//g' || true)"
-        notify-send -a SuperFedora "Local Weather" "${w:-Weather service temporarily unavailable}"
-        exit 0 ;;
 esac
 
 dir="$(xdg-user-dir PICTURES 2>/dev/null || echo "$HOME/Pictures")/Screenshots"

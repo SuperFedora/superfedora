@@ -70,71 +70,70 @@ PanelWindow {
         }
     }
 
-    // ---------------- Center ----------------
+    // ---------------- Center: Collapsible Left Tool Expander (◂/▸) + Centered Combined Date/Time Button ----------------
     Connections {
         target: Status
         function onCenterToggleSeqChanged() { if (bar.modelData === Quickshell.screens[0]) bar.toggleCenter("date"); }
     }
 
-    RowLayout {
+    BarLabel {
         id: centerClock
-        anchors.centerIn: parent; spacing: 3
+        anchors.centerIn: parent
         property date now: new Date()
         Timer { interval: Status.clockSeconds ? 1000 : 5000; running: true; repeat: true; triggeredOnStart: true; onTriggered: centerClock.now = new Date() }
+        pixelSize: Theme.fontSize; bold: true
+        color: calendarPopup.mode !== "" ? Theme.cyan : Theme.fg
+        text: Qt.formatDateTime(centerClock.now, "ddd, MMM d   " + (Status.clock24h ? (Status.clockSeconds ? "HH:mm:ss" : "HH:mm") : (Status.clockSeconds ? "h:mm:ss AP" : "h:mm AP")))
+        onClicked: bar.toggleCenter("date")
+        onRightClicked: bar.toggleCenter("time")
+    }
 
-        readonly property var leftTools: [
-            { id: "weather", vis: Status.centerToolsOpen, active: false, col: Theme.cyan, txt: "󰖙" + (Status.weatherTemp ? " " + Status.weatherTemp : "") },
-            { id: "update",  vis: Status.centerToolsOpen || Status.updatesCount > 0, active: Status.updatesCount > 0, col: Theme.orange, txt: "󰚰" + (Status.updatesCount > 0 ? " " + Status.updatesCount : "") },
-            { id: "color",   vis: Status.centerToolsOpen, active: false, col: Theme.purple, txt: "󰈊" },
-            { id: "shot",    vis: Status.centerToolsOpen, active: false, col: Theme.cyan, txt: "󰹑" },
-            { id: "vox",     vis: Status.centerToolsOpen || Status.voxActive, active: Status.voxActive, col: Theme.cyan, txt: Status.voxActive ? "󰔟 REC" : "󰍬" },
-            { id: "record",  vis: Status.centerToolsOpen || Status.screenRecording, active: Status.screenRecording, col: Theme.red, txt: Status.screenRecording ? "󰻂 REC" : "󰻂" },
-            { id: "dnd",     vis: Status.centerToolsOpen || Status.dnd || Status.notifUnread > 0, active: Status.dnd || Status.notifUnread > 0, col: Status.dnd ? Theme.yellow : Theme.cyan, txt: Status.dnd ? ("󰂛" + (Status.notifUnread > 0 ? " " + Status.notifUnread : "")) : (Status.notifUnread > 0 ? ("󰂞 " + Status.notifUnread) : "󰂚") },
-            { id: "idle",    vis: true, active: !Status.idleEnabled, col: Theme.yellow, txt: !Status.idleEnabled ? "󰅶" : "󰒲" }
+    RowLayout {
+        id: centerLeftTools
+        anchors { right: centerClock.left; verticalCenter: parent.verticalCenter; rightMargin: 2 }
+        spacing: 3
+
+        readonly property var tools: [
+            { id: "color",  active: false, col: Theme.purple, txt: "󰈊" },
+            { id: "shot",   active: false, col: Theme.cyan,   txt: "󰹑" },
+            { id: "record", active: Status.screenRecording, col: Theme.red, txt: Status.screenRecording ? "󰻂 REC" : "󰻂" },
+            { id: "dnd",    active: Status.dnd || Status.notifUnread > 0, col: Status.dnd ? Theme.yellow : Theme.cyan, txt: Status.dnd ? "󰂛" : (Status.notifUnread > 0 ? ("󰂞 " + Status.notifUnread) : "󰂚") },
+            { id: "idle",   active: !Status.idleEnabled, col: Theme.yellow, txt: !Status.idleEnabled ? "󰅶" : "󰒲" }
         ]
 
-        function triggerCenterTool(id, rightBtn) {
+        function triggerTool(id, rightBtn) {
             if (id === "idle") { if (rightBtn) bar.openDeck("power"); else Status.toggleIdle(); }
             else if (id === "dnd") { if (rightBtn) bar.toggleCenter("date"); else if (Status.notifAction) Status.notifAction("toggleDnd"); }
             else if (id === "record") Status.toggleScreenRecord(rightBtn);
-            else if (id === "vox") Status.toggleVox();
             else if (id === "shot") bar.run("~/.config/hypr/scripts/screenshot.sh " + (rightBtn ? "screen" : "region"));
             else if (id === "color") bar.run("~/.config/hypr/scripts/screenshot.sh color");
-            else if (id === "update") bar.run("kitty --class floating-term -e bash -lc '~/.local/bin/sf update || sudo dnf upgrade; read -n1 -rsp \"Press any key\"'");
-            else if (id === "weather") { if (rightBtn) bar.toggleCenter("date"); else bar.run("~/.config/hypr/scripts/screenshot.sh weather"); }
+        }
+
+        RowLayout {
+            visible: Status.centerToolsOpen; spacing: 2
+            Repeater {
+                model: centerLeftTools.tools
+                Rectangle {
+                    id: ctChip; required property var modelData
+                    implicitWidth: ctTxt.implicitWidth + 12; implicitHeight: Theme.barHeight - 8; radius: Theme.radiusSm
+                    color: ctChipM.pressed ? Theme.bgAlt : (ctChipM.containsMouse ? Theme.bgHover : "transparent")
+                    border.width: modelData.active ? 1 : 0; border.color: modelData.col
+                    Text { id: ctTxt; anchors.centerIn: parent; text: ctChip.modelData.txt; color: ctChip.modelData.active ? ctChip.modelData.col : (ctChipM.containsMouse ? Theme.cyan : Theme.fgDim); font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: ctChip.modelData.active }
+                    MouseArea { id: ctChipM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: e => centerLeftTools.triggerTool(ctChip.modelData.id, e.button === Qt.RightButton) }
+                }
+            }
         }
 
         Rectangle {
             implicitWidth: 22; implicitHeight: Theme.barHeight - 8; radius: Theme.radiusSm
             color: ctMouse.containsMouse ? Theme.bgHover : "transparent"
-            Text { anchors.centerIn: parent; text: Status.centerToolsOpen ? "▸" : "◂"; color: Status.centerToolsOpen || ctMouse.containsMouse ? Theme.cyan : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize }
-            MouseArea { id: ctMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Status.centerToolsOpen = !Status.centerToolsOpen; Status.playSfx("click"); } }
-        }
-
-        Repeater {
-            model: centerClock.leftTools
-            Rectangle {
-                id: ctChip; required property var modelData
-                visible: modelData.vis; implicitWidth: visible ? ctTxt.implicitWidth + 12 : 0; implicitHeight: Theme.barHeight - 8; radius: Theme.radiusSm
-                color: ctChipM.pressed ? Theme.bgAlt : (ctChipM.containsMouse ? Theme.bgHover : "transparent")
-                border.width: modelData.active ? 1 : 0; border.color: modelData.col
-                Text { id: ctTxt; anchors.centerIn: parent; text: ctChip.modelData.txt; color: ctChip.modelData.active ? ctChip.modelData.col : (ctChipM.containsMouse ? Theme.cyan : Theme.fgDim); font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: ctChip.modelData.active }
-                MouseArea { id: ctChipM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: e => centerClock.triggerCenterTool(ctChip.modelData.id, e.button === Qt.RightButton) }
+            Text {
+                anchors.centerIn: parent
+                text: Status.centerToolsOpen ? "▸" : "◂"
+                color: Status.screenRecording ? Theme.red : ((!Status.idleEnabled || Status.dnd) ? Theme.yellow : (Status.centerToolsOpen || ctMouse.containsMouse ? Theme.cyan : Theme.fgDim))
+                font.family: Theme.font; font.pixelSize: Theme.fontSize
             }
-        }
-
-        Rectangle { implicitWidth: 1; implicitHeight: 14; color: Theme.border }
-
-        BarLabel {
-            pixelSize: Theme.fontSize; bold: true; color: calendarPopup.mode === "date" ? Theme.blue : Theme.fg
-            text: Qt.formatDateTime(centerClock.now, "ddd, MMM d")
-            onClicked: bar.toggleCenter("date"); onRightClicked: if (Status.notifAction) Status.notifAction("toggleDnd")
-        }
-
-        BarLabel {
-            pixelSize: Theme.fontSize; bold: true; color: calendarPopup.mode === "time" ? Theme.blue : Theme.fg
-            text: Qt.formatDateTime(centerClock.now, Status.clock24h ? (Status.clockSeconds ? "HH:mm:ss" : "HH:mm") : (Status.clockSeconds ? "h:mm:ss AP" : "h:mm AP"))
-            onClicked: bar.toggleCenter("time"); onRightClicked: Status.saveClockPrefs(!Status.clock24h, Status.clockSeconds)
+            MouseArea { id: ctMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Status.centerToolsOpen = !Status.centerToolsOpen; Status.playSfx("click"); } }
         }
     }
 
