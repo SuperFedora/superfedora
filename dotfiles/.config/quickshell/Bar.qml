@@ -147,6 +147,7 @@ PanelWindow {
             readonly property bool muted: audioReady ? sink.audio.muted : Status.spkMuted
             readonly property var source: Pipewire.defaultAudioSource
             readonly property bool micReady: source !== null && source.audio !== null
+            readonly property real micVol: micReady ? source.audio.volume : Status.micVol
             readonly property bool micMuted: micReady ? source.audio.muted : Status.micMuted
             readonly property var btAdapter: Bluetooth.defaultAdapter
             readonly property int btConnected: Bluetooth.devices.values.filter(d => d.connected).length
@@ -154,52 +155,96 @@ PanelWindow {
             readonly property bool batPresent: batDev !== null && batDev.isLaptopBattery
             readonly property int batPct: batPresent ? Math.round(batDev.percentage <= 1 ? batDev.percentage * 100 : batDev.percentage) : 0
             readonly property bool batCharging: batPresent && (batDev.state === UPowerDeviceState.Charging || batDev.state === UPowerDeviceState.FullyCharged)
-            readonly property bool activeZeroTrust: Status.superDeckOpen && Status.superDeckSection === "zerotrust"
 
             implicitWidth: pillRow.implicitWidth + 12; implicitHeight: Theme.barHeight - 8
             color: "transparent"; border.width: 0
 
             RowLayout {
                 id: pillRow; anchors.centerIn: parent; spacing: 8
+
                 Text {
                     text: Status.netType === "ethernet" ? "󰀂" : (Status.netType !== "wifi" ? "󰤮" : (Status.signal >= 80 ? "󰤨" : Status.signal >= 60 ? "󰤥" : Status.signal >= 40 ? "󰤢" : Status.signal >= 20 ? "󰤟" : "󰤯"))
-                    color: Status.netType === "none" ? Theme.red : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                    color: (Status.superDeckOpen && Status.superDeckSection === "wifi") ? Theme.cyan : (Status.netType === "none" ? Theme.red : Theme.fg)
+                    font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                    MouseArea {
+                        anchors { fill: parent; margins: -3 } cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onClicked: e => {
+                            if (e.button === Qt.RightButton) { bar.run((Status.netType === "wifi" ? "nmcli radio wifi off" : "nmcli radio wifi on") + "; sleep 0.4"); Status.playSfx("toggle"); Status.refresh(); }
+                            else bar.openDeck("wifi");
+                        }
+                    }
                 }
                 Text {
                     text: !quickPill.btAdapter || !quickPill.btAdapter.enabled ? "󰂲" : (quickPill.btConnected > 0 ? "󰂱" : "󰂯")
-                    color: quickPill.btAdapter && quickPill.btAdapter.enabled ? Theme.fg : Theme.muted; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                    color: (Status.superDeckOpen && Status.superDeckSection === "bluetooth") ? Theme.cyan : (quickPill.btAdapter && quickPill.btAdapter.enabled ? Theme.fg : Theme.muted)
+                    font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                    MouseArea {
+                        anchors { fill: parent; margins: -3 } cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onClicked: e => {
+                            if (e.button === Qt.RightButton) { bar.run(quickPill.btAdapter && quickPill.btAdapter.enabled ? "bluetoothctl power off" : "rfkill unblock bluetooth; bluetoothctl power on"); Status.playSfx("toggle"); Status.refresh(); }
+                            else bar.openDeck("bluetooth");
+                        }
+                    }
                 }
                 Text {
                     text: quickPill.muted ? "󰝟" : quickPill.vol >= 0.66 ? "󰕾" : quickPill.vol >= 0.33 ? "󰖀" : "󰕿"
-                    color: quickPill.muted ? Theme.red : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                    color: quickPill.muted ? Theme.red : ((Status.superDeckOpen && Status.superDeckSection === "audio") ? Theme.cyan : Theme.fg)
+                    font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                    MouseArea {
+                        anchors { fill: parent; margins: -3 } cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onClicked: e => {
+                            if (e.button === Qt.RightButton) { const m = !quickPill.muted; if (quickPill.audioReady) quickPill.sink.audio.muted = m; Status.toggleSpeakerMute(m); }
+                            else bar.openDeck("audio");
+                        }
+                        onWheel: wheel => {
+                            const v = Math.max(0, Math.min(1, quickPill.vol + (wheel.angleDelta.y > 0 ? 0.05 : -0.05)));
+                            if (quickPill.audioReady) quickPill.sink.audio.volume = v;
+                            Status.setSpeakerVolume(v);
+                        }
+                    }
                 }
                 Text {
                     text: quickPill.micMuted ? "󰍭" : "󰍬"
-                    color: quickPill.micMuted ? Theme.red : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                    color: quickPill.micMuted ? Theme.red : ((Status.superDeckOpen && Status.superDeckSection === "audio") ? Theme.cyan : Theme.fg)
+                    font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                    MouseArea {
+                        anchors { fill: parent; margins: -3 } cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onClicked: e => {
+                            if (e.button === Qt.RightButton) { const m = !quickPill.micMuted; if (quickPill.micReady) quickPill.source.audio.muted = m; Status.toggleMicMute(m); }
+                            else bar.openDeck("audio");
+                        }
+                        onWheel: wheel => {
+                            const v = Math.max(0, Math.min(1, quickPill.micVol + (wheel.angleDelta.y > 0 ? 0.05 : -0.05)));
+                            if (quickPill.micReady) quickPill.source.audio.volume = v;
+                            Status.setMicVolume(v);
+                        }
+                    }
                 }
                 Text {
                     text: Status.webcamEnabled ? "󰄀" : "󰗟"
-                    color: Status.webcamEnabled ? Theme.fg : Theme.red; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                    color: !Status.webcamEnabled ? Theme.red : ((Status.superDeckOpen && Status.superDeckSection === "audio") ? Theme.cyan : Theme.fg)
+                    font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                    MouseArea {
+                        anchors { fill: parent; margins: -3 } cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onClicked: e => { if (e.button === Qt.RightButton) Status.toggleWebcam(); else bar.openDeck("audio"); }
+                    }
                 }
                 Text {
                     visible: quickPill.batPresent
                     text: quickPill.batCharging ? "󰂄" : (quickPill.batPct <= 15 ? "󰁺" : quickPill.batPct <= 40 ? "󰁼" : quickPill.batPct <= 75 ? "󰂀" : "󰁹")
-                    color: quickPill.batCharging ? Theme.green : (quickPill.batPct <= 15 ? Theme.red : Theme.fg); font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                    color: (Status.superDeckOpen && Status.superDeckSection === "power") ? Theme.cyan : (quickPill.batCharging ? Theme.green : (quickPill.batPct <= 15 ? Theme.red : Theme.fg))
+                    font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                    MouseArea {
+                        anchors { fill: parent; margins: -3 } cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onClicked: bar.openDeck("power")
+                    }
                 }
-                Text { id: pwrIcon; text: "󰐥"; color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2 }
-            }
-
-            MouseArea {
-                id: pillMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                acceptedButtons: Qt.LeftButton | Qt.RightButton
-                onClicked: e => {
-                    const nearPower = e.x >= (quickPill.width - 28);
-                    bar.openDeck((e.button === Qt.RightButton || nearPower) ? "power" : "zerotrust");
-                }
-                onWheel: wheel => {
-                    const v = Math.max(0, Math.min(1, quickPill.vol + (wheel.angleDelta.y > 0 ? 0.05 : -0.05)));
-                    if (quickPill.audioReady) quickPill.sink.audio.volume = v;
-                    Status.setSpeakerVolume(v);
+                Text {
+                    id: pwrIcon; text: "󰐥"; color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.iconSize - 2
+                    MouseArea {
+                        anchors { fill: parent; margins: -3 } cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onClicked: bar.openDeck("power")
+                    }
                 }
             }
         }

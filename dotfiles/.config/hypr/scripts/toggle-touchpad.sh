@@ -2,17 +2,19 @@
 # Copyright 2026 SuperFedora Contributors
 # SPDX-License-Identifier: Apache-2.0
 # ==============================================================================
-# toggle-touchpad.sh — Hardware Input/Output Toggles (Touchpad, Webcam, Mic, Speaker)
+# toggle-touchpad.sh — Hardware Input/Output Toggles (Touchpad, Webcam, Mic, Speaker, ThinkPad Kbd Backlight)
 # Usage:
-#   toggle-touchpad.sh [touchpad]                      Toggle touchpad on/off
-#   toggle-touchpad.sh webcam [toggle|on|off|status]   Toggle web camera on/off
-#   toggle-touchpad.sh mic [toggle|mute|unmute|status] Toggle microphone mute
-#   toggle-touchpad.sh speaker [toggle|mute|unmute]    Toggle speaker mute
+#   toggle-touchpad.sh [touchpad]                           Toggle touchpad on/off
+#   toggle-touchpad.sh webcam [toggle|on|off|status]        Toggle web camera on/off
+#   toggle-touchpad.sh mic [toggle|mute|unmute|status]      Toggle microphone mute + ThinkPad micmute LED
+#   toggle-touchpad.sh speaker [toggle|mute|unmute]         Toggle speaker mute + ThinkPad mute LED
+#   toggle-touchpad.sh kbd-backlight [cycle|up|down|0|1|2]  Cycle/set ThinkPad keyboard backlight
 # ==============================================================================
 set -euo pipefail
 
 STATE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/superfedora"
 WEBCAM_FILE="$STATE_DIR/webcam-enabled"
+KBD_FILE="$STATE_DIR/kbd-backlight"
 WP_CONF_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/wireplumber/wireplumber.conf.d"
 WP_CONF="$WP_CONF_DIR/99-superfedora-webcam.conf"
 mkdir -p "$STATE_DIR"
@@ -64,7 +66,7 @@ cmd_webcam() {
 }
 
 cmd_audio() {
-    local node="$1" label="$2" sub="${3:-toggle}"
+    local node="$1" label="$2" sub="${3:-toggle}" led_path="$4"
     case "$sub" in
         status) wpctl get-volume "$node" 2>/dev/null || true; return 0 ;;
         mute|off|1)   wpctl set-mute "$node" 1 2>/dev/null || true ;;
@@ -73,20 +75,58 @@ cmd_audio() {
         down)         wpctl set-volume "$node" 5%- 2>/dev/null || true ;;
         *)            wpctl set-mute "$node" toggle 2>/dev/null || true ;;
     esac
-    refresh_qs
-    local st
+    local st led_val=0
     st="$(wpctl get-volume "$node" 2>/dev/null || true)"
-    if [[ "$st" == *"[MUTED]"* ]]; then
+    [[ "$st" == *"[MUTED]"* ]] && led_val=1
+    if [[ -n "$led_path" && -w "$led_path" ]]; then
+        echo "$led_val" > "$led_path" 2>/dev/null || true
+    fi
+    refresh_qs
+    if [[ "$node" == "@DEFAULT_AUDIO_SINK@" ]]; then
+        qs ipc call osd volume >/dev/null 2>&1 || true
+    fi
+    if [[ "$led_val" -eq 1 ]]; then
         notify-send -a "SuperFedora" -t 1400 "$label: Muted" "Audio muted" 2>/dev/null || true
     else
         notify-send -a "SuperFedora" -t 1400 "$label: Active" "$st" 2>/dev/null || true
     fi
 }
 
+cmd_kbd_backlight() {
+    local sub="${1:-cycle}" dev="tpacpi::kbd_backlight" sys="/sys/class/leds/tpacpi::kbd_backlight/brightness" cur=0 next=0 lbl="OFF"
+    if [[ -f "$sys" ]]; then cur="$(cat "$sys" 2>/dev/null || echo 0)"
+    elif command -v brightnessctl >/dev/null 2>&1 && brightnessctl --device="$dev" get >/dev/null 2>&1; then
+        cur="$(brightnessctl --device="$dev" get 2>/dev/null || echo 0)"
+    elif [[ -f "$KBD_FILE" ]]; then cur="$(tr -d '[:space:]' < "$KBD_FILE" 2>/dev/null || echo 0)"; fi
+    [[ "$cur" =~ ^[0-9]+$ ]] || cur=0
+    [[ "$sub" == "status" ]] && { echo "$cur"; return 0; }
+    case "$sub" in
+        0|off)  next=0 ;;
+        1|low)  next=1 ;;
+        2|high) next=2 ;;
+        up)     next=$(( cur < 2 ? cur + 1 : 2 )) ;;
+        down)   next=$(( cur > 0 ? cur - 1 : 0 )) ;;
+        *)      next=$(( (cur + 1) % 3 )) ;;
+    esac
+    if command -v brightnessctl >/dev/null 2>&1; then
+        if [[ "$sub" == "cycle" && "$cur" -lt 2 ]]; then
+            brightnessctl --device="$dev" set +1 >/dev/null 2>&1 || brightnessctl --device="$dev" set "$next" >/dev/null 2>&1 || true
+        else
+            brightnessctl --device="$dev" set "$next" >/dev/null 2>&1 || true
+        fi
+    fi
+    [[ -w "$sys" ]] && echo "$next" > "$sys" 2>/dev/null || true
+    echo "$next" > "$KBD_FILE"
+    refresh_qs
+    case "$next" in 1) lbl="LOW (50%)" ;; 2) lbl="HIGH (100%)" ;; *) lbl="OFF (0%)" ;; esac
+    notify-send -a "SuperFedora" -t 1400 "ThinkPad Keyboard Backlight: $lbl" "Level $next / 2" 2>/dev/null || true
+}
+
 case "${1:-touchpad}" in
     webcam|camera|cam) shift || true; cmd_webcam "${1:-toggle}" ;;
-    mic|microphone|input) shift || true; cmd_audio "@DEFAULT_AUDIO_SOURCE@" "Microphone" "${1:-toggle}" ;;
-    speaker|speakers|output|sink) shift || true; cmd_audio "@DEFAULT_AUDIO_SINK@" "Speakers" "${1:-toggle}" ;;
+    mic|microphone|input) shift || true; cmd_audio "@DEFAULT_AUDIO_SOURCE@" "Microphone" "${1:-toggle}" "/sys/class/leds/platform::micmute/brightness" ;;
+    speaker|speakers|output|sink) shift || true; cmd_audio "@DEFAULT_AUDIO_SINK@" "Speakers" "${1:-toggle}" "/sys/class/leds/platform::mute/brightness" ;;
+    kbd|kbd-backlight|backlight) shift || true; cmd_kbd_backlight "${1:-cycle}" ;;
     *)
         state="${XDG_RUNTIME_DIR:-/tmp}/touchpad-disabled"
         if [[ -f "$state" ]]; then

@@ -113,17 +113,17 @@ remove_custom_agent() {
 }
 
 compute_geometry() {
-    local mon_json
+    local mon_json full_h
     mon_json="$(hyprctl monitors -j 2>/dev/null || echo '[]')"
     read -r MON_NAME MON_X MON_Y MON_W MON_H < <(jq -r '
         (.[] | select(.focused == true)) // .[0] // {name:"default", x:0, y:0, width:1920, height:1080, scale:1}
-        | "\(.name // "default") \(.x) \(.y) \((.width / (.scale // 1)) | floor) \((.height / (.scale // 1)) | floor)"
+        | "\(.name // "default") \(.x) \(.y) \((.width / (.scale // 1)) | round) \((.height / (.scale // 1)) | round)"
     ' <<<"$mon_json")
     MON_NAME="${MON_NAME:-default}"; MON_X="${MON_X:-0}"; MON_Y="${MON_Y:-0}"; MON_W="${MON_W:-1920}"; MON_H="${MON_H:-1080}"
-    Q_W=$(( MON_W * 68 / 100 )); Q_H=$(( MON_H * 58 / 100 ))
+    Q_W=$(( (MON_W * 68 + 50) / 100 )); full_h=$(( (MON_H * 58 + 50) / 100 ))
     (( Q_W > 1280 )) && Q_W=1280; (( Q_W < 860 )) && Q_W=860; (( Q_W > MON_W - 40 )) && Q_W=$(( MON_W - 40 ))
-    (( Q_H > 720 )) && Q_H=720; (( Q_H < 480 )) && Q_H=480; (( Q_H > MON_H - 64 )) && Q_H=$(( MON_H - 64 ))
-    Q_X=$(( MON_X + (MON_W - Q_W) / 2 )); Q_Y=$(( MON_Y + 42 ))
+    (( full_h > 720 )) && full_h=720; (( full_h < 520 )) && full_h=520; (( full_h > MON_H - 64 )) && full_h=$(( MON_H - 64 ))
+    Q_H=$(( full_h - 40 )); Q_X=$(( MON_X + (MON_W - Q_W) / 2 )); Q_Y=$(( MON_Y + 82 ))
 }
 
 has_quake_client() { hyprctl clients -j 2>/dev/null | jq -e '.[] | select(.class == "quake-ai")' >/dev/null 2>&1; }
@@ -159,7 +159,7 @@ show_quake() {
     hyprctl --batch "dispatch movewindowpixel exact $Q_X $Q_Y,class:^(quake-ai)$; dispatch resizewindowpixel exact $Q_W $Q_H,class:^(quake-ai)$; dispatch focuswindow class:^(quake-ai)$" >/dev/null
 }
 
-hide_quake() { is_special_ai_open && hyprctl dispatch togglespecialworkspace ai >/dev/null || true; }
+hide_quake() { is_special_ai_open && hyprctl dispatch togglespecialworkspace ai >/dev/null || true; [[ "${1:-}" == "keep-deck" ]] || qs ipc call superdeck close >/dev/null 2>&1 || true; }
 relaunch_quake() { pkill -f "kitty --class quake-ai" 2>/dev/null || true; for _ in {1..25}; do has_quake_client || break; sleep 0.04; done; show_quake; }
 
 prompt_ollama() {
@@ -232,14 +232,14 @@ configure_tui() {
 case "${1:-toggle}" in
     toggle)        if has_quake_client && is_special_ai_open; then hide_quake; else show_quake; fi ;;
     show|open)     show_quake ;;
-    hide|close)    hide_quake ;;
+    hide|close)    hide_quake "${2:-}" ;;
     restart|relaunch) relaunch_quake ;;
-    select-agent)  resolve_agent "${2:-agy}"; if has_quake_client && is_special_ai_open; then relaunch_quake; fi ;;
-    set-agent)     resolve_agent "${2:-agy}"; relaunch_quake ;;
+    select-agent)  resolve_agent "${2:-agy}"; qs ipc call status refresh >/dev/null 2>&1 || true; if has_quake_client && is_special_ai_open; then relaunch_quake; fi ;;
+    set-agent)     resolve_agent "${2:-agy}"; qs ipc call status refresh >/dev/null 2>&1 || true; relaunch_quake ;;
     next-agent)
         mapfile -t IDS < <(all_agents | cut -d'|' -f1); NEXT="${IDS[0]:-agy}"
         for i in "${!IDS[@]}"; do [[ "${IDS[$i]}" == "$AI_AGENT" ]] && { NEXT="${IDS[$(( (i + 1) % ${#IDS[@]} ))]}"; break; }; done
-        resolve_agent "$NEXT"; if has_quake_client && is_special_ai_open; then relaunch_quake; fi ;;
+        resolve_agent "$NEXT"; qs ipc call status refresh >/dev/null 2>&1 || true; if has_quake_client && is_special_ai_open; then relaunch_quake; fi ;;
     ask|query)     shift; ask_agent "$@" ;;
     list-agents)   list_agents ;;
     set-ollama)    set_ollama "${2:-}" "${3:-}" ;;

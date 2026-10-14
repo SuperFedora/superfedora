@@ -14,6 +14,7 @@ Singleton {
     property string netType: "none"; property string ssid: ""; property int signal: 0; property var wifiList: []
     property real brightness: 1.0; property bool idleEnabled: true; property bool sfxEnabled: true
     property real spkVol: 0.6; property bool spkMuted: false; property real micVol: 1.0; property bool micMuted: false; property bool webcamEnabled: true
+    property int kbdBacklight: 0; property bool bat0Present: false; property string bat0Threshold: "Standard (0% - 100%)"; property string aiAgent: "agy"
     property bool pocketOpen: false; property bool superDeckOpen: false; property string superDeckSection: "ai"; property bool superDeckPowerHighlight: false
     property bool clock24h: true; property bool clockSeconds: false; property string localTz: "Local"; property bool autoTz: true
     property var worldClocks: []; property bool dnd: false; property bool sessionLocked: false
@@ -28,7 +29,6 @@ Singleton {
     FileView { id: gpuRc6; path: "/sys/class/drm/card1/gt/gt0/rc6_residency_ms" }
     FileView { id: sfxFile; path: Quickshell.env("HOME") + "/.config/superfedora/sfx.conf" }
 
-    // Consolidated 3000ms telemetry timer (replaces multiple rapid timers to minimize idle CPU)
     Timer {
         interval: 3000; running: true; repeat: true; triggeredOnStart: true
         onTriggered: {
@@ -82,46 +82,31 @@ Singleton {
             "nmcli -t -f TYPE,STATE device 2>/dev/null | grep -m1 ':connected$' | cut -d: -f1 || echo none; " +
             "nmcli -t -f ACTIVE,SIGNAL,SSID device wifi list --rescan no 2>/dev/null; " +
             "b=$(brightnessctl -m 2>/dev/null | cut -d, -f4 | tr -d '%'); echo \"BRI|${b:-100}\"; " +
-            "echo \"SPK|$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null)\"; " +
-            "echo \"MIC|$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null)\"; " +
-            "echo \"CAM|$(cat ~/.config/superfedora/webcam-enabled 2>/dev/null || echo on)\""]
+            "echo \"SPK|$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null)\"; echo \"MIC|$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null)\"; " +
+            "echo \"CAM|$(cat ~/.config/superfedora/webcam-enabled 2>/dev/null || echo on)\"; " +
+            "k=$(cat /sys/class/leds/tpacpi::kbd_backlight/brightness ~/.config/superfedora/kbd-backlight 2>/dev/null | head -n1); echo \"KBD|${k:-0}\"; " +
+            "ag=$(grep '^AI_AGENT=' ~/.config/superfedora/quake-ai.env 2>/dev/null | cut -d= -f2 | tr -d \"'\\\"\"); echo \"AGY|${ag:-agy}\"; " +
+            "if [ -d /sys/class/power_supply/BAT0 ]; then bs=$(cat /sys/class/power_supply/BAT0/charge_control_start_threshold /sys/class/power_supply/BAT0/charge_start_threshold 2>/dev/null | head -n1); be=$(cat /sys/class/power_supply/BAT0/charge_control_end_threshold /sys/class/power_supply/BAT0/charge_stop_threshold 2>/dev/null | head -n1); echo \"BAT0|1|${bs:-0}|${be:-100}\"; fi"]
         stdout: StdioCollector {
             onStreamFinished: {
                 const lines = text.trim().split("\n"), type = lines[0] || "none", seen = {}, list = [];
                 let activeSsid = "", activeSig = 0;
                 for (let i = 1; i < lines.length; i++) {
-                    if (lines[i].startsWith("BRI|")) {
-                        const bv = Number(lines[i].split("|")[1] || 100);
-                        if (!isNaN(bv) && bv > 0) root.brightness = Math.max(0.05, Math.min(1.0, bv / 100.0));
-                        continue;
-                    }
-                    if (lines[i].startsWith("SPK|")) {
-                        const sm = lines[i].match(/Volume:\s*([0-9.]+)/);
-                        if (sm) root.spkVol = Math.max(0, Math.min(1, Number(sm[1])));
-                        root.spkMuted = lines[i].includes("[MUTED]");
-                        continue;
-                    }
-                    if (lines[i].startsWith("MIC|")) {
-                        const mm = lines[i].match(/Volume:\s*([0-9.]+)/);
-                        if (mm) root.micVol = Math.max(0, Math.min(1, Number(mm[1])));
-                        root.micMuted = lines[i].includes("[MUTED]");
-                        continue;
-                    }
-                    if (lines[i].startsWith("CAM|")) {
-                        const cv = (lines[i].split("|")[1] || "on").trim().toLowerCase();
-                        root.webcamEnabled = (cv !== "off" && cv !== "0" && cv !== "false");
-                        continue;
-                    }
+                    if (lines[i].startsWith("BRI|")) { const bv = Number(lines[i].split("|")[1] || 100); if (!isNaN(bv) && bv > 0) root.brightness = Math.max(0.05, Math.min(1.0, bv / 100.0)); continue; }
+                    if (lines[i].startsWith("SPK|")) { const sm = lines[i].match(/Volume:\s*([0-9.]+)/); if (sm) root.spkVol = Math.max(0, Math.min(1, Number(sm[1]))); root.spkMuted = lines[i].includes("[MUTED]"); continue; }
+                    if (lines[i].startsWith("MIC|")) { const mm = lines[i].match(/Volume:\s*([0-9.]+)/); if (mm) root.micVol = Math.max(0, Math.min(1, Number(mm[1]))); root.micMuted = lines[i].includes("[MUTED]"); continue; }
+                    if (lines[i].startsWith("CAM|")) { const cv = (lines[i].split("|")[1] || "on").trim().toLowerCase(); root.webcamEnabled = (cv !== "off" && cv !== "0" && cv !== "false"); continue; }
+                    if (lines[i].startsWith("KBD|")) { root.kbdBacklight = Math.max(0, Math.min(2, Number(lines[i].split("|")[1] || 0))); continue; }
+                    if (lines[i].startsWith("AGY|")) { root.aiAgent = (lines[i].split("|")[1] || "agy").trim(); continue; }
+                    if (lines[i].startsWith("BAT0|")) { const bp = lines[i].split("|"); root.bat0Present = true; root.bat0Threshold = "Start " + (bp[2] || "0") + "% / Stop " + (bp[3] || "100") + "%"; continue; }
                     const parts = lines[i].split(":"); if (parts.length < 3) continue;
                     const act = parts[0] === "yes", sig = Number(parts[1] || 0), name = parts.slice(2).join(":").trim();
                     if (!name) continue;
                     if (act) { activeSsid = name; activeSig = sig; }
-                    if (!seen[name] && list.length < 6) { seen[name] = true; list.push({ ssid: name, signal: sig, active: act }); }
+                    if (!seen[name] && list.length < 8) { seen[name] = true; list.push({ ssid: name, signal: sig, active: act }); }
                 }
-                root.wifiList = list;
-                root.netType = (type === "wifi" || type === "ethernet") ? type : "none";
-                root.signal = type === "wifi" ? activeSig : 0;
-                root.ssid = type === "wifi" ? activeSsid : "";
+                root.wifiList = list; root.netType = (type === "wifi" || type === "ethernet") ? type : "none";
+                root.signal = type === "wifi" ? activeSig : 0; root.ssid = type === "wifi" ? activeSsid : "";
             }
         }
     }
@@ -140,10 +125,8 @@ Singleton {
                 const wc = [];
                 for (const line of text.trim().split("\n")) {
                     const p = line.split("|");
-                    if (p[0] === "CFG") {
-                        root.clock24h = p[1] !== "0"; root.clockSeconds = p[2] === "1";
-                        root.localTz = p[3] || "Local"; root.autoTz = p[4] === "true";
-                    } else if (p[0] === "WC" && p.length >= 3) wc.push({ tz: p[1], time: p[2] });
+                    if (p[0] === "CFG") { root.clock24h = p[1] !== "0"; root.clockSeconds = p[2] === "1"; root.localTz = p[3] || "Local"; root.autoTz = p[4] === "true"; }
+                    else if (p[0] === "WC" && p.length >= 3) wc.push({ tz: p[1], time: p[2] });
                 }
                 root.worldClocks = wc;
             }
@@ -157,8 +140,7 @@ Singleton {
     }
 
     function setBrightness(val) {
-        const clamped = Math.max(0.05, Math.min(1.0, val));
-        root.brightness = clamped;
+        const clamped = Math.max(0.05, Math.min(1.0, val)); root.brightness = clamped;
         Quickshell.execDetached(["sh", "-c", "brightnessctl -e4 -n2 set " + Math.round(clamped * 100) + "% >/dev/null 2>&1 || true"]);
     }
 
@@ -171,35 +153,45 @@ Singleton {
     function toggleMicMute(m) { const next = (typeof m === "boolean") ? m : !root.micMuted; root.micMuted = next; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh mic " + (next ? "mute" : "unmute")]); }
     function setMicVolume(val) { const c = Math.max(0, Math.min(1, val)); root.micVol = c; Quickshell.execDetached(["sh", "-c", "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SOURCE@ " + Math.round(c * 100) + "%"]); }
     function toggleWebcam() { root.webcamEnabled = !root.webcamEnabled; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh webcam " + (root.webcamEnabled ? "on" : "off")]); }
+    function setKbdBacklight(lvl) {
+        const next = (typeof lvl === "number") ? Math.max(0, Math.min(2, lvl)) : ((root.kbdBacklight + 1) % 3);
+        root.kbdBacklight = next; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-touchpad.sh kbd-backlight " + next]);
+    }
+    function selectAiAgent(id) { root.aiAgent = id; root.playSfx("click"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh set-agent '" + id + "'"]); }
 
     function normalizeDeckTab(sec) {
         const s = String(sec || "").toLowerCase();
         if (s === "ai" || s === "agent" || s === "1") return "ai";
-        if (s === "zerotrust" || s === "net" || s === "io" || s === "quick" || s === "power" || s === "2") return "zerotrust";
-        if (s === "state" || s === "snapshots" || s === "telemetry" || s === "3") return "state";
-        if (s === "software" || s === "forge" || s === "apps" || s === "4") return "software";
-        if (s === "surface" || s === "style" || s === "dock" || s === "5") return "surface";
+        if (s === "wifi" || s === "net" || s === "wlan" || s === "2") return "wifi";
+        if (s === "bluetooth" || s === "bt" || s === "3") return "bluetooth";
+        if (s === "audio" || s === "cam" || s === "mic" || s === "speaker" || s === "io" || s === "zerotrust" || s === "4") return "audio";
+        if (s === "system" || s === "state" || s === "software" || s === "surface" || s === "forge" || s === "5") return "system";
+        if (s === "power" || s === "battery" || s === "session" || s === "6") return "power";
         return root.superDeckSection || "ai";
     }
 
+    function syncQuakeAi() {
+        const cmd = (root.superDeckOpen && root.normalizeDeckTab(root.superDeckSection) === "ai") ? "show" : "hide keep-deck";
+        Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh " + cmd + " >/dev/null 2>&1"]);
+    }
+    onSuperDeckOpenChanged: root.syncQuakeAi()
+    onSuperDeckSectionChanged: if (root.superDeckOpen) root.syncQuakeAi()
+
     function toggleSuperDeck(sec) {
-        if (!sec || sec === "last") {
-            root.superDeckPowerHighlight = false; root.superDeckOpen = !root.superDeckOpen;
-            if (root.superDeckOpen) root.refresh();
-        } else {
-            const pwr = (sec === "power"), target = root.normalizeDeckTab(sec);
-            if (root.superDeckOpen && root.superDeckSection === target && root.superDeckPowerHighlight === pwr) root.superDeckOpen = false;
-            else { root.superDeckSection = target; root.superDeckPowerHighlight = pwr; root.superDeckOpen = true; root.refresh(); }
+        if (!sec || sec === "last") { root.superDeckPowerHighlight = false; root.superDeckOpen = !root.superDeckOpen; }
+        else {
+            const target = root.normalizeDeckTab(sec);
+            if (root.superDeckOpen && root.superDeckSection === target) root.superDeckOpen = false;
+            else { root.superDeckSection = target; root.superDeckPowerHighlight = (target === "power"); root.superDeckOpen = true; }
         }
+        if (root.superDeckOpen) root.refresh();
         root.playSfx("click");
     }
 
     Process { id: idleProc; command: ["pgrep", "-x", "hypridle"]; onExited: code => root.idleEnabled = code === 0 }
-
     property bool appGridOpen: false; property var clients: []
     property var dockConfig: ({ position: "bottom", autohide: false, showAlways: true, opacity: 1.0, pinned: ["kitty", "org.mozilla.firefox", "com.google.Chrome", "org.gnome.Nautilus", "nvim", "btop"] })
     property var wsModes: ({}); property string defaultWsMode: "dwindle"
-
     FileView { id: dockFile; path: Quickshell.env("HOME") + "/.config/superfedora/dock.json" }
     FileView { id: modesFile; path: Quickshell.env("HOME") + "/.config/superfedora/workspace-modes.json" }
 
@@ -209,31 +201,21 @@ Singleton {
         modesFile.reload(); const mraw = modesFile.text().trim();
         if (mraw) { try { const m = JSON.parse(mraw); if (m && m.workspaces) root.wsModes = m.workspaces; if (m && m.default) root.defaultWsMode = m.default; } catch (e) {} }
     }
-
     function wsModeFor(wsId): string { const k = String(wsId); return (root.wsModes && root.wsModes[k]) ? root.wsModes[k] : root.defaultWsMode; }
     function runDockCmd(args): void { Quickshell.execDetached(["sh", "-c", "~/.local/bin/superfedora dock " + args + " 2>/dev/null || ~/Projects/superfedora/superfedora/lib/panel-ctl.sh " + args]); }
 
     Process {
-        id: clientsProc
-        command: ["sh", "-c", "hyprctl clients -j 2>/dev/null || echo '[]'"]
+        id: clientsProc; command: ["sh", "-c", "hyprctl clients -j 2>/dev/null || echo '[]'"]
         stdout: StdioCollector {
             onStreamFinished: {
-                try {
-                    const arr = JSON.parse(text.trim() || "[]");
-                    root.clients = arr.filter(c => c.mapped && c.workspace && (c.workspace.id > 0 || String(c.workspace.name || "").includes("minimized")));
-                } catch (e) {}
+                try { const arr = JSON.parse(text.trim() || "[]"); root.clients = arr.filter(c => c.mapped && c.workspace && (c.workspace.id > 0 || String(c.workspace.name || "").includes("minimized"))); } catch (e) {}
             }
         }
     }
-
     Connections {
         target: Hyprland
-        function onRawEvent(event) {
-            const n = String(event.name || "");
-            if (n.includes("window") || n.includes("workspace") || n === "focusedmon") clientsProc.running = true;
-        }
+        function onRawEvent(event) { const n = String(event.name || ""); if (n.includes("window") || n.includes("workspace") || n === "focusedmon") clientsProc.running = true; }
     }
-
     Component.onCompleted: { root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); clientsProc.running = true; }
     IpcHandler {
         target: "dock"
@@ -245,10 +227,10 @@ Singleton {
         target: "superdeck"
         function toggle(): void { root.toggleSuperDeck(""); }
         function toggleAi(): void { root.toggleSuperDeck("ai"); }
-        function open(sec: string): void { root.superDeckPowerHighlight = (sec === "power"); root.superDeckSection = root.normalizeDeckTab(sec); root.superDeckOpen = true; root.refresh(); }
+        function open(sec: string): void { const t = root.normalizeDeckTab(sec); root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; root.superDeckOpen = true; root.syncQuakeAi(); root.refresh(); }
         function close(): void { root.superDeckOpen = false; }
     }
-    IpcHandler { target: "panels"; function settings(): void { root.toggleSuperDeck("surface"); } }
+    IpcHandler { target: "panels"; function settings(): void { root.toggleSuperDeck("system"); } }
     IpcHandler { target: "status"; function refresh(): void { root.refresh(); } }
     Timer { interval: 4500; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
     function refresh() { netProc.running = true; idleProc.running = true; tzProc.running = true; clientsProc.running = true; root.reloadDock(); root.reloadSfx(); root.reloadWebcam(); }
