@@ -30,6 +30,10 @@ pub const PALETTES: &[(&str, &str, (u8, u8, u8), (u8, u8, u8))] = &[
 
 pub const FORGE_CATALOG: &[(&str, &str, &str, &str)] = &[
     ("superfedora", "superfedora", "rust", "16-Bit Rust Workstation Engine & TUI"),
+    ("supertheme", "supertheme", "rust", "16-Bit Palette, Wallpaper, Cast & SFX Engine"),
+    ("superforge", "superforge", "rust", "Native -march=native Source Compiler & WebApps"),
+    ("supershell", "superdock", "rust", "16-Bit Wayland Shell Suite (Dock/Bar/Settings/Notify/Lock)"),
+    ("superagent", "superagent", "rust", "Standalone Autonomous Agent & Cast Comms Daemon"),
     ("ripgrep", "rg", "rust", "SIMD-accelerated regex search tool"),
     ("fastfetch", "fastfetch", "cmake", "Native C system info fetcher"),
     ("idlescreen", "idlescreen", "rust", "16-Bit Wayland idle screensaver daemon"),
@@ -126,18 +130,18 @@ impl WorkstationState {
     pub fn resolve_root() -> PathBuf {
         if let Ok(r) = env::var("SF_ROOT") {
             let p = PathBuf::from(r);
-            if p.join("lib").is_dir() { return p; }
+            if p.join("lib/core.sh").is_file() { return p; }
         }
         if let Ok(exe) = env::current_exe()
             && let Ok(real) = fs::canonicalize(&exe)
             && let Some(parent) = real.parent().and_then(|p| p.parent())
-            && parent.join("lib").is_dir()
+            && parent.join("lib/core.sh").is_file()
         {
             return parent.to_path_buf();
         }
         let home = env::var("HOME").unwrap_or_else(|_| "/home/jeryd".into());
         let proj = PathBuf::from(&home).join("Projects/superfedora/superfedora");
-        if proj.join("lib").is_dir() { proj } else { PathBuf::from(home).join(".local/share/superfedora") }
+        if proj.join("lib/core.sh").is_file() { proj } else { PathBuf::from(home).join(".local/share/superfedora") }
     }
 
     pub fn primary_color(&self) -> Color { Color::Rgb(self.primary_rgb.0, self.primary_rgb.1, self.primary_rgb.2) }

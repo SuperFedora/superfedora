@@ -7,8 +7,11 @@
 # ==============================================================================
 set -euo pipefail
 
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/bin:/bin:$PATH"
 THEME_ENGINE="$HOME/.local/share/superfedora/lib/apply-theme.sh"
-if command -v sf >/dev/null 2>&1; then
+if command -v supertheme >/dev/null 2>&1; then
+    run_theme() { supertheme "$@"; }
+elif command -v sf >/dev/null 2>&1; then
     run_theme() { sf theme "$@"; }
 elif [[ -x "$THEME_ENGINE" ]]; then
     run_theme() { "$THEME_ENGINE" "$@"; }
@@ -18,6 +21,10 @@ fi
 
 apply_file() {
     local f="$1"
+    if command -v supertheme >/dev/null 2>&1; then
+        supertheme wallpaper set "$f"
+        return 0
+    fi
     hyprctl hyprpaper preload "$f" >/dev/null 2>&1 || true
     hyprctl hyprpaper wallpaper ",$f" >/dev/null 2>&1 || true
     echo "$f" > "$HOME/.config/hypr/.current-wallpaper"
@@ -26,7 +33,7 @@ apply_file() {
 }
 
 case "${1:-next}" in
-    next|prev|toggle|pick|status|reload|day|night|light|dark)
+    next|prev|toggle|pick|status|reload|day|night|light|dark|wallpaper|wall)
         run_theme "$@" ;;
     mode)
         run_theme mode "${2:-toggle}" ;;

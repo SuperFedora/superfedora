@@ -13,4 +13,8 @@ module_run() {
     if [[ -x "$HOME/.local/bin/agy" && ! -e "$HOME/.local/bin/antigravity-cli" ]]; then
         ln -sf "$HOME/.local/bin/agy" "$HOME/.local/bin/antigravity-cli" 2>/dev/null || true
     fi
+
+    _sa_t() { command -v superagent >/dev/null 2>&1; }
+    _sa_i() { command -v superforge >/dev/null 2>&1 && superforge build superagent; }
+    need "SuperAgent Autonomous Daemon & CLI (superagent)" _sa_t _sa_i
 }

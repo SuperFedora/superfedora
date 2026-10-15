@@ -90,35 +90,37 @@ pub fn dispatch(cmd: &str, args: &[String], st: &mut WorkstationState) -> i32 {
                 }
             }
         },
-        "forge" => match args.first().map(|s| s.as_str()) {
+        "forge" | "superforge" => match args.first().map(|s| s.as_str()) {
             None | Some("status" | "list") => {
                 print_forge_charts(st);
                 0
             }
             Some("tui") => run_tui(1),
-            Some("update" | "upgrade") => run_forge_update_graphical(st),
+            Some("update" | "upgrade") if args.len() == 1 => run_forge_update_graphical(st),
             _ => {
-                let code = exec_script(st, "lib/forge.sh", args);
+                let code = exec_bin_or_script(st, "superforge", "lib/forge.sh", args);
                 st.refresh();
                 code
             }
         },
-        "theme" | "themes" => match args.first().map(|s| s.as_str()) {
+        "theme" | "themes" | "supertheme" => match args.first().map(|s| s.as_str()) {
             None | Some("list" | "swatches") => {
                 print_theme_swatches(st);
                 0
             }
             Some("tui") => run_tui(2),
-            _ => exec_script(st, "lib/apply-theme.sh", args),
+            _ => exec_bin_or_script(st, "supertheme", "lib/apply-theme.sh", args),
         },
-        "dock" | "panel" | "panels" => exec_script(st, "lib/panel-ctl.sh", args),
-        "notify" | "notifications" | "notif" => exec_script(st, "lib/notify-ctl.sh", args),
+        "dock" | "superdock" | "panel" | "panels" => exec_bin_or_script(st, "superdock", "lib/panel-ctl.sh", args),
+        "bar" | "superbar" => exec_bin_or_script(st, "superbar", "lib/panel-ctl.sh", args),
+        "notify" | "supernotify" | "notifications" | "notif" => exec_bin_or_script(st, "supernotify", "lib/notify-ctl.sh", args),
+        "lock" | "superlock" => exec_bin_or_script(st, "superlock", "lib/session-ctl.sh", args),
         "session" | "de" => exec_script(st, "lib/session-ctl.sh", args),
         "build" | "source" => exec_script(st, "lib/build-source.sh", args),
-        "sfx" | "sound" => exec_script(st, "lib/sfx.sh", args),
+        "sfx" | "sound" => exec_bin_or_script(st, "supertheme", "lib/sfx.sh", &prepend("sfx", args)),
         "dotfiles" => exec_script(st, "lib/install-dotfiles.sh", args),
         "rollback" | "snapshots" => exec_script(st, "lib/tui.sh", &prepend("rollback", args)),
-        "ai" | "quake" => exec_script(st, "dotfiles/.config/hypr/scripts/quake-ai.sh", args),
+        "agent" | "superagent" | "ai" | "quake" => exec_bin_or_script(st, "superagent", "dotfiles/.config/hypr/scripts/quake-ai.sh", args),
         "webcam" | "camera" | "mic" | "speaker" => {
             exec_script(st, "dotfiles/.config/hypr/scripts/toggle-touchpad.sh", &prepend(cmd, args))
         }
@@ -128,7 +130,7 @@ pub fn dispatch(cmd: &str, args: &[String], st: &mut WorkstationState) -> i32 {
             0
         }
         "settings-apply" => crate::settings_engine::apply_setting(args),
-        "settings" | "config" => {
+        "settings" | "supersettings" | "config" => {
             if let Some(sub) = args.first().map(|s| s.as_str()) {
                 if sub == "probe" {
                     crate::settings_engine::print_probe();
@@ -137,14 +139,7 @@ pub fn dispatch(cmd: &str, args: &[String], st: &mut WorkstationState) -> i32 {
                     return crate::settings_engine::apply_setting(&args[1..]);
                 }
             }
-            let mut c = Command::new("qs");
-            c.args(["ipc", "call", "settings"]);
-            if let Some(tab) = args.first() {
-                c.args(["open", tab]);
-            } else {
-                c.arg("toggle");
-            }
-            c.status().map(|s| s.code().unwrap_or(0)).unwrap_or(1)
+            exec_bin_or_script(st, "supersettings", "lib/panel-ctl.sh", args)
         }
         "modules" | "list" => {
             let p = ansi_rgb(st.primary_rgb);
@@ -169,6 +164,15 @@ fn prepend(first: &str, rest: &[String]) -> Vec<String> {
     v.push(first.to_string());
     v.extend_from_slice(rest);
     v
+}
+
+fn exec_bin_or_script(st: &WorkstationState, bin_name: &str, rel: &str, args: &[String]) -> i32 {
+    let home = env::var("HOME").unwrap_or_else(|_| "/home/jeryd".into());
+    let local_bin = std::path::Path::new(&home).join(".local/bin").join(bin_name);
+    if local_bin.is_file() {
+        return Command::new(local_bin).env("SF_ROOT", &st.sf_root).args(args).status().map(|s| s.code().unwrap_or(0)).unwrap_or(1);
+    }
+    exec_script(st, rel, args)
 }
 
 fn exec_script(st: &WorkstationState, rel: &str, args: &[String]) -> i32 {

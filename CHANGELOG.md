@@ -5,6 +5,16 @@ All notable changes to SuperFedora. Every change ships as a tagged release
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-10-15
+
+### Added
+- **Multi-Repo Native Rust 1.99 Architecture (`@SuperFedora`):** Extracted and unified the SuperFedora workstation ecosystem across 6 dedicated repositories and 9 native Rust binaries (`sf`/`superfedora`, `supertheme`, `superforge`, `superdock`, `superbar`, `supersettings`, `supernotify`, `superlock`, and `superagent`).
+- **Standalone Theme, Cast & SFX Engine (`SuperFedora/supertheme`):** Native Rust `supertheme` binary managing the 16-color rainbow palette (`01-crimson`..`16-fuchsia`), Dark/Light modes, Square/Rounded geometry, 4K pixel-art wallpapers, 16-bit cast portraits, and synthesized 16-bit WAV audio cues.
+- **Standalone Hardware-Tuned Source Compiler (`SuperFedora/superforge`):** Native Rust `superforge` binary and declarative `recipes.toml` catalog for `-march=native` / LTO source compilation, user-sysroot header staging, 4-stage workstation updates, and chromeless Firefox WebApps.
+- **Standalone 16-Bit Desktop Shell Suite (`SuperFedora/supershell`):** Native Rust binaries (`superdock`, `superbar`, `supersettings`, `supernotify`, `superlock`) and QML shell components.
+- **Standalone Autonomous Workstation Agent (`SuperFedora/superagent`):** Native Rust `superagent` daemon, CLI, and TUI orchestrating OpenClaw, local/LAN Ollama (`sf-ollama`), and coding harnesses (`agy`, `mcode`, `grok`, `vibe`) with `AGY // OPENCLAW` Cast Comms notifications via `supernotify`.
+- **Canonical Page Rules & Zero-Emoji Invariant (`AGENTS.md`, `tests/test_page_rules.py`):** Enforced 16–256 line bounds per code file, `<= 12` functional files per directory, and zero Unicode emojis across all repositories.
+
 ## [0.5.0] — 2026-10-14
 
 ### Added
