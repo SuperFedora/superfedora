@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=SuperSettings
+GenericName=System Settings
+Comment=SuperFedora Workstation Settings (Display, Sound, Network, Bluetooth, Personalization, System)
+Exec=supersettings
+Icon=preferences-system
+Terminal=false
+Type=Application
+Categories=Settings;System;DesktopSettings;
+Keywords=settings;control;panel;display;audio;network;bluetooth;theme;superfedora;
+StartupNotify=false
+StartupWMClass=org.quickshell

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=SuperFiles
+GenericName=File Manager
+Comment=SuperFedora Floating Terminal File Manager (Yazi)
+Exec=kitty --class superfiles -e yazi %u
+Icon=system-file-manager
+Terminal=false
+Type=Application
+MimeType=inode/directory;
+Categories=System;FileTools;FileManager;Utility;
+Keywords=files;folders;directory;explorer;yazi;superfiles;
+StartupNotify=false
+StartupWMClass=superfiles

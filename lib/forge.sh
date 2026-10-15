@@ -130,7 +130,6 @@ forge_generic_dir() {
         [[ -x "$found" ]] || { command -v cargo-binstall >/dev/null 2>&1 && cargo-binstall -y --force --install-path "$BIN_DIR" "$name" >/dev/null 2>&1 && found="$BIN_DIR/$bin_hint" || true; }
         [[ -x "$found" ]] || { [[ -x "$SYSROOT/bin/$bin_hint" ]] && found="$SYSROOT/bin/$bin_hint"; }
         [[ "$found" != "$BIN_DIR/$bin_hint" ]] && install_bin "$found" "$bin_hint"; record_forge "$name" "$repo" "$bin_hint" "cargo" "$sha"
-        [[ "$name" == "idlescreen" && -x "${found%/*}/idlescreen-extras" ]] && install_bin "${found%/*}/idlescreen-extras" "idlescreen-extras"
         if [[ "$name" == "supershell" ]]; then for sb in superdock superbar supersettings superlock; do [[ -x "${found%/*}/$sb" ]] && install_bin "${found%/*}/$sb" "$sb"; done; fi
     elif [[ -f "$dir/CMakeLists.txt" ]]; then
         local gen="-G Unix Makefiles" extra_cmake="-DBUILD_TESTING=OFF -DCMAKE_PREFIX_PATH=$SYSROOT;/usr"; command -v ninja >/dev/null 2>&1 && gen="-G Ninja"

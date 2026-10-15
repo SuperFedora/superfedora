@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=SuperTheme Studio
+GenericName=Theme & Wallpaper Manager
+Comment=SuperFedora 16-Bit Palette, Day/Night Mode, Corner & Wallpaper Studio
+Exec=kitty --class superfiles -e supertheme tui
+Icon=preferences-desktop-theme
+Terminal=false
+Type=Application
+Categories=Settings;DesktopSettings;Utility;
+Keywords=theme;wallpaper;palette;colors;dark;light;nightlight;supertheme;
+StartupNotify=false
+StartupWMClass=superfiles
