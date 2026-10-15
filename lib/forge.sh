@@ -126,8 +126,8 @@ forge_generic_dir() {
     [[ -x "$BIN_DIR/g++" ]] && cxx_bin="$BIN_DIR/g++" || { [[ -x /usr/bin/g++ ]] && cxx_bin="/usr/bin/g++"; }
     set_live 1 running "$name" 65 "[3/4] Compiling $name (-O3 -march=$MARCH_TARGET, $CPU_JOBS threads)..."
     if [[ -f "$dir/Cargo.toml" ]]; then
-        local rtarget="${CPU_ARCH}-unknown-linux-gnu"
-        # shellcheck disable=SC2086
+        command -v cargo >/dev/null 2>&1 || curl -fsSL https://sh.rustup.rs | sh -s -- -y --no-modify-path
+        local rtarget="${CPU_ARCH}-unknown-linux-gnu"; # shellcheck disable=SC2086
         (cd "$dir" && CC="$cc_bin" CXX="$cxx_bin" CFLAGS="$HOST_CFLAGS" CXXFLAGS="$HOST_CXXFLAGS" RUSTFLAGS="$HOST_RUSTFLAGS" CARGO_BUILD_JOBS="$CPU_JOBS" cargo build --release --target "$rtarget" $extra_cargo 2>&1 | tee -a "$FORGE_LOG")
         found="$dir/target/$rtarget/release/$bin_hint"; [[ -x "$found" ]] || found="$dir/target/release/$bin_hint"
         [[ -x "$found" ]] || found="$(find "$dir/target/$rtarget/release" "$dir/target/release" -maxdepth 1 -type f -executable ! -name '*.so' ! -name '*.d' 2>/dev/null | head -1)"

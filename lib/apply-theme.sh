@@ -177,7 +177,7 @@ apply_all() {
     printf 'vim.o.background = "%s"\n' "$mode" > "$STATE_DIR/nvim-theme.lua"
 
     # 6. IdleScreen, GTK/Portal, Night Light, OpenRGB & Greetd
-    [[ ! -f "$HOME/.config/idlescreen/config.toml" ]] && { mkdir -p "$HOME/.config/idlescreen"; printf '[general]\nidle_timeout_secs = 120\nprimary_output = ""\n\n[saver]\nactive = "superfedora"\n\n[saver.ascii]\nmode = "superfedora"\ntargets = ["superfedora"]\ntext = ""\nfps = 0\ndwell_secs = 5.0\ndissolve_duration_secs = 0.699999988079071\n' > "$HOME/.config/idlescreen/config.toml"; }
+    [[ ! -f "$HOME/.config/idlescreen/config.toml" ]] && { mkdir -p "$HOME/.config/idlescreen"; printf '[general]\nidle_enabled = true\nidle_timeout_secs = 120\ndpms_timeout_secs = 0\nprimary_output = ""\n\n[saver]\nactive = "superfedora"\n\n[saver.ascii]\nmode = "superfedora"\ntargets = ["superfedora"]\ntext = ""\nfps = 0\ndwell_secs = 5.0\ndissolve_duration_secs = 0.7\n' > "$HOME/.config/idlescreen/config.toml"; }
     command -v gsettings >/dev/null 2>&1 && { gsettings set org.gnome.desktop.interface color-scheme "$PORTAL_SCHEME" 2>/dev/null || true; gsettings set org.gnome.desktop.interface gtk-theme "$GTK_THEME" 2>/dev/null || true; }
     if [[ "$nl" == "on" ]]; then
         if ! pgrep -x wlsunset >/dev/null 2>&1 && ! pgrep -x hyprsunset >/dev/null 2>&1; then

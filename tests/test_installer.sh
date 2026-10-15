@@ -145,7 +145,7 @@ else
   pass "notify-ctl.sh rejects unknown --banner value"
 fi
 
-for role in ai security builder engineer app all; do
+for role in ai security builder engineer app navigator medic archivist commander synth all; do
   c_out="$(HOME="$MOCK_HOME" XDG_CONFIG_HOME="$MOCK_HOME/.config" "$NOTIFY_CTL" --cast "$role" 2>&1)" || true
   if [[ "$c_out" == *"[OK] Cast comms triggered:"* ]]; then
     pass "notify-ctl.sh --cast $role triggers workstation cast comms"
@@ -155,7 +155,7 @@ for role in ai security builder engineer app all; do
 done
 
 # 9. Verify 16-bit cast portrait SVGs exist in dotfiles/.config/superfedora/cast/
-for role_svg in ai security builder engineer app; do
+for role_svg in ai security builder engineer app navigator medic archivist commander synth; do
   if [[ -f "$SCRIPT_DIR/dotfiles/.config/superfedora/cast/${role_svg}.svg" ]]; then
     pass "Cast portrait SVG present: dotfiles/.config/superfedora/cast/${role_svg}.svg"
   else
@@ -191,7 +191,7 @@ else
   fail "Stage-0 bootstrap did not invoke dnf install: $stage0_out"
 fi
 
-# 12. Verify systemd --user units, user-tmpfiles.d, and declarative OS drop-ins exist
+# 12. Verify systemd --user units, system Btrfs units, user-tmpfiles.d, and declarative OS drop-ins exist
 for u in superfedora-session.target supershell.service superagent.service idlescreen.service supertheme-sun.service supertheme-sun.timer superforge-check.service superforge-check.timer; do
   if [[ -f "$SCRIPT_DIR/dotfiles/.config/systemd/user/$u" ]]; then
     pass "systemd user unit present: $u"
@@ -199,10 +199,24 @@ for u in superfedora-session.target supershell.service superagent.service idlesc
     fail "Missing systemd user unit: $u"
   fi
 done
-if [[ -f "$SCRIPT_DIR/dotfiles/.config/user-tmpfiles.d/superfedora.conf" ]] && [[ -f "$SCRIPT_DIR/system/etc/systemd/zram-generator.conf.d/superfedora.conf" ]]; then
-  pass "user-tmpfiles.d/superfedora.conf and declarative systemd OS drop-ins present"
+if [[ -f "$SCRIPT_DIR/dotfiles/.config/user-tmpfiles.d/superfedora.conf" && -f "$SCRIPT_DIR/system/etc/systemd/zram-generator.conf.d/superfedora.conf" && -f "$SCRIPT_DIR/system/etc/systemd/system/btrfs-scrub@.timer" && -f "$SCRIPT_DIR/system/etc/systemd/system/superfedora-boot-guard.service" ]]; then
+  pass "user-tmpfiles.d/superfedora.conf, btrfs-scrub@.timer, superfedora-boot-guard.service, and OS drop-ins present"
 else
-  fail "Missing user-tmpfiles.d/superfedora.conf or systemd OS drop-ins"
+  fail "Missing user-tmpfiles.d/superfedora.conf, btrfs-scrub@.timer, or systemd OS drop-ins"
+fi
+
+# 13. Test need_copr Rawhide fallback under SF_VERBOSE=1 subshell & multi-COPR isolation
+COPR_TEST_DIR="$TMP_TEST/copr_test"
+mkdir -p "$COPR_TEST_DIR/bin" "$COPR_TEST_DIR/state"
+printf '#!/bin/sh\n[ "$1" = "-E" ] && { echo 46; exit 0; }\nexit 1\n' > "$COPR_TEST_DIR/bin/rpm"
+printf '#!/bin/sh\n[ "$1" = "copr" ] && exit 1\nexit 0\n' > "$COPR_TEST_DIR/bin/dnf"
+printf '#!/bin/sh\nexec "$@"\n' > "$COPR_TEST_DIR/bin/sudo"
+chmod +x "$COPR_TEST_DIR/bin/rpm" "$COPR_TEST_DIR/bin/dnf" "$COPR_TEST_DIR/bin/sudo"
+copr_out="$(PATH="$COPR_TEST_DIR/bin:$PATH" SF_ROOT="$SCRIPT_DIR" SF_STATE="$COPR_TEST_DIR/state" MODE=install SF_VERBOSE=1 bash -c 'source "$SF_ROOT/lib/core.sh"; source "$SF_ROOT/lib/check.sh"; need_copr lionheartp/Hyprland; need_copr phracek/PyCharm' 2>&1)" || true
+if [[ -f "$COPR_TEST_DIR/state/copr-fallback-lionheartp-Hyprland" && -f "$COPR_TEST_DIR/state/copr-fallback-phracek-PyCharm" && "$copr_out" == *"falling back to superforge source compilation"* ]]; then
+  pass "need_copr Rawhide fallback persists across SF_VERBOSE=1 subshells and isolates multiple COPRs"
+else
+  fail "need_copr Rawhide fallback failed: $copr_out"
 fi
 
 echo "Test summary: $FAILURES failure(s)."

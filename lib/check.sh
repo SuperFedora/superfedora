@@ -36,6 +36,15 @@ need() {
 # ------------------------------------------------------------------------------
 # Packages
 # ------------------------------------------------------------------------------
+_pkg_forged() {
+    case "$1" in
+        hyprland)   [[ -x "$HOME/.local/bin/Hyprland" || -x /usr/local/bin/Hyprland ]] ;;
+        quickshell) [[ -x "$HOME/.local/bin/quickshell" || -x /usr/local/bin/quickshell ]] ;;
+        fuzzel)     [[ -x "$HOME/.local/bin/fuzzel" || -x /usr/local/bin/fuzzel ]] ;;
+        *) return 1 ;;
+    esac
+}
+
 # need_pkgs LIST_FILE... — every package in the lists must be installed
 need_pkgs() {
     local -a want missing=()
@@ -44,7 +53,7 @@ need_pkgs() {
 
     local p
     for p in "${want[@]}"; do
-        if rpm -q --quiet "$p" 2>/dev/null || rpm -q --quiet --whatprovides "$p" 2>/dev/null; then
+        if rpm -q --quiet "$p" 2>/dev/null || rpm -q --quiet --whatprovides "$p" 2>/dev/null || _pkg_forged "$p"; then
             r_ok "$p"
         else
             missing+=("$p")
@@ -65,9 +74,9 @@ need_pkgs() {
         done
     fi
     for p in "${missing[@]}"; do
-        if rpm -q --quiet "$p" 2>/dev/null || rpm -q --quiet --whatprovides "$p" 2>/dev/null; then
+        if rpm -q --quiet "$p" 2>/dev/null || rpm -q --quiet --whatprovides "$p" 2>/dev/null || _pkg_forged "$p"; then
             r_added "$p"
-        elif [[ "${SF_COPR_FALLBACK:-0}" == "1" && "$p" =~ ^(hyprland|quickshell|fuzzel)$ ]] && run_logged "$SF_ROOT/lib/forge.sh" "$p"; then
+        elif [[ ( "${SF_COPR_FALLBACK:-0}" == "1" || -f "$SF_STATE/copr-fallback" ) && "$p" =~ ^(hyprland|quickshell|fuzzel)$ ]] && run_logged "$SF_ROOT/lib/forge.sh" "$p"; then
             r_added "$p (superforge source fallback)"
         else
             r_failed "$p (dnf install)"
@@ -104,13 +113,14 @@ need_rpmfusion() {
 
 # need_copr OWNER/PROJECT — falls back to superforge source compilation on new Fedora releases
 need_copr() {
-    local copr="$1" id="copr:copr.fedorainfracloud.org:${1/\//:}" ver
+    local copr="$1" id="copr:copr.fedorainfracloud.org:${1/\//:}" slug="${1/\//-}" ver
     ver="$(rpm -E %fedora 2>/dev/null || echo 42)"
-    _copr_t() { _repo_enabled "$id" || [[ "${SF_COPR_FALLBACK:-0}" == "1" ]]; }
+    _copr_t() { _repo_enabled "$id" || [[ -f "$SF_STATE/copr-fallback-$slug" ]]; }
     _copr_i() {
         as_root dnf install -y dnf5-plugins >/dev/null 2>&1 || true
         if ! as_root dnf copr enable -y "$copr" && ! as_root dnf copr enable -y "$copr" "fedora-${ver}-$(uname -m)" 2>/dev/null; then
             warn "COPR $copr not yet published for Fedora $ver; falling back to superforge source compilation"
+            mkdir -p "$SF_STATE" && touch "$SF_STATE/copr-fallback-$slug" "$SF_STATE/copr-fallback"
             export SF_COPR_FALLBACK=1
             return 0
         fi

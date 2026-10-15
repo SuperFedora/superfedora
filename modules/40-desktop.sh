@@ -63,13 +63,13 @@ module_run() {
     }
     need "Bluetooth TUI (bluetui)" _bt_t _bt_i
 
-    _st_t() { command -v supertheme >/dev/null 2>&1; }
-    _st_i() { command -v superforge >/dev/null 2>&1 && superforge build supertheme; }
-    need "SuperTheme Engine (supertheme)" _st_t _st_i
-
     _sf_t() { command -v superforge >/dev/null 2>&1; }
     _sf_i() { "$SF_ROOT/lib/forge.sh" build superforge; }
     need "SuperForge Compiler (superforge)" _sf_t _sf_i
+
+    _st_t() { command -v supertheme >/dev/null 2>&1; }
+    _st_i() { (command -v superforge >/dev/null 2>&1 && superforge build supertheme) || "$SF_ROOT/lib/forge.sh" build supertheme; }
+    need "SuperTheme Engine (supertheme)" _st_t _st_i
 
     _ss_t() {
         command -v superdock >/dev/null 2>&1 &&
@@ -78,6 +78,12 @@ module_run() {
         command -v supernotify >/dev/null 2>&1 &&
         command -v superlock >/dev/null 2>&1
     }
-    _ss_i() { command -v superforge >/dev/null 2>&1 && superforge build supershell && superforge build supernotify; }
+    _ss_i() {
+        if command -v superforge >/dev/null 2>&1; then
+            superforge build supershell && superforge build supernotify
+        else
+            "$SF_ROOT/lib/forge.sh" build supershell && "$SF_ROOT/lib/forge.sh" build supernotify
+        fi
+    }
     need "SuperShell Suite (superdock/bar/settings/notify/lock)" _ss_t _ss_i
 }

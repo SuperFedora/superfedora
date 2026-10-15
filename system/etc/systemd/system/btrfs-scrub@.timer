@@ -1,0 +1,11 @@
+# Managed by SuperFedora — Monthly Btrfs Scrub Timer
+[Unit]
+Description=SuperFedora Monthly Btrfs Scrub Timer on %f
+
+[Timer]
+OnCalendar=monthly
+AccuracySec=1d
+Persistent=true
+
+[Install]
+WantedBy=timers.target

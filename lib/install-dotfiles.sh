@@ -137,11 +137,12 @@ fi
 if [[ $units_changed -eq 1 ]]; then
     if [[ $EUID -eq 0 && "$TARGET_USER" != root ]]; then
         uid="$(id -u "$TARGET_USER")"
-        [[ -d "/run/user/$uid" ]] && sudo -u "$TARGET_USER" XDG_RUNTIME_DIR="/run/user/$uid" sh -c 'systemd-tmpfiles --user --create 2>/dev/null || true; systemctl --user daemon-reload 2>/dev/null || true; systemctl --user enable supertheme-sun.timer superforge-check.timer 2>/dev/null || true' || true
+        [[ -d "/run/user/$uid" ]] && sudo -u "$TARGET_USER" XDG_RUNTIME_DIR="/run/user/$uid" sh -c 'systemd-tmpfiles --user --create 2>/dev/null || true; systemctl --user daemon-reload 2>/dev/null || true; systemctl --user enable superfedora-session.target supershell.service superagent.service idlescreen.service 2>/dev/null || true; systemctl --user enable --now supertheme-sun.timer superforge-check.timer 2>/dev/null || true' || true
     else
         systemd-tmpfiles --user --create 2>/dev/null || true
         systemctl --user daemon-reload 2>/dev/null || true
-        systemctl --user enable supertheme-sun.timer superforge-check.timer 2>/dev/null || true
+        systemctl --user enable superfedora-session.target supershell.service superagent.service idlescreen.service 2>/dev/null || true
+        systemctl --user enable --now supertheme-sun.timer superforge-check.timer 2>/dev/null || true
     fi
     echo "systemd user units & tmpfiles reloaded"
 fi

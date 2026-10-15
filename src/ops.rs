@@ -160,7 +160,7 @@ pub fn run_system_upgrade(st: &WorkstationState, args: &[String]) -> i32 {
     }
     if dry {
         println!("  [DRY-RUN] 1. Pre-Upgrade Checkpoint : snapper -c root create -d \"SuperFedora pre-upgrade F{cur_rel}->F{next_rel}\"");
-        println!("  [DRY-RUN] 2. Cast Comms Relay       : supernotify cast --role engineer \"ARCHIVIST: Pre-upgrade snapshot verified\"");
+        println!("  [DRY-RUN] 2. Cast Comms Relay       : supernotify --cast archivist \"ARCHIVIST: Pre-upgrade snapshot verified\"");
         println!("  [DRY-RUN] 3. DNF5 System Upgrade    : sudo dnf5 system-upgrade download --releasever={next_rel} --allowerasing -y");
         println!("  [DRY-RUN] 4. Post-Upgrade Rebuild   : superfedora system-upgrade --rebuild (recompiles native binaries)");
         return 0;
@@ -169,18 +169,19 @@ pub fn run_system_upgrade(st: &WorkstationState, args: &[String]) -> i32 {
     println!("  [1/3] Creating pre-upgrade Btrfs snapshot via Snapper (ARCHIVIST)...");
     let desc = format!("SuperFedora pre-upgrade Fedora {cur_rel} -> {next_rel}");
     let _ = Command::new("sudo").args(["snapper", "-c", "root", "create", "-t", "single", "-d", &desc]).status();
-    let _ = Command::new("bash").arg(st.sf_root.join("lib/notify-ctl.sh")).args(["--cast", "engineer"]).stdout(Stdio::null()).status();
+    let _ = Command::new("bash").arg(st.sf_root.join("lib/notify-ctl.sh")).args(["--cast", "archivist"]).stdout(Stdio::null()).status();
 
     println!("  [2/3] Downloading Fedora {next_rel} system-upgrade packages via dnf5...");
-    let _ = Command::new("sudo").args(["dnf", "install", "-y", "dnf5-plugin-system-upgrade"]).status();
+    let dnf_bin = if Path::new("/usr/bin/dnf5").is_file() { "dnf5" } else { "dnf" };
+    let _ = Command::new("sudo").args([dnf_bin, "install", "-y", "dnf5-plugin-system-upgrade"]).status();
     let dl = Command::new("sudo")
-        .args(["dnf", "system-upgrade", "download", &format!("--releasever={next_rel}"), "--allowerasing", "-y"])
+        .args([dnf_bin, "system-upgrade", "download", &format!("--releasever={next_rel}"), "--allowerasing", "-y"])
         .status();
     if !dl.map(|s| s.success()).unwrap_or(false) {
-        eprintln!("  [FAIL] dnf system-upgrade download failed for Fedora {next_rel}");
+        eprintln!("  [FAIL] {dnf_bin} system-upgrade download failed for Fedora {next_rel}");
         return 1;
     }
-    println!("  [3/3] Download complete. Run 'sudo dnf system-upgrade reboot' to apply, then 'superfedora system-upgrade --rebuild'.");
+    println!("  [3/3] Download complete. Run 'sudo {dnf_bin} system-upgrade reboot' to apply, then 'superfedora system-upgrade --rebuild'.");
     0
 }
 

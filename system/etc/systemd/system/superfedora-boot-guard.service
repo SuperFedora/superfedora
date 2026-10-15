@@ -1,0 +1,12 @@
+# Managed by SuperFedora — Btrfs Boot-Guard Health Check & Auto-Rollback
+[Unit]
+Description=SuperFedora Btrfs Boot-Guard Health Check & Auto-Rollback
+After=multi-user.target graphical.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/superfedora-boot-guard
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

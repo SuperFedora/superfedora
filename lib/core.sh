@@ -12,7 +12,7 @@
 MODE="${MODE:-status}"
 SF_ROOT="${SF_ROOT:?SF_ROOT must point at the SuperFedora source tree}"
 SF_VERSION="$(tr -d '[:space:]' < "$SF_ROOT/VERSION" 2>/dev/null || echo unknown)"
-SF_STATE="${XDG_CONFIG_HOME:-$HOME/.config}/superfedora"
+SF_STATE="${SF_STATE:-${XDG_CONFIG_HOME:-$HOME/.config}/superfedora}"
 SF_LOG="$SF_STATE/install.log"
 
 # Counters for the final summary

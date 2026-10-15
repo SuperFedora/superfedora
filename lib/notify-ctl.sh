@@ -135,12 +135,23 @@ trigger_cast() {
         app|apps|firefox|discord|slack|spotify)
             qs_call cast app || { command -v notify-send >/dev/null 2>&1 && notify-send -a "FIREFOX" "External App Transmission" "Incoming desktop application relay framed in 16-bit scanline bezel." || true; }
             printf '  [OK] Cast comms triggered: App Comms (Top-Right)\n' ;;
-        all|test)
-            qs_call cast all || true
-            printf '  [OK] Cast comms triggered: Full Workstation Cast Showcase\n' ;;
-        *)
-            echo "Usage: sf notify --cast <ai|security|builder|engineer|app|all>" >&2
-            exit 2 ;;
+        nav|navigator|net|network|wifi|vpn|tailscale)
+            qs_call cast navigator || { command -v notify-send >/dev/null 2>&1 && notify-send -a "NET // TAILSCALE" "Mesh Route Synchronized" "Tailscale WireGuard tunnel & low-latency DNS routing locked." || true; }
+            printf '  [OK] Cast comms triggered: Network Navigator (Top-Right)\n' ;;
+        med|medic|healer|health|doctor|thermal|battery)
+            qs_call cast medic || { command -v notify-send >/dev/null 2>&1 && notify-send -a "BTRFS // HEALER" "Subvolume Health Scrub" "Thermal, SMART, and Btrfs scrub diagnostics verified." || true; }
+            printf '  [OK] Cast comms triggered: System Medic / Recovery (Top-Center)\n' ;;
+        arch|archivist|vault|snapper|snapshot|backup|git)
+            qs_call cast archivist || { command -v notify-send >/dev/null 2>&1 && notify-send -a "SNAPPER // VAULT" "Immutable Snapshot Sealed" "Timeline checkpoint indexed into cold storage and GRUB boot menu." || true; }
+            printf '  [OK] Cast comms triggered: Data Archivist / Vault (Top-Right)\n' ;;
+        cmd|commander|ops|fleet|tactical|mission)
+            qs_call cast commander || { command -v notify-send >/dev/null 2>&1 && notify-send -a "FLEET // OPS" "Tactical Override Active" "Workstation mission parameters locked across all active workspaces." || true; }
+            printf '  [OK] Cast comms triggered: Fleet Commander (Top-Center)\n' ;;
+        syn|synth|audio|sfx|sound|pipewire|music)
+            qs_call cast synth || { command -v notify-send >/dev/null 2>&1 && notify-send -a "PIPEWIRE // DSP" "16-Bit PCM Synth Locked" "Low-latency PipeWire quantum 64/48000Hz and FM chiptune cues online." || true; }
+            printf '  [OK] Cast comms triggered: Audio Synth / Media (Bottom-Center)\n' ;;
+        all|test) qs_call cast all || true; printf '  [OK] Cast comms triggered: Full Workstation Cast Showcase\n' ;;
+        *) echo "Usage: sf notify --cast <ai|security|builder|engineer|app|navigator|medic|archivist|commander|synth|all>" >&2; exit 2 ;;
     esac
 }
 

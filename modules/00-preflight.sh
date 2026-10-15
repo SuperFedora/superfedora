@@ -47,11 +47,20 @@ module_run() {
         info "root is $fstype, not Btrfs: no snapshot"
         return 0
     fi
-    _snapper_t() { command -v snapper >/dev/null && (sudo -n snapper -c root list >/dev/null 2>&1 || snapper -c root list >/dev/null 2>&1); }
+    _snapper_t() {
+        command -v snapper >/dev/null &&
+        [[ -f /etc/systemd/system/superfedora-boot-guard.service && -f /etc/systemd/system/btrfs-scrub@.timer ]] &&
+        (sudo -n snapper -c root list >/dev/null 2>&1 || snapper -c root list >/dev/null 2>&1)
+    }
     _snapper_i() { as_root bash "$SF_ROOT/lib/setup-btrfs-snapper.sh"; }
     need "Snapper on Btrfs root" _snapper_t _snapper_i
+    need_root_file system/etc/systemd/system/btrfs-scrub@.service /etc/systemd/system/btrfs-scrub@.service
+    need_root_file system/etc/systemd/system/btrfs-scrub@.timer /etc/systemd/system/btrfs-scrub@.timer
+    need_root_file system/etc/systemd/system/superfedora-boot-guard.service /etc/systemd/system/superfedora-boot-guard.service
     need_service snapper-timeline.timer
     need_service snapper-cleanup.timer
+    need_service btrfs-scrub@-.timer
+    need_service superfedora-boot-guard.service
 
     if is_install && command -v snapper >/dev/null && [[ ! -s "$SF_STATE/last_pre_install_snapshot" ]]; then
         local n

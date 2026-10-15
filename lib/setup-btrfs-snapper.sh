@@ -147,6 +147,7 @@ EOF
 chmod 755 /usr/local/libexec/superfedora-boot-guard
 
 cat << 'EOF' > /etc/systemd/system/superfedora-boot-guard.service
+# Managed by SuperFedora — Btrfs Boot-Guard Health Check & Auto-Rollback
 [Unit]
 Description=SuperFedora Btrfs Boot-Guard Health Check & Auto-Rollback
 After=multi-user.target graphical.target
@@ -158,6 +159,33 @@ RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
+EOF
+
+cat << 'EOF' > /etc/systemd/system/btrfs-scrub@.service
+# Managed by SuperFedora — Monthly Btrfs Scrub Service
+[Unit]
+Description=SuperFedora Btrfs Scrub on %f
+ConditionPathIsMountPoint=%f
+
+[Service]
+Type=oneshot
+Nice=19
+IOSchedulingClass=idle
+ExecStart=/usr/sbin/btrfs scrub start -B %f
+EOF
+
+cat << 'EOF' > /etc/systemd/system/btrfs-scrub@.timer
+# Managed by SuperFedora — Monthly Btrfs Scrub Timer
+[Unit]
+Description=SuperFedora Monthly Btrfs Scrub Timer on %f
+
+[Timer]
+OnCalendar=monthly
+AccuracySec=1d
+Persistent=true
+
+[Install]
+WantedBy=timers.target
 EOF
 
 # 8. Preserve SELinux Enforcing contexts and enable native systemd timers

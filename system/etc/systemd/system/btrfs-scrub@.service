@@ -1,0 +1,10 @@
+# Managed by SuperFedora — Monthly Btrfs Scrub Service
+[Unit]
+Description=SuperFedora Btrfs Scrub on %f
+ConditionPathIsMountPoint=%f
+
+[Service]
+Type=oneshot
+Nice=19
+IOSchedulingClass=idle
+ExecStart=/usr/sbin/btrfs scrub start -B %f

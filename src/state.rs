@@ -100,9 +100,18 @@ impl WorkstationState {
         let home = env::var("HOME").unwrap_or_else(|_| "/home/jeryd".into());
         let state_dir = env::var("XDG_CONFIG_HOME").map(PathBuf::from).unwrap_or_else(|_| PathBuf::from(&home).join(".config")).join("superfedora");
         if !state_dir.exists() && Path::new("/etc/skel/.config/superfedora").is_dir() {
-            let _ = fs::create_dir_all(&state_dir);
+            let _ = fs::create_dir_all(state_dir.join("cast"));
             if let Ok(entries) = fs::read_dir("/etc/skel/.config/superfedora") {
-                for e in entries.flatten() { let _ = fs::copy(e.path(), state_dir.join(e.file_name())); }
+                for e in entries.flatten() {
+                    let p = e.path();
+                    if p.is_file() {
+                        let _ = fs::copy(&p, state_dir.join(e.file_name()));
+                    } else if p.is_dir() && let Ok(sub) = fs::read_dir(&p) {
+                        let dst_sub = state_dir.join(e.file_name());
+                        let _ = fs::create_dir_all(&dst_sub);
+                        for se in sub.flatten() { let _ = fs::copy(se.path(), dst_sub.join(se.file_name())); }
+                    }
+                }
             }
         }
         let version = fs::read_to_string(sf_root.join("VERSION")).unwrap_or_else(|_| "0.8.0".into()).trim().to_string();

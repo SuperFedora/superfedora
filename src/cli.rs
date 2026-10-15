@@ -222,7 +222,10 @@ run_modules() {
         source "$f"; module_run; unset -f module_run
     done
 }
-if [[ "$CMD_NAME" == "install" ]]; then
+if [[ "$CMD_NAME" == "update" ]]; then
+    [[ -d "$SF_ROOT/.git" && "$MODE" != "dry-run" ]] && git -C "$SF_ROOT" pull --ff-only || true
+fi
+if [[ "$CMD_NAME" == "install" || "$CMD_NAME" == "update" ]]; then
     [[ $EUID -eq 0 ]] && die "run as your normal user (sudo is used when needed)"
     mkdir -p "$SF_STATE"; mode_lbl="quick install"
     [[ "$SF_BUILD_MODE" == "source" ]] && mode_lbl="build-from-source (-march=native / target-cpu=native)"
@@ -239,7 +242,7 @@ else
 fi
 "#;
 
-    let mode = if cmd == "install" { if dry { "dry-run" } else { "install" } } else { "status" };
+    let mode = if cmd == "install" || cmd == "update" { if dry { "dry-run" } else { "install" } } else { "status" };
     let mut c = Command::new("bash");
     c.arg("-c").arg(script).env("SF_ROOT", &st.sf_root).env("CMD_NAME", cmd).env("MODE", mode).env("ONLY", only).env("SKIP", skip);
     if !build_mode.is_empty() { c.env("SF_BUILD_MODE", build_mode); }
