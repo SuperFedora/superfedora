@@ -1,173 +1,262 @@
 #!/usr/bin/env bash
 # Copyright 2026 SuperFedora Contributors
 # SPDX-License-Identifier: Apache-2.0
-# ==============================================================================
-# xdg-terminal-exec — SuperFedora Default App & Universal Terminal Dispatcher
-# ==============================================================================
-# Modes:
-#   xdg-terminal-exec [--class ID] [--title T] [-e CMD...]   Launch default terminal
-#   xdg-terminal-exec --browser [URL...]                     Launch default browser
-#   xdg-terminal-exec --files [DIR...]                       Launch default file manager
-#   xdg-terminal-exec --editor [FILE...]                     Launch default editor
-#   xdg-terminal-exec --monitor                              Launch default system monitor
-#   xdg-terminal-exec --set <role> <val>                     Set default app for role
-#   xdg-terminal-exec --probe                                Emit DEF|term|browser|files|editor|monitor
-# ==============================================================================
+# xdg-terminal-exec — SuperFedora Universal Default Apps, DE Suites & MIME Engine
 set -euo pipefail
 
 CFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/superfedora"
-DEF_FILE="$CFG_DIR/defaults.env"
-DEFAULT_TERMINAL="kitty"
-DEFAULT_BROWSER="firefox"
-DEFAULT_FILES="yazi"
-DEFAULT_EDITOR="nvim"
-DEFAULT_MONITOR="btop"
+DEF_FILE="$CFG_DIR/defaults.env"; MIME_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/mimeapps.list"
+
+set_baseline_vars() {
+    DEFAULT_SUITE="superfedora"; DEFAULT_TERMINAL="kitty"; DEFAULT_BROWSER="firefox"; DEFAULT_FILES="yazi"
+    DEFAULT_EDITOR="nvim"; DEFAULT_MONITOR="btop"; DEFAULT_PDF="zathura"; DEFAULT_IMAGE="imv"
+    DEFAULT_VIDEO="mpv"; DEFAULT_AUDIO="mpv"; DEFAULT_OFFICE="libreoffice"; DEFAULT_MAIL="thunderbird"; DEFAULT_ARCHIVE="file-roller"
+}
+set_baseline_vars
 # shellcheck disable=SC1090
 [[ -f "$DEF_FILE" ]] && source "$DEF_FILE"
 
 save_defaults() {
     mkdir -p "$CFG_DIR"
-    printf 'DEFAULT_TERMINAL="%s"\nDEFAULT_BROWSER="%s"\nDEFAULT_FILES="%s"\nDEFAULT_EDITOR="%s"\nDEFAULT_MONITOR="%s"\n' \
-        "$DEFAULT_TERMINAL" "$DEFAULT_BROWSER" "$DEFAULT_FILES" "$DEFAULT_EDITOR" "$DEFAULT_MONITOR" > "$DEF_FILE"
+    printf 'DEFAULT_SUITE="%s"\nDEFAULT_TERMINAL="%s"\nDEFAULT_BROWSER="%s"\nDEFAULT_FILES="%s"\nDEFAULT_EDITOR="%s"\nDEFAULT_MONITOR="%s"\nDEFAULT_PDF="%s"\nDEFAULT_IMAGE="%s"\nDEFAULT_VIDEO="%s"\nDEFAULT_AUDIO="%s"\nDEFAULT_OFFICE="%s"\nDEFAULT_MAIL="%s"\nDEFAULT_ARCHIVE="%s"\n' \
+        "${DEFAULT_SUITE:-superfedora}" "$DEFAULT_TERMINAL" "$DEFAULT_BROWSER" "$DEFAULT_FILES" "$DEFAULT_EDITOR" "$DEFAULT_MONITOR" "$DEFAULT_PDF" "$DEFAULT_IMAGE" "$DEFAULT_VIDEO" "$DEFAULT_AUDIO" "$DEFAULT_OFFICE" "$DEFAULT_MAIL" "$DEFAULT_ARCHIVE" > "$DEF_FILE"
     printf '%s.desktop\n' "$DEFAULT_TERMINAL" > "${XDG_CONFIG_HOME:-$HOME/.config}/xdg-terminals.list"
 }
 
-resolve_term_bin() {
-    local t
-    for t in "$DEFAULT_TERMINAL" "${TERMINAL:-}" kitty foot ghostty alacritty wezterm ptyxis kgx; do
-        [[ -n "$t" ]] && command -v "$t" >/dev/null 2>&1 && { echo "$t"; return 0; }
+pick_app() { for c in "$@"; do command -v "$c" >/dev/null 2>&1 && { printf '%s' "$c"; return; }; done; printf '%s' "$1"; }
+
+app_to_desktop() {
+    local a="${1,,}" d=""
+    case "$a" in
+        firefox) [[ -f /usr/share/applications/firefox.desktop ]] && d="firefox.desktop" || d="org.mozilla.firefox.desktop" ;;
+        brave|brave-browser) d="brave-browser.desktop" ;; chrome|google-chrome) d="google-chrome.desktop" ;;
+        chromium) [[ -f /usr/share/applications/org.chromium.Chromium.desktop ]] && d="org.chromium.Chromium.desktop" || d="chromium-browser.desktop" ;;
+        zen|zen-browser) d="zen.desktop" ;; librewolf) d="librewolf.desktop" ;; vivaldi) d="vivaldi-stable.desktop" ;;
+        floorp) d="one.ablaze.floorp.desktop" ;; epiphany) d="org.gnome.Epiphany.desktop" ;; qutebrowser) d="org.qutebrowser.qutebrowser.desktop" ;;
+        yazi|superfiles) d="superfiles.desktop" ;; nautilus) d="org.gnome.Nautilus.desktop" ;; thunar) d="thunar.desktop" ;;
+        dolphin) d="org.kde.dolphin.desktop" ;; nemo) d="nemo.desktop" ;; pcmanfm) d="pcmanfm.desktop" ;;
+        cosmic-files) d="com.system76.CosmicFiles.desktop" ;; cosmic-edit) d="com.system76.CosmicEdit.desktop" ;;
+        cosmic-term) d="com.system76.CosmicTerm.desktop" ;; cosmic-player) d="com.system76.CosmicPlayer.desktop" ;;
+        nvim|neovim) d="nvim.desktop" ;; hx|helix) d="Helix.desktop" ;; zed) d="dev.zed.Zed.desktop" ;;
+        code|vscode) d="code.desktop" ;; codium|vscodium) d="codium.desktop" ;; subl|sublime) d="sublime_text.desktop" ;;
+        kate) d="org.kde.kate.desktop" ;; gnome-text-editor) d="org.gnome.TextEditor.desktop" ;; gedit) d="org.gnome.gedit.desktop" ;;
+        zathura) d="org.pwmt.zathura.desktop" ;; papers) d="org.gnome.Papers.desktop" ;; evince) d="org.gnome.Evince.desktop" ;;
+        okular) d="org.kde.okular.desktop" ;; foliate) d="com.github.johnfactotum.Foliate.desktop" ;;
+        imv) d="imv.desktop" ;; loupe) d="org.gnome.Loupe.desktop" ;; gwenview) d="org.kde.gwenview.desktop" ;;
+        eog) d="org.gnome.eog.desktop" ;; gimp) d="gimp.desktop" ;; inkscape) d="org.inkscape.Inkscape.desktop" ;;
+        mpv) d="mpv.desktop" ;; vlc) d="vlc.desktop" ;; celluloid) d="io.github.celluloid_player.Celluloid.desktop" ;;
+        haruna) d="org.kde.haruna.desktop" ;; clapper) d="com.github.rafostar.Clapper.desktop" ;; totem) d="org.gnome.Totem.desktop" ;;
+        amberol) d="io.bassi.Amberol.desktop" ;; elisa) d="org.kde.elisa.desktop" ;; rhythmbox) d="org.gnome.Rhythmbox3.desktop" ;;
+        libreoffice) d="libreoffice-writer.desktop" ;; onlyoffice*) d="org.onlyoffice.desktopeditors.desktop" ;;
+        thunderbird) d="mozilla-thunderbird.desktop"; [[ -f /usr/share/applications/org.mozilla.Thunderbird.desktop ]] && d="org.mozilla.Thunderbird.desktop" ;;
+        betterbird) d="eu.betterbird.Betterbird.desktop" ;; geary) d="org.gnome.Geary.desktop" ;; evolution) d="org.gnome.Evolution.desktop" ;;
+        kmail) d="org.kde.kmail2.desktop" ;; file-roller) d="org.gnome.FileRoller.desktop" ;; ark) d="org.kde.ark.desktop" ;;
+        peazip) d="peazip.desktop" ;; qbittorrent) d="org.qbittorrent.qBittorrent.desktop" ;; transmission*) d="transmission-gtk.desktop" ;;
+        fragments) d="de.haeckerfelix.Fragments.desktop" ;; missioncenter) d="io.missioncenter.MissionCenter.desktop" ;;
+        resources) d="net.nokyan.Resources.desktop" ;; *) d="${a%.desktop}.desktop" ;;
+    esac
+    printf '%s' "$d"
+}
+
+desktop_to_app() {
+    local d="${1,,}"; d="${d%.desktop}"
+    case "$d" in
+        *firefox*) echo "firefox" ;; *brave*) echo "brave-browser" ;; *chrome*) echo "google-chrome" ;; *chromium*) echo "chromium" ;;
+        *zen*) echo "zen-browser" ;; *librewolf*) echo "librewolf" ;; *vivaldi*) echo "vivaldi" ;; *floorp*) echo "floorp" ;;
+        *epiphany*) echo "epiphany" ;; *qutebrowser*) echo "qutebrowser" ;; *superfiles*|*yazi*) echo "yazi" ;;
+        *nautilus*) echo "nautilus" ;; *thunar*) echo "thunar" ;; *dolphin*) echo "dolphin" ;; *nemo*) echo "nemo" ;;
+        *cosmicfiles*) echo "cosmic-files" ;; *cosmicedit*) echo "cosmic-edit" ;; *cosmicterm*) echo "cosmic-term" ;; *cosmicplayer*) echo "cosmic-player" ;;
+        *nvim*) echo "nvim" ;; *helix*) echo "hx" ;; *zed*) echo "zed" ;; *codium*) echo "codium" ;; *code*) echo "code" ;;
+        *texteditor*) echo "gnome-text-editor" ;; *kate*) echo "kate" ;; *zathura*) echo "zathura" ;; *papers*) echo "papers" ;;
+        *evince*) echo "evince" ;; *okular*) echo "okular" ;; *foliate*) echo "foliate" ;; *imv*) echo "imv" ;;
+        *loupe*) echo "loupe" ;; *gwenview*) echo "gwenview" ;; *gimp*) echo "gimp" ;; *inkscape*) echo "inkscape" ;;
+        *mpv*) echo "mpv" ;; *vlc*) echo "vlc" ;; *celluloid*) echo "celluloid" ;; *haruna*) echo "haruna" ;;
+        *clapper*) echo "clapper" ;; *amberol*) echo "amberol" ;; *elisa*) echo "elisa" ;; *rhythmbox*) echo "rhythmbox" ;;
+        *libreoffice*) echo "libreoffice" ;; *onlyoffice*) echo "onlyoffice" ;; *thunderbird*) echo "thunderbird" ;;
+        *betterbird*) echo "betterbird" ;; *geary*) echo "geary" ;; *evolution*) echo "evolution" ;; *kmail*) echo "kmail" ;;
+        *fileroller*) echo "file-roller" ;; *ark*) echo "ark" ;; *peazip*) echo "peazip" ;; *qbittorrent*) echo "qbittorrent" ;;
+        *transmission*) echo "transmission-gtk" ;; *fragments*) echo "fragments" ;; *missioncenter*) echo "missioncenter" ;;
+        *) echo "${d##*.}" ;;
+    esac
+}
+
+set_mime_keys() {
+    local desk="$1"; shift; mkdir -p "$(dirname "$MIME_FILE")"; touch "$MIME_FILE"
+    grep -q '^\[Default Applications\]' "$MIME_FILE" || printf '\n[Default Applications]\n' >> "$MIME_FILE"
+    for m in "$@"; do
+        if grep -q "^${m}=" "$MIME_FILE"; then sed -i "s|^${m}=.*|${m}=${desk}|" "$MIME_FILE"
+        else sed -i "/^\[Default Applications\]/a ${m}=${desk}" "$MIME_FILE"; fi
+        command -v xdg-mime >/dev/null 2>&1 && xdg-mime default "$desk" "$m" 2>/dev/null || true
     done
-    echo "kitty"
+}
+
+ext_catalog() {
+    cat <<EOF
+http://|Web & Links|x-scheme-handler/http|$DEFAULT_BROWSER|firefox,brave-browser,chromium,google-chrome,zen-browser,librewolf,vivaldi,qutebrowser
+https://|Web & Links|x-scheme-handler/https|$DEFAULT_BROWSER|firefox,brave-browser,chromium,google-chrome,zen-browser,librewolf,vivaldi,qutebrowser
+.html|Web & Links|text/html|$DEFAULT_BROWSER|firefox,brave-browser,chromium,zen-browser,nvim,hx,zed,codium
+mailto:|Web & Links|x-scheme-handler/mailto|$DEFAULT_MAIL|thunderbird,betterbird,geary,evolution,kmail,aerc,firefox
+magnet:|Web & Links|x-scheme-handler/magnet|$DEFAULT_ARCHIVE|qbittorrent,transmission-gtk,fragments,firefox
+ssh://|Web & Links|x-scheme-handler/ssh|$DEFAULT_TERMINAL|kitty,foot,ghostty,alacritty,wezterm,ptyxis,konsole,cosmic-term
+folder/|Files & Disks|inode/directory|$DEFAULT_FILES|yazi,nautilus,thunar,dolphin,nemo,pcmanfm,cosmic-files,lf,ranger
+.pdf|Documents & Office|application/pdf|$DEFAULT_PDF|zathura,papers,evince,okular,sioyek,firefox,libreoffice
+.epub|Documents & Office|application/epub+zip|$DEFAULT_PDF|foliate,zathura,okular,papers,calibre
+.docx|Documents & Office|application/vnd.openxmlformats-officedocument.wordprocessingml.document|$DEFAULT_OFFICE|libreoffice,onlyoffice,abiword,calligra
+.xlsx|Documents & Office|application/vnd.openxmlformats-officedocument.spreadsheetml.sheet|$DEFAULT_OFFICE|libreoffice,onlyoffice,gnumeric,calligra
+.pptx|Documents & Office|application/vnd.openxmlformats-officedocument.presentationml.presentation|$DEFAULT_OFFICE|libreoffice,onlyoffice,calligra
+.odt|Documents & Office|application/vnd.oasis.opendocument.text|$DEFAULT_OFFICE|libreoffice,onlyoffice,abiword
+.csv|Documents & Office|text/csv|$DEFAULT_OFFICE|libreoffice,nvim,hx,zed,codium,gnumeric
+.png|Images & Graphics|image/png|$DEFAULT_IMAGE|imv,loupe,swayimg,feh,gwenview,eog,gimp,firefox
+.jpg|Images & Graphics|image/jpeg|$DEFAULT_IMAGE|imv,loupe,swayimg,feh,gwenview,eog,gimp,firefox
+.webp|Images & Graphics|image/webp|$DEFAULT_IMAGE|imv,loupe,swayimg,feh,gwenview,gimp,firefox
+.gif|Images & Graphics|image/gif|$DEFAULT_IMAGE|imv,loupe,mpv,gwenview,firefox
+.svg|Images & Graphics|image/svg+xml|$DEFAULT_IMAGE|inkscape,imv,loupe,gimp,firefox,nvim
+.mp4|Video & Audio|video/mp4|$DEFAULT_VIDEO|mpv,vlc,celluloid,haruna,clapper,cosmic-player,totem,firefox
+.mkv|Video & Audio|video/x-matroska|$DEFAULT_VIDEO|mpv,vlc,celluloid,haruna,clapper,cosmic-player,totem
+.webm|Video & Audio|video/webm|$DEFAULT_VIDEO|mpv,vlc,celluloid,haruna,clapper,firefox
+.mov|Video & Audio|video/quicktime|$DEFAULT_VIDEO|mpv,vlc,celluloid,haruna,clapper
+.mp3|Video & Audio|audio/mpeg|$DEFAULT_AUDIO|mpv,amberol,elisa,rhythmbox,audacious,strawberry,cosmic-player,vlc
+.flac|Video & Audio|audio/flac|$DEFAULT_AUDIO|mpv,amberol,elisa,rhythmbox,audacious,strawberry,vlc
+.wav|Video & Audio|audio/x-wav|$DEFAULT_AUDIO|mpv,amberol,elisa,audacious,vlc
+.txt|Code & Text|text/plain|$DEFAULT_EDITOR|nvim,hx,zed,codium,code,gnome-text-editor,kate,cosmic-edit,micro
+.md|Code & Text|text/markdown|$DEFAULT_EDITOR|nvim,hx,zed,codium,code,obsidian,gnome-text-editor,kate
+.json|Code & Text|application/json|$DEFAULT_EDITOR|nvim,hx,zed,codium,code,gnome-text-editor,kate,firefox
+.toml|Code & Text|application/toml|$DEFAULT_EDITOR|nvim,hx,zed,codium,code,gnome-text-editor,kate
+.yaml|Code & Text|application/x-yaml|$DEFAULT_EDITOR|nvim,hx,zed,codium,code,gnome-text-editor,kate
+.sh|Code & Text|application/x-shellscript|$DEFAULT_EDITOR|nvim,hx,zed,codium,code,gnome-text-editor,kate
+.rs|Code & Text|text/rust|$DEFAULT_EDITOR|nvim,hx,zed,codium,code,gnome-text-editor,kate
+.py|Code & Text|text/x-python|$DEFAULT_EDITOR|nvim,hx,zed,codium,code,gnome-text-editor,kate
+.zip|Archives & Torrents|application/zip|$DEFAULT_ARCHIVE|file-roller,ark,peazip,xarchiver,yazi
+.tar.gz|Archives & Torrents|application/x-compressed-tar|$DEFAULT_ARCHIVE|file-roller,ark,peazip,xarchiver,yazi
+.tar.zst|Archives & Torrents|application/x-zstd-compressed-tar|$DEFAULT_ARCHIVE|file-roller,ark,peazip,yazi
+.7z|Archives & Torrents|application/x-7z-compressed|$DEFAULT_ARCHIVE|file-roller,ark,peazip,yazi
+.torrent|Archives & Torrents|application/x-bittorrent|$DEFAULT_ARCHIVE|qbittorrent,transmission-gtk,fragments
+EOF
+}
+
+apply_role_mimes() {
+    local role="${1,,}" val="${2,,}" desk; desk="$(app_to_desktop "$val")"
+    case "$role" in
+        browser|web) command -v xdg-settings >/dev/null 2>&1 && xdg-settings set default-web-browser "$desk" 2>/dev/null || true; set_mime_keys "$desk" text/html application/xhtml+xml x-scheme-handler/http x-scheme-handler/https ;;
+        files|filemanager) set_mime_keys "$desk" inode/directory ;;
+        editor|code) set_mime_keys "$desk" text/plain text/markdown application/json application/toml application/x-yaml application/x-shellscript text/rust text/x-python ;;
+        pdf|docs) set_mime_keys "$desk" application/pdf application/epub+zip ;;
+        image|photo) set_mime_keys "$desk" image/png image/jpeg image/webp image/gif image/svg+xml image/bmp image/avif ;;
+        video|media) set_mime_keys "$desk" video/mp4 video/x-matroska video/webm video/quicktime video/x-msvideo ;;
+        audio|music) set_mime_keys "$desk" audio/mpeg audio/flac audio/x-wav audio/ogg audio/opus ;;
+        office) set_mime_keys "$desk" application/vnd.openxmlformats-officedocument.wordprocessingml.document application/vnd.openxmlformats-officedocument.spreadsheetml.sheet application/vnd.openxmlformats-officedocument.presentationml.presentation application/vnd.oasis.opendocument.text text/csv ;;
+        mail|email) set_mime_keys "$desk" x-scheme-handler/mailto text/calendar ;;
+        archive) set_mime_keys "$desk" application/zip application/x-compressed-tar application/x-zstd-compressed-tar application/x-7z-compressed application/x-rar ;;
+    esac
+}
+
+apply_preset() {
+    case "${1,,}" in
+        superfedora|default|tui) set_baseline_vars ;;
+        gnome|workstation) DEFAULT_SUITE="gnome"; DEFAULT_TERMINAL="$(pick_app ptyxis kgx kitty)"; DEFAULT_BROWSER="$(pick_app firefox epiphany)"; DEFAULT_FILES="$(pick_app nautilus thunar yazi)"; DEFAULT_EDITOR="$(pick_app gnome-text-editor gedit nvim)"; DEFAULT_MONITOR="$(pick_app missioncenter resources btop)"; DEFAULT_PDF="$(pick_app papers evince zathura)"; DEFAULT_IMAGE="$(pick_app loupe eog imv)"; DEFAULT_VIDEO="$(pick_app clapper celluloid totem mpv)"; DEFAULT_AUDIO="$(pick_app amberol rhythmbox mpv)"; DEFAULT_OFFICE="libreoffice"; DEFAULT_MAIL="$(pick_app geary evolution thunderbird)"; DEFAULT_ARCHIVE="file-roller" ;;
+        kde|plasma) DEFAULT_SUITE="kde"; DEFAULT_TERMINAL="$(pick_app konsole kitty)"; DEFAULT_BROWSER="$(pick_app firefox brave-browser)"; DEFAULT_FILES="$(pick_app dolphin thunar yazi)"; DEFAULT_EDITOR="$(pick_app kate nvim)"; DEFAULT_MONITOR="$(pick_app btop htop)"; DEFAULT_PDF="$(pick_app okular zathura)"; DEFAULT_IMAGE="$(pick_app gwenview imv)"; DEFAULT_VIDEO="$(pick_app haruna vlc mpv)"; DEFAULT_AUDIO="$(pick_app elisa mpv)"; DEFAULT_OFFICE="$(pick_app libreoffice calligra)"; DEFAULT_MAIL="$(pick_app kmail thunderbird)"; DEFAULT_ARCHIVE="$(pick_app ark file-roller)" ;;
+        cosmic|system76) DEFAULT_SUITE="cosmic"; DEFAULT_TERMINAL="$(pick_app cosmic-term alacritty kitty)"; DEFAULT_BROWSER="firefox"; DEFAULT_FILES="$(pick_app cosmic-files nautilus yazi)"; DEFAULT_EDITOR="$(pick_app cosmic-edit hx nvim)"; DEFAULT_MONITOR="$(pick_app resources btop)"; DEFAULT_PDF="$(pick_app papers okular zathura)"; DEFAULT_IMAGE="$(pick_app loupe imv)"; DEFAULT_VIDEO="$(pick_app cosmic-player mpv)"; DEFAULT_AUDIO="$(pick_app cosmic-player amberol mpv)"; DEFAULT_OFFICE="libreoffice"; DEFAULT_MAIL="thunderbird"; DEFAULT_ARCHIVE="$(pick_app file-roller ark)" ;;
+        studio|creator|pro) DEFAULT_SUITE="studio"; DEFAULT_TERMINAL="$(pick_app ghostty wezterm kitty)"; DEFAULT_BROWSER="$(pick_app zen-browser brave-browser firefox)"; DEFAULT_FILES="$(pick_app thunar nautilus yazi)"; DEFAULT_EDITOR="$(pick_app zed codium code nvim)"; DEFAULT_MONITOR="$(pick_app nvtop missioncenter btop)"; DEFAULT_PDF="$(pick_app sioyek okular zathura)"; DEFAULT_IMAGE="$(pick_app gimp swayimg imv)"; DEFAULT_VIDEO="$(pick_app vlc mpv)"; DEFAULT_AUDIO="$(pick_app strawberry audacious mpv)"; DEFAULT_OFFICE="$(pick_app onlyoffice-desktopeditors libreoffice)"; DEFAULT_MAIL="$(pick_app betterbird thunderbird)"; DEFAULT_ARCHIVE="$(pick_app peazip ark file-roller)" ;;
+        *) echo "unknown preset: $1" >&2; exit 2 ;;
+    esac
+    save_defaults
+    for r in browser files editor pdf image video audio office mail archive; do v="DEFAULT_${r^^}"; apply_role_mimes "$r" "${!v}"; done
+    command -v qs >/dev/null 2>&1 && { qs ipc --any-display call dock reload >/dev/null 2>&1 || true; qs ipc --any-display call status refresh >/dev/null 2>&1 || true; }
+    exit 0
 }
 
 set_role() {
     local role="${1,,}" val="${2,,}" old_val=""
     case "$role" in
-        terminal|term) old_val="$DEFAULT_TERMINAL"; DEFAULT_TERMINAL="$val" ;;
-        browser|web)
-            old_val="$DEFAULT_BROWSER"; DEFAULT_BROWSER="$val"
-            local desk="${val}.desktop"
-            case "$val" in
-                firefox) desk="org.mozilla.firefox.desktop"; [[ -f "/usr/share/applications/firefox.desktop" ]] && desk="firefox.desktop" ;;
-                brave|brave-browser) desk="brave-browser.desktop" ;;
-                chrome|google-chrome) desk="google-chrome.desktop" ;;
-                chromium) desk="chromium-browser.desktop"; [[ -f "/usr/share/applications/org.chromium.Chromium.desktop" ]] && desk="org.chromium.Chromium.desktop" ;;
-                zen|zen-browser) desk="zen.desktop" ;;
-            esac
-            command -v xdg-settings >/dev/null 2>&1 && xdg-settings set default-web-browser "$desk" 2>/dev/null || true
-            command -v xdg-mime >/dev/null 2>&1 && xdg-mime default "$desk" text/html x-scheme-handler/http x-scheme-handler/https 2>/dev/null || true ;;
-        files|filemanager)
-            old_val="$DEFAULT_FILES"; DEFAULT_FILES="$val"
-            local fdesk="superfiles.desktop"
-            case "$val" in
-                nautilus) fdesk="org.gnome.Nautilus.desktop" ;; thunar) fdesk="thunar.desktop" ;;
-                dolphin)  fdesk="org.kde.dolphin.desktop" ;;    nemo)   fdesk="nemo.desktop" ;;
-            esac
-            command -v xdg-mime >/dev/null 2>&1 && xdg-mime default "$fdesk" inode/directory 2>/dev/null || true ;;
-        editor|code)
-            old_val="$DEFAULT_EDITOR"; DEFAULT_EDITOR="$val"
-            local edesk="nvim.desktop"
-            case "$val" in
-                hx|helix) edesk="Helix.desktop" ;; code|vscode) edesk="code.desktop" ;; codium) edesk="codium.desktop" ;; zed) edesk="dev.zed.Zed.desktop" ;;
-            esac
-            command -v xdg-mime >/dev/null 2>&1 && xdg-mime default "$edesk" text/plain text/markdown 2>/dev/null || true ;;
-        monitor|task) old_val="$DEFAULT_MONITOR"; DEFAULT_MONITOR="$val" ;;
+        terminal|term) old_val="$DEFAULT_TERMINAL"; DEFAULT_TERMINAL="$val" ;; browser|web) old_val="$DEFAULT_BROWSER"; DEFAULT_BROWSER="$val" ;;
+        files|filemanager) old_val="$DEFAULT_FILES"; DEFAULT_FILES="$val" ;; editor|code) old_val="$DEFAULT_EDITOR"; DEFAULT_EDITOR="$val" ;;
+        monitor|task) old_val="$DEFAULT_MONITOR"; DEFAULT_MONITOR="$val" ;; pdf|docs) old_val="$DEFAULT_PDF"; DEFAULT_PDF="$val" ;;
+        image|photo) old_val="$DEFAULT_IMAGE"; DEFAULT_IMAGE="$val" ;; video|media) old_val="$DEFAULT_VIDEO"; DEFAULT_VIDEO="$val" ;;
+        audio|music) old_val="$DEFAULT_AUDIO"; DEFAULT_AUDIO="$val" ;; office) old_val="$DEFAULT_OFFICE"; DEFAULT_OFFICE="$val" ;;
+        mail|email) old_val="$DEFAULT_MAIL"; DEFAULT_MAIL="$val" ;; archive) old_val="$DEFAULT_ARCHIVE"; DEFAULT_ARCHIVE="$val" ;;
         *) echo "unknown role: $role" >&2; exit 2 ;;
     esac
-    save_defaults
+    DEFAULT_SUITE="custom"; save_defaults; apply_role_mimes "$role" "$val"
     if [[ -n "$old_val" && "$old_val" != "$val" && -f "$CFG_DIR/dock.json" ]] && command -v jq >/dev/null 2>&1; then
         jq --arg o "$old_val" --arg n "$val" 'if (.pinned | type) == "array" then .pinned |= map(if (. == $o or ($o == "firefox" and . == "org.mozilla.firefox")) then (if $n == "firefox" then "org.mozilla.firefox" else $n end) else . end) else . end' "$CFG_DIR/dock.json" > "$CFG_DIR/dock.json.tmp" && mv "$CFG_DIR/dock.json.tmp" "$CFG_DIR/dock.json" || true
     fi
-    if command -v qs >/dev/null 2>&1; then
-        qs ipc --any-display call dock reload >/dev/null 2>&1 || true
-        qs ipc --any-display call status refresh >/dev/null 2>&1 || true
-    fi
+    command -v qs >/dev/null 2>&1 && { qs ipc --any-display call dock reload >/dev/null 2>&1 || true; qs ipc --any-display call status refresh >/dev/null 2>&1 || true; }
     exit 0
+}
+
+launch_role_app() {
+    local app="$1" cls="${2:-floating-tui}"; shift 2
+    case "$app" in
+        yazi|lf|ranger|nnn|nvim|hx|helix|micro|nano|btop|htop|btm|glances|nvtop|aerc|neomutt|termusic|cmus) exec "$0" --class "$cls" -e "$app" "$@" ;;
+        *) for b in "$app" "${app}-browser" "${app}-desktopeditors"; do command -v "$b" >/dev/null 2>&1 && exec "$b" "$@"; done; exec xdg-open "${1:-$HOME}" ;;
+    esac
 }
 
 case "${1:-}" in
     --probe)
-        printf 'DEF|%s|%s|%s|%s|%s\n' "$DEFAULT_TERMINAL" "$DEFAULT_BROWSER" "$DEFAULT_FILES" "$DEFAULT_EDITOR" "$DEFAULT_MONITOR"
-        exit 0 ;;
-    --set)
-        shift; set_role "${1:-}" "${2:-}" ;;
-    --browser)
-        shift
-        for b in "$DEFAULT_BROWSER" "${DEFAULT_BROWSER}-browser" firefox brave-browser google-chrome chromium; do
-            command -v "$b" >/dev/null 2>&1 && exec "$b" "$@"
+        printf 'DEF|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n' "$DEFAULT_TERMINAL" "$DEFAULT_BROWSER" "$DEFAULT_FILES" "$DEFAULT_EDITOR" "$DEFAULT_MONITOR" "$DEFAULT_PDF" "$DEFAULT_IMAGE" "$DEFAULT_VIDEO" "$DEFAULT_AUDIO" "$DEFAULT_OFFICE" "$DEFAULT_MAIL" "$DEFAULT_ARCHIVE" "${DEFAULT_SUITE:-superfedora}"
+        ins=""
+        for c in kitty foot ghostty alacritty wezterm ptyxis kgx rio konsole cosmic-term firefox brave-browser chromium google-chrome zen-browser librewolf vivaldi floorp epiphany qutebrowser yazi lf ranger nnn nautilus thunar dolphin nemo pcmanfm cosmic-files nvim hx micro nano zed code codium subl kate gnome-text-editor gedit cosmic-edit zathura papers evince okular sioyek foliate imv loupe swayimg feh gwenview eog gimp inkscape mpv vlc celluloid haruna clapper cosmic-player totem amberol elisa rhythmbox audacious strawberry termusic cmus libreoffice onlyoffice-desktopeditors abiword gnumeric thunderbird betterbird geary evolution kmail aerc neomutt file-roller ark peazip xarchiver qbittorrent transmission-gtk fragments btop htop btm glances nvtop missioncenter resources; do
+            command -v "$c" >/dev/null 2>&1 && ins="${ins:+$ins,}$c"
         done
-        exec xdg-open "${1:-https://superfedora.github.io}" ;;
-    --files)
-        shift
-        case "$DEFAULT_FILES" in
-            nautilus|thunar|dolphin|nemo|pcmanfm)
-                command -v "$DEFAULT_FILES" >/dev/null 2>&1 && exec "$DEFAULT_FILES" "$@" ;;
+        printf 'INS|%s\n' "$ins"
+        while IFS='|' read -r ext grp mime def_app opts; do
+            [[ -z "$ext" ]] && continue
+            cur=""; [[ -f "$MIME_FILE" ]] && cur="$(grep -m1 "^${mime}=" "$MIME_FILE" 2>/dev/null | cut -d= -f2- | cut -d';' -f1 || true)"
+            [[ -n "$cur" ]] && cur="$(desktop_to_app "$cur")" || cur="$def_app"
+            printf 'EXT|%s|%s|%s|%s|%s\n' "$ext" "$grp" "$mime" "$cur" "$opts"
+        done < <(ext_catalog)
+        exit 0 ;;
+    --preset) shift; apply_preset "${1:-superfedora}" ;;
+    --install-suite)
+        shift; s="${1:-gnome}"
+        case "$s" in
+            gnome) pkgs="ptyxis nautilus gnome-text-editor papers loupe celluloid rhythmbox geary file-roller" ;;
+            kde)   pkgs="konsole dolphin kate okular gwenview haruna elisa kmail ark" ;;
+            cosmic) pkgs="cosmic-term cosmic-files cosmic-edit cosmic-player" ;;
+            studio) pkgs="thunar gimp vlc strawberry peazip nvtop" ;;
+            *) pkgs="kitty yazi neovim zathura imv mpv btop" ;;
         esac
-        exec "$0" --class superfiles -e "${DEFAULT_FILES:-yazi}" "$@" ;;
-    --editor)
-        shift
-        case "$DEFAULT_EDITOR" in
-            code|codium|zed|antigravity|subl|gedit|gnome-text-editor)
-                command -v "$DEFAULT_EDITOR" >/dev/null 2>&1 && exec "$DEFAULT_EDITOR" "$@" ;;
-        esac
-        exec "$0" --class floating-tui -e "${DEFAULT_EDITOR:-nvim}" "$@" ;;
-    --monitor)
-        shift
-        case "$DEFAULT_MONITOR" in
-            missioncenter|io.missioncenter.MissionCenter|resources|gnome-system-monitor)
-                command -v "$DEFAULT_MONITOR" >/dev/null 2>&1 && exec "$DEFAULT_MONITOR" "$@" ;;
-        esac
-        exec "$0" --class floating-term -e "${DEFAULT_MONITOR:-btop}" "$@" ;;
+        exec "$0" --class floating-tui -e sh -c "echo 'Installing $s ecosystem suite packages: $pkgs'; echo; sudo dnf install -y --skip-unavailable $pkgs; ~/.local/bin/xdg-terminal-exec --preset $s; echo; read -n 1 -p 'Done! Press any key...'" ;;
+    --set) shift; set_role "${1:-}" "${2:-}" ;;
+    --set-ext)
+        shift; target_ext="${1:-}"; target_app="${2:-}"; desk="$(app_to_desktop "$target_app")"
+        mime="$(ext_catalog | awk -F'|' -v e="$target_ext" '$1==e{print $3; exit}')"
+        [[ -n "$mime" ]] && set_mime_keys "$desk" "$mime"
+        command -v qs >/dev/null 2>&1 && qs ipc --any-display call status refresh >/dev/null 2>&1 || true; exit 0 ;;
+    --reset) apply_preset "superfedora" ;;
+    --browser) shift; launch_role_app "$DEFAULT_BROWSER" "floating-tui" "$@" ;;
+    --files)   shift; launch_role_app "$DEFAULT_FILES" "superfiles" "$@" ;;
+    --editor)  shift; launch_role_app "$DEFAULT_EDITOR" "floating-tui" "$@" ;;
+    --pdf)     shift; launch_role_app "$DEFAULT_PDF" "floating-tui" "$@" ;;
+    --image)   shift; launch_role_app "$DEFAULT_IMAGE" "floating-tui" "$@" ;;
+    --video)   shift; launch_role_app "$DEFAULT_VIDEO" "floating-tui" "$@" ;;
+    --audio)   shift; launch_role_app "$DEFAULT_AUDIO" "floating-tui" "$@" ;;
+    --office)  shift; launch_role_app "$DEFAULT_OFFICE" "floating-tui" "$@" ;;
+    --mail)    shift; launch_role_app "$DEFAULT_MAIL" "floating-tui" "$@" ;;
+    --archive) shift; launch_role_app "$DEFAULT_ARCHIVE" "floating-tui" "$@" ;;
+    --monitor) shift; launch_role_app "$DEFAULT_MONITOR" "floating-term" "$@" ;;
 esac
 
-APP_CLASS=""
-APP_TITLE=""
-EXEC_ARGS=()
-PASSTHROUGH=()
-
+APP_CLASS=""; APP_TITLE=""; EXEC_ARGS=(); PASSTHROUGH=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --class|--app-id) APP_CLASS="${2:-}"; shift 2 ;;
-        --class=*|--app-id=*) APP_CLASS="${1#*=}"; shift ;;
-        --title|-T) APP_TITLE="${2:-}"; shift 2 ;;
-        --title=*) APP_TITLE="${1#*=}"; shift ;;
-        -e|--command) shift; EXEC_ARGS=("$@"); break ;;
-        *) PASSTHROUGH+=("$1"); shift ;;
+        --class|--app-id) APP_CLASS="${2:-}"; shift 2 ;; --class=*|--app-id=*) APP_CLASS="${1#*=}"; shift ;;
+        --title|-T) APP_TITLE="${2:-}"; shift 2 ;; --title=*) APP_TITLE="${1#*=}"; shift ;;
+        -e|--command) shift; EXEC_ARGS=("$@"); break ;; *) PASSTHROUGH+=("$1"); shift ;;
     esac
 done
 
-TERM_BIN="$(resolve_term_bin)"
+TERM_BIN="kitty"
+for t in "$DEFAULT_TERMINAL" "${TERMINAL:-}" kitty foot ghostty alacritty wezterm ptyxis kgx rio konsole cosmic-term warp; do
+    [[ -n "$t" ]] && command -v "$t" >/dev/null 2>&1 && { TERM_BIN="$t"; break; }
+done
 CMD=("$TERM_BIN")
-
 case "${TERM_BIN##*/}" in
-    kitty)
-        [[ -n "$APP_CLASS" ]] && CMD+=(--class "$APP_CLASS")
-        [[ -n "$APP_TITLE" ]] && CMD+=(--title "$APP_TITLE")
-        CMD+=("${PASSTHROUGH[@]}")
-        [[ ${#EXEC_ARGS[@]} -gt 0 ]] && CMD+=(-e "${EXEC_ARGS[@]}") ;;
-    foot|footclient)
-        [[ -n "$APP_CLASS" ]] && CMD+=("--app-id=$APP_CLASS")
-        [[ -n "$APP_TITLE" ]] && CMD+=("--title=$APP_TITLE")
-        CMD+=("${PASSTHROUGH[@]}")
-        [[ ${#EXEC_ARGS[@]} -gt 0 ]] && CMD+=("${EXEC_ARGS[@]}") ;;
-    ghostty)
-        [[ -n "$APP_CLASS" ]] && CMD+=("--class=$APP_CLASS")
-        [[ -n "$APP_TITLE" ]] && CMD+=("--title=$APP_TITLE")
-        CMD+=("${PASSTHROUGH[@]}")
-        [[ ${#EXEC_ARGS[@]} -gt 0 ]] && CMD+=(-e "${EXEC_ARGS[@]}") ;;
-    alacritty)
-        [[ -n "$APP_CLASS" ]] && CMD+=(--class "$APP_CLASS")
-        [[ -n "$APP_TITLE" ]] && CMD+=(--title "$APP_TITLE")
-        CMD+=("${PASSTHROUGH[@]}")
-        [[ ${#EXEC_ARGS[@]} -gt 0 ]] && CMD+=(-e "${EXEC_ARGS[@]}") ;;
-    wezterm)
-        CMD+=(start)
-        [[ -n "$APP_CLASS" ]] && CMD+=(--class "$APP_CLASS")
-        CMD+=("${PASSTHROUGH[@]}")
-        [[ ${#EXEC_ARGS[@]} -gt 0 ]] && CMD+=(-- "${EXEC_ARGS[@]}") ;;
-    *)
-        CMD+=("${PASSTHROUGH[@]}")
-        [[ ${#EXEC_ARGS[@]} -gt 0 ]] && CMD+=(-e "${EXEC_ARGS[@]}") ;;
+    kitty|alacritty) [[ -n "$APP_CLASS" ]] && CMD+=(--class "$APP_CLASS"); [[ -n "$APP_TITLE" ]] && CMD+=(--title "$APP_TITLE"); CMD+=("${PASSTHROUGH[@]}"); [[ ${#EXEC_ARGS[@]} -gt 0 ]] && CMD+=(-e "${EXEC_ARGS[@]}") ;;
+    foot|footclient) [[ -n "$APP_CLASS" ]] && CMD+=("--app-id=$APP_CLASS"); [[ -n "$APP_TITLE" ]] && CMD+=("--title=$APP_TITLE"); CMD+=("${PASSTHROUGH[@]}"); [[ ${#EXEC_ARGS[@]} -gt 0 ]] && CMD+=("${EXEC_ARGS[@]}") ;;
+    ghostty) [[ -n "$APP_CLASS" ]] && CMD+=("--class=$APP_CLASS"); [[ -n "$APP_TITLE" ]] && CMD+=("--title=$APP_TITLE"); CMD+=("${PASSTHROUGH[@]}"); [[ ${#EXEC_ARGS[@]} -gt 0 ]] && CMD+=(-e "${EXEC_ARGS[@]}") ;;
+    wezterm) CMD+=(start); [[ -n "$APP_CLASS" ]] && CMD+=(--class "$APP_CLASS"); CMD+=("${PASSTHROUGH[@]}"); [[ ${#EXEC_ARGS[@]} -gt 0 ]] && CMD+=(-- "${EXEC_ARGS[@]}") ;;
+    *) CMD+=("${PASSTHROUGH[@]}"); [[ ${#EXEC_ARGS[@]} -gt 0 ]] && CMD+=(-e "${EXEC_ARGS[@]}") ;;
 esac
-
 exec "${CMD[@]}"
