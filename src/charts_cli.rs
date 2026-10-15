@@ -180,8 +180,11 @@ pub fn run_forge_update_graphical(st: &mut WorkstationState) -> i32 {
     println!("{p}{b}║  [::] SUPERFEDORA FORGE 4-STAGE UPDATE PIPELINE (DNF + GIT + LTO + WEBAPPS)  ║{r}");
     println!("{p}{b}╚══════════════════════════════════════════════════════════════════════════════╝{r}");
 
-    let forge_sh = st.sf_root.join("lib/forge.sh");
-    let mut child = match Command::new(&forge_sh)
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/jeryd".into());
+    let local_bin = std::path::Path::new(&home).join(".local/bin/superforge");
+    let forge_cmd = if local_bin.is_file() { local_bin } else { st.sf_root.join("lib/forge.sh") };
+    let mut child = match Command::new(&forge_cmd)
+        .env("SF_ROOT", &st.sf_root)
         .arg("update")
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())

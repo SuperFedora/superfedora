@@ -24,7 +24,7 @@ export TMPDIR="$TMP_BUILD" PATH="$BIN_DIR:$HOME/.cargo/bin:$SYSROOT/bin:$SYSROOT
 [[ -d "$SYSROOT" ]] && export LD_LIBRARY_PATH="$SYSROOT/lib64:${LD_LIBRARY_PATH:-}" LIBRARY_PATH="$SYSROOT/lib64:$HOME/.local/usr/lib64:$HOME/.local/lib:/usr/lib64" CPATH="$SYSROOT/include:$HOME/.local/usr/include" PKG_CONFIG_PATH="$SYSROOT/lib64/pkgconfig:$SYSROOT/share/pkgconfig:/usr/lib64/pkgconfig:/usr/share/pkgconfig" CMAKE_PREFIX_PATH="$SYSROOT;/usr"
 
 set_live() {
-    [[ "$1" == "1" ]] && FORGE_ACTIVE_TARGET="$3" || FORGE_ACTIVE_TARGET=""
+    [[ "${DRY:-0}" -eq 1 ]] && { echo "$5"; return 0; }; [[ "$1" == "1" ]] && FORGE_ACTIVE_TARGET="$3" || FORGE_ACTIVE_TARGET=""
     python3 -c 'import json,sys,time; p,a,st,t,pct,s=sys.argv[1:7]; json.dump({"active":a=="1","state":st,"target":t,"pct":int(pct),"step":s,"ts":int(time.time())},open(p,"w"))' "$LIVE_JSON" "$1" "$2" "$3" "$4" "$5" 2>/dev/null || true
     echo "$5" | tee -a "$FORGE_LOG"; command -v qs >/dev/null 2>&1 && { qs ipc call status reloadForge >/dev/null 2>&1 || qs ipc call status refresh >/dev/null 2>&1 || true; }
     [[ "$1" == "0" && "$2" == "ok" && "${IN_UPDATE:-0}" -eq 0 && "$5" != *already* && "$5" != *Removed* && -x "$SF_ROOT/lib/notify-ctl.sh" ]] && "$SF_ROOT/lib/notify-ctl.sh" --banner update >/dev/null 2>&1 || true
@@ -73,7 +73,7 @@ ensure_pkgs() {
 
 preset_deps() {
     case "$1" in
-        ripgrep|rg|fd|zoxide) echo "gcc make" ;;
+        superfedora|supertheme|superforge|supershell|superagent|tuigreet|ripgrep|rg|fd|zoxide) echo "gcc make" ;;
         idlescreen)  echo "gcc make pkgconf-pkg-config wayland-devel libxkbcommon-devel dbus-devel" ;;
         fastfetch)   echo "gcc gcc-c++ cmake ninja-build pkgconf-pkg-config pciutils-devel wayland-devel libdrm-devel glib2-devel" ;;
         btop)        echo "gcc-c++ make" ;;
@@ -133,6 +133,7 @@ forge_generic_dir() {
         [[ -x "$found" ]] || found="$(find "$dir/target/$rtarget/release" "$dir/target/release" -maxdepth 1 -type f -executable ! -name '*.so' ! -name '*.d' 2>/dev/null | head -1)"
         install_bin "$found" "$bin_hint"; record_forge "$name" "$repo" "$bin_hint" "cargo" "$sha"
         [[ "$name" == "idlescreen" && -x "${found%/*}/idlescreen-extras" ]] && install_bin "${found%/*}/idlescreen-extras" "idlescreen-extras"
+        if [[ "$name" == "supershell" ]]; then for sb in superdock superbar supersettings supernotify superlock; do [[ -x "${found%/*}/$sb" ]] && install_bin "${found%/*}/$sb" "$sb"; done; fi
     elif [[ -f "$dir/CMakeLists.txt" ]]; then
         local gen="-G Unix Makefiles" extra_cmake="-DBUILD_TESTING=OFF -DCMAKE_PREFIX_PATH=$SYSROOT;/usr"; command -v ninja >/dev/null 2>&1 && gen="-G Ninja"
         [[ "$name" == "quickshell" ]] && extra_cmake="$extra_cmake -DCRASH_HANDLER=OFF -DCRASH_REPORTER=OFF -DDISTRIBUTOR=SuperFedora"
@@ -169,7 +170,7 @@ forge_target() {
     raw="${raw%.git}"; raw="${raw#https://github.com/}"; raw="${raw#http://github.com/}"; raw="${raw#github.com/}"; detect_hw
     local name="$raw" repo="" bin="$raw" cargo_args="" local_src="" git_branch=""
     case "${raw,,}" in
-        superfedora|sf|superfedora/superfedora) name="superfedora"; repo="https://github.com/SuperFedora/superfedora.git"; bin="superfedora"; local_src="$SF_ROOT" ;;
+        superfedora|sf|superfedora/superfedora|supertheme|superfedora/supertheme|superforge|superfedora/superforge|supershell|superfedora/supershell|superagent|superfedora/superagent) name="${raw##*/}"; name="${name,,}"; [[ "$name" == "sf" ]] && name="superfedora"; repo="https://github.com/SuperFedora/${name}.git"; bin="$name"; [[ "$name" == "supershell" ]] && { bin="superdock"; cargo_args="--workspace"; }; [[ -d "$HOME/Projects/superfedora/$name" ]] && local_src="$HOME/Projects/superfedora/$name" ;;
         ripgrep|rg|burntsushi/ripgrep) name="ripgrep"; repo="https://github.com/BurntSushi/ripgrep.git"; bin="rg" ;;
         fastfetch|fastfetch-cli/fastfetch) name="fastfetch"; repo="https://github.com/fastfetch-cli/fastfetch.git"; bin="fastfetch" ;;
         idlescreen|idlescreen/idlescreen) name="idlescreen"; repo="https://github.com/idlescreen/idlescreen.git"; bin="idlescreen"; cargo_args="--workspace"; [[ -d "$HOME/Projects/idlescreen/idlescreen" ]] && local_src="$HOME/Projects/idlescreen/idlescreen" ;;
@@ -178,7 +179,7 @@ forge_target() {
         btop|aristocratos/btop) name="btop"; repo="https://github.com/aristocratos/btop.git"; bin="btop" ;;
         wlctl|aashish-thapa/wlctl) name="wlctl"; repo="https://github.com/aashish-thapa/wlctl.git"; bin="wlctl" ;;
         bluetui|pythops/bluetui) name="bluetui"; repo="https://github.com/pythops/bluetui.git"; bin="bluetui" ;;
-        wiremix|tsowell/wiremix) name="wiremix"; repo="https://github.com/tsowell/wiremix.git"; bin="wiremix" ;;
+        wiremix|tsowell/wiremix|tuigreet|apognu/tuigreet) [[ "${raw,,}" == *tuigreet* ]] && { name="tuigreet"; repo="https://github.com/apognu/tuigreet.git"; bin="tuigreet"; } || { name="wiremix"; repo="https://github.com/tsowell/wiremix.git"; bin="wiremix"; } ;;
         fuzzel|dnkl/fuzzel) name="fuzzel"; repo="https://codeberg.org/dnkl/fuzzel.git"; bin="fuzzel" ;;
         openrgb|calcprogrammer1/openrgb) name="openrgb"; repo="https://gitlab.com/CalcProgrammer1/OpenRGB.git"; bin="openrgb" ;;
         hyprland|hyprwm/hyprland) name="hyprland"; repo="https://github.com/hyprwm/Hyprland.git"; bin="Hyprland"; git_branch="v$(rpm -q --qf '%{VERSION}' hyprland 2>/dev/null || echo 0.56.2)" ;;
@@ -234,14 +235,14 @@ update_forge() {
 print_status() {
     detect_hw; local p b st
     printf 'SuperFedora Forge — Hardware-Tuned Source Builder & Firefox WebApp Engine\n  CPU Model    : %s\n  Target Arch  : -march=%s (%s, %s threads)\n  SIMD / ISA   : %s\n  Fast Linker  : %s\n  GPU Device   : %s\n  CFLAGS       : %s\n  RUSTFLAGS    : %s\n\n  PRESET       BINARY            STATUS\n  ------       ------            ------\n' "$CPU_MODEL" "$MARCH_TARGET" "$CPU_ARCH" "$CPU_JOBS" "$ISA_FLAGS" "$LINKER" "$GPU_INFO" "$HOST_CFLAGS" "$HOST_RUSTFLAGS"
-    for p in ripgrep:rg fastfetch:fastfetch idlescreen:idlescreen fd:fd zoxide:zoxide btop:btop wlctl:wlctl bluetui:bluetui wiremix:wiremix fuzzel:fuzzel openrgb:openrgb hyprland:Hyprland quickshell:quickshell; do b="${p#*:}"; p="${p%:*}"; st="not-forged"; [[ -f "$STAMP_DIR/$p.stamp" && -x "$BIN_DIR/$b" ]] && st="forged ($MARCH_TARGET)"; printf '  %-12s %-17s [%s]\n' "$p" "$b" "$st"; done
+    for p in superfedora:superfedora supertheme:supertheme superforge:superforge supershell:superdock superagent:superagent ripgrep:rg fastfetch:fastfetch idlescreen:idlescreen fd:fd zoxide:zoxide btop:btop wlctl:wlctl bluetui:bluetui wiremix:wiremix fuzzel:fuzzel openrgb:openrgb hyprland:Hyprland quickshell:quickshell; do b="${p#*:}"; p="${p%:*}"; st="not-forged"; [[ -f "$STAMP_DIR/$p.stamp" || -x "$BIN_DIR/$b" ]] && st="forged ($MARCH_TARGET)"; printf '  %-12s %-17s [%s]\n' "$p" "$b" "$st"; done
     [[ -f "$FORGE_JSON" ]] && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])).get("targets",{}); w=[v for v in d.values() if v.get("type")=="webapp"]; w and print("\n  WEBAPP       APP ID                  PROFILE    URL\n  ------       ------                  -------    ---"); [print("  %-12s %-23s %-10s %s"%(v.get("name","?")[:12],v.get("app_id","?"),v.get("profile","shared"),v.get("url",""))) for v in w]' "$FORGE_JSON" || true
 }
 FORCE=0; DRY=0; INSTALL_DEPS=0; PROF_MODE="shared"; NO_PIN=0; ARGS=()
 for a in "$@"; do
     case "$a" in --force|-f) FORCE=1 ;; --dry-run|-n) DRY=1 ;; --install) INSTALL_DEPS=1 ;; --isolated) PROF_MODE="isolated" ;; --shared) PROF_MODE="shared" ;; --no-pin) NO_PIN=1 ;; --name) ;; -h|--help|help) sed -n '7,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;; *) ARGS+=("$a") ;; esac
 done
-CMD="${ARGS[0]:-status}"
+[[ "${ARGS[0]:-}" =~ ^(build|forge|install)$ ]] && ARGS=("${ARGS[@]:1}"); CMD="${ARGS[0]:-status}"
 # shellcheck disable=SC2046
 case "$CMD" in
     status|list|presets|env|flags) print_status ;;

@@ -203,10 +203,10 @@ print_status() {
     printf '  COMPONENT   STATE           BINARY\n'
     printf '  ---------   -------------   ------\n'
     local c
-    for c in superfedora wlctl bluetui wiremix tuigreet fuzzel btop; do
-        local st="binary/pkg"
-        is_source_built "$c" "$c" && st="source-native"
-        printf '  %-12s [%-13s] %s\n' "$c" "$st" "$(command -v "$c" 2>/dev/null || echo missing)"
+    for c in superfedora supertheme superforge supershell superagent wlctl bluetui wiremix tuigreet fuzzel btop; do
+        local st="binary/pkg" b="$c"; [[ "$c" == "supershell" ]] && b="superdock"
+        is_source_built "$c" "$b" && st="source-native"
+        printf '  %-12s [%-13s] %s\n' "$c" "$st" "$(command -v "$b" 2>/dev/null || echo missing)"
     done
 }
 
@@ -241,7 +241,9 @@ case "$ACTION" in
     superfedora|sf|wlctl|bluetui|wiremix|tuigreet|fuzzel|btop)
         build_target "$ACTION" "$FORCE" ;;
     *)
-        if [[ -x "$SF_ROOT/lib/forge.sh" ]]; then
+        if [[ -x "$HOME/.local/bin/superforge" ]]; then
+            exec "$HOME/.local/bin/superforge" "$@"
+        elif [[ -x "$SF_ROOT/lib/forge.sh" ]]; then
             exec "$SF_ROOT/lib/forge.sh" "$@"
         fi
         echo "unknown build command: $ACTION" >&2

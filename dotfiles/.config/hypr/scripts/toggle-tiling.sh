@@ -69,7 +69,13 @@ PY
     exit 0
 fi
 
-if [[ -x "$HOME/.local/bin/superfedora" ]]; then
+if [[ -x "$HOME/.local/bin/superdock" ]]; then
+    if [[ "$ACTION" == "minimize" ]]; then
+        exec "$HOME/.local/bin/superdock" minimize "$@"
+    else
+        exec "$HOME/.local/bin/superdock" layout "$ACTION" "$@"
+    fi
+elif [[ -x "$HOME/.local/bin/superfedora" ]]; then
     if [[ "$ACTION" == "minimize" ]]; then
         exec "$HOME/.local/bin/superfedora" dock minimize "$@"
     else

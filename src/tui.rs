@@ -30,7 +30,7 @@ pub fn run_tui(initial_tab: usize) -> i32 {
     let mut st = WorkstationState::load();
     st.load_snapshots();
     let mut tel = Telemetry::new();
-    let _ = Command::new(st.sf_root.join("lib/sfx.sh")).args(["play", "startup"]).stdout(Stdio::null()).stderr(Stdio::null()).spawn();
+    let _ = Command::new(bin_or_script(&st, "supertheme", "lib/sfx.sh")).args(["sfx", "play", "startup"]).stdout(Stdio::null()).stderr(Stdio::null()).spawn();
 
     if enable_raw_mode().is_err() { return 1; }
     let mut stdout = io::stdout();
@@ -81,7 +81,7 @@ pub fn run_tui(initial_tab: usize) -> i32 {
                         webapp_input = None;
                         if !url.is_empty() {
                             status_msg = format!("Installing WebApp: {url}");
-                            spawn_bg(&st, &busy, "lib/forge.sh", vec!["webapp".into(), url]);
+                            spawn_bg(&st, &busy, "superforge", "lib/forge.sh", vec!["webapp".into(), url]);
                         }
                     }
                     KeyCode::Char(c) => buf.push(c),
@@ -142,14 +142,14 @@ fn handle_tab_key(
                 KeyCode::Up | KeyCode::Char('k') => *forge_sel = (*forge_sel + total - 1) % total,
                 KeyCode::Char('u') => {
                     *status_msg = "Running 4-stage Forge update...".into();
-                    spawn_bg(st, busy, "lib/forge.sh", vec!["update".into()]);
+                    spawn_bg(st, busy, "superforge", "lib/forge.sh", vec!["update".into()]);
                 }
                 KeyCode::Char('w') => *webapp_input = Some(String::new()),
                 KeyCode::Enter | KeyCode::Char('i') => {
                     if *forge_sel < st.forge_items.len() {
                         let name = st.forge_items[*forge_sel].name.clone();
                         *status_msg = format!("Forging {name} (-march=native)...");
-                        spawn_bg(st, busy, "lib/forge.sh", vec![name]);
+                        spawn_bg(st, busy, "superforge", "lib/forge.sh", vec![name]);
                     } else if let Some((slug, _, _)) = st.webapps.get(*forge_sel - st.forge_items.len()) {
                         let _ = Command::new(format!("forge-webapp-{slug}")).stdout(Stdio::null()).stderr(Stdio::null()).spawn();
                     }
@@ -161,7 +161,7 @@ fn handle_tab_key(
                         slug.clone()
                     } else { return; };
                     *status_msg = format!("Removing {target}...");
-                    spawn_bg(st, busy, "lib/forge.sh", vec!["remove".into(), target]);
+                    spawn_bg(st, busy, "superforge", "lib/forge.sh", vec!["remove".into(), target]);
                 }
                 _ => {}
             }
@@ -171,14 +171,14 @@ fn handle_tab_key(
             KeyCode::Up | KeyCode::Char('k') => *theme_sel = (*theme_sel + PALETTES.len() - 1) % PALETTES.len(),
             KeyCode::Enter => {
                 let id = PALETTES[*theme_sel].0;
-                run_sync_script(st, "lib/apply-theme.sh", &[id]);
+                run_sync_bin(st, "supertheme", "lib/apply-theme.sh", &[id]);
                 *status_msg = format!("Applied 16-bit palette: {id}");
             }
-            KeyCode::Char(']') => run_sync_script(st, "lib/apply-theme.sh", &["next"]),
-            KeyCode::Char('[') => run_sync_script(st, "lib/apply-theme.sh", &["prev"]),
-            KeyCode::Char('m') => run_sync_script(st, "lib/apply-theme.sh", &["toggle"]),
-            KeyCode::Char('c') => run_sync_script(st, "lib/apply-theme.sh", &["corners", "toggle"]),
-            KeyCode::Char('n') => run_sync_script(st, "lib/apply-theme.sh", &["nightlight", "toggle"]),
+            KeyCode::Char(']') => run_sync_bin(st, "supertheme", "lib/apply-theme.sh", &["next"]),
+            KeyCode::Char('[') => run_sync_bin(st, "supertheme", "lib/apply-theme.sh", &["prev"]),
+            KeyCode::Char('m') => run_sync_bin(st, "supertheme", "lib/apply-theme.sh", &["toggle"]),
+            KeyCode::Char('c') => run_sync_bin(st, "supertheme", "lib/apply-theme.sh", &["corners", "toggle"]),
+            KeyCode::Char('n') => run_sync_bin(st, "supertheme", "lib/apply-theme.sh", &["nightlight", "toggle"]),
             _ => {}
         },
         3 => match code {
@@ -191,13 +191,13 @@ fn handle_tab_key(
             _ => {}
         },
         4 => match code {
-            KeyCode::Char('b') => run_sync_script(st, "lib/panel-ctl.sh", &["position", "bottom"]),
-            KeyCode::Char('t') => run_sync_script(st, "lib/panel-ctl.sh", &["position", "top"]),
-            KeyCode::Char('l') => run_sync_script(st, "lib/panel-ctl.sh", &["position", "left"]),
-            KeyCode::Char('r') => run_sync_script(st, "lib/panel-ctl.sh", &["position", "right"]),
-            KeyCode::Char('a') => run_sync_script(st, "lib/panel-ctl.sh", &["autohide", "toggle"]),
-            KeyCode::Char('w') => run_sync_script(st, "lib/panel-ctl.sh", &["layout", "cycle"]),
-            KeyCode::Char('s') => run_sync_script(st, "lib/sfx.sh", &["toggle"]),
+            KeyCode::Char('b') => run_sync_bin(st, "superdock", "lib/panel-ctl.sh", &["position", "bottom"]),
+            KeyCode::Char('t') => run_sync_bin(st, "superdock", "lib/panel-ctl.sh", &["position", "top"]),
+            KeyCode::Char('l') => run_sync_bin(st, "superdock", "lib/panel-ctl.sh", &["position", "left"]),
+            KeyCode::Char('r') => run_sync_bin(st, "superdock", "lib/panel-ctl.sh", &["position", "right"]),
+            KeyCode::Char('a') => run_sync_bin(st, "superdock", "lib/panel-ctl.sh", &["autohide", "toggle"]),
+            KeyCode::Char('w') => run_sync_bin(st, "superdock", "lib/panel-ctl.sh", &["layout", "cycle"]),
+            KeyCode::Char('s') => run_sync_bin(st, "supertheme", "lib/sfx.sh", &["sfx", "toggle"]),
             KeyCode::Char('p') => run_fullscreen_cmd(terminal, "wiremix", &[]),
             KeyCode::Char('i') => run_fullscreen_cmd(terminal, "wlctl", &[]),
             KeyCode::Char('u') => run_fullscreen_cmd(terminal, "bluetui", &[]),
@@ -215,17 +215,24 @@ fn handle_tab_key(
     }
 }
 
-fn run_sync_script(st: &mut WorkstationState, rel: &str, args: &[&str]) {
-    let _ = Command::new(st.sf_root.join(rel)).args(args).stdout(Stdio::null()).stderr(Stdio::null()).status();
+fn bin_or_script(st: &WorkstationState, bin: &str, rel: &str) -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/jeryd".into());
+    let p = std::path::Path::new(&home).join(".local/bin").join(bin);
+    if p.is_file() { p } else { st.sf_root.join(rel) }
+}
+
+fn run_sync_bin(st: &mut WorkstationState, bin: &str, rel: &str, args: &[&str]) {
+    let _ = Command::new(bin_or_script(st, bin, rel)).env("SF_ROOT", &st.sf_root).args(args).stdout(Stdio::null()).stderr(Stdio::null()).status();
     st.refresh();
 }
 
-fn spawn_bg(st: &WorkstationState, busy: &Arc<AtomicBool>, rel: &str, args: Vec<String>) {
+fn spawn_bg(st: &WorkstationState, busy: &Arc<AtomicBool>, bin: &str, rel: &str, args: Vec<String>) {
     if busy.swap(true, Ordering::SeqCst) { return; }
-    let script = st.sf_root.join(rel);
+    let target = bin_or_script(st, bin, rel);
+    let root = st.sf_root.clone();
     let flag = Arc::clone(busy);
     thread::spawn(move || {
-        let _ = Command::new(script).args(args).stdout(Stdio::null()).stderr(Stdio::null()).status();
+        let _ = Command::new(target).env("SF_ROOT", root).args(args).stdout(Stdio::null()).stderr(Stdio::null()).status();
         flag.store(false, Ordering::SeqCst);
     });
 }
