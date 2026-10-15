@@ -23,33 +23,20 @@ COLORS=("01-crimson" "02-scarlet" "03-ember" "04-amber" "05-topaz" "06-citrine" 
 
 resolve_color() {
     case "${1,,}" in
-        1|01|crimson|01-crimson|ruby|red|03-super-ruby)              echo "01-crimson" ;;
-        2|02|scarlet|02-scarlet)                                     echo "02-scarlet" ;;
-        3|03|ember|03-ember)                                         echo "03-ember" ;;
-        4|04|amber|04-amber|orange|07-flame-orange)                  echo "04-amber" ;;
-        5|05|topaz|05-topaz|gold|05-star-gold)                       echo "05-topaz" ;;
-        6|06|citrine|06-citrine|yellow)                              echo "06-citrine" ;;
-        7|07|peridot|07-peridot|lime)                                echo "07-peridot" ;;
-        8|08|emerald|08-emerald|green|04-emerald-green)              echo "08-emerald" ;;
-        9|09|verdant|09-verdant|mint)                                echo "09-verdant" ;;
-        10|lagoon|10-lagoon|teal)                                    echo "10-lagoon" ;;
-        11|glacier|11-glacier|cyan|06-electric-cyan|nord)            echo "11-glacier" ;;
-        12|cobalt|12-cobalt|blue|01-super-blue|tokyo|tokyo-night)    echo "12-cobalt" ;;
-        13|indigo|13-indigo)                                         echo "13-indigo" ;;
-        14|violet|14-violet|purple|02-metroid-violet|snes)           echo "14-violet" ;;
-        15|orchid|15-orchid|catppuccin)                              echo "15-orchid" ;;
-        16|fuchsia|16-fuchsia|coral|magenta|08-neon-coral)           echo "16-fuchsia" ;;
+        1|01|crimson|01-crimson|ruby|red|03-super-ruby)           echo "01-crimson" ;; 2|02|scarlet|02-scarlet)                     echo "02-scarlet" ;;
+        3|03|ember|03-ember)                                      echo "03-ember" ;;   4|04|amber|04-amber|orange|07-flame-orange)  echo "04-amber" ;;
+        5|05|topaz|05-topaz|gold|05-star-gold)                    echo "05-topaz" ;;   6|06|citrine|06-citrine|yellow)              echo "06-citrine" ;;
+        7|07|peridot|07-peridot|lime)                             echo "07-peridot" ;; 8|08|emerald|08-emerald|green|04-emerald-green) echo "08-emerald" ;;
+        9|09|verdant|09-verdant|mint)                             echo "09-verdant" ;; 10|lagoon|10-lagoon|teal)                    echo "10-lagoon" ;;
+        11|glacier|11-glacier|cyan|06-electric-cyan|nord)         echo "11-glacier" ;; 12|cobalt|12-cobalt|blue|01-super-blue|tokyo|tokyo-night) echo "12-cobalt" ;;
+        13|indigo|13-indigo)                                      echo "13-indigo" ;;  14|violet|14-violet|purple|02-metroid-violet|snes) echo "14-violet" ;;
+        15|orchid|15-orchid|catppuccin)                           echo "15-orchid" ;;  16|fuchsia|16-fuchsia|coral|magenta|08-neon-coral) echo "16-fuchsia" ;;
         *) return 1 ;;
     esac
 }
 
 resolve_mode() {
-    case "${1,,}" in
-        day|light)  echo "light" ;;
-        night|dark) echo "dark" ;;
-        toggle)     [[ "${THEME_MODE:-dark}" == "light" ]] && echo "dark" || echo "light" ;;
-        *) return 1 ;;
-    esac
+    case "${1,,}" in day|light) echo "light" ;; night|dark) echo "dark" ;; toggle) [[ "${THEME_MODE:-dark}" == "light" ]] && echo "dark" || echo "light" ;; *) return 1 ;; esac
 }
 
 palette_tokens() {
@@ -176,17 +163,22 @@ apply_all() {
     command -v tmux >/dev/null 2>&1 && tmux source-file "$STATE_DIR/tmux-theme.conf" 2>/dev/null || true
     printf 'vim.o.background = "%s"\n' "$mode" > "$STATE_DIR/nvim-theme.lua"
 
-    # 6. IdleScreen, GTK/Portal, Night Light, OpenRGB & Greetd
+    # 6. IdleScreen, GTK/Qt6/Portal, Night Light, OpenRGB & Greetd
     [[ ! -f "$HOME/.config/idlescreen/config.toml" ]] && { mkdir -p "$HOME/.config/idlescreen"; printf '[general]\nidle_enabled = true\nidle_timeout_secs = 120\ndpms_timeout_secs = 0\nprimary_output = ""\n\n[saver]\nactive = "superfedora"\n\n[saver.ascii]\nmode = "superfedora"\ntargets = ["superfedora"]\ntext = ""\nfps = 0\ndwell_secs = 5.0\ndissolve_duration_secs = 0.7\n' > "$HOME/.config/idlescreen/config.toml"; }
     command -v gsettings >/dev/null 2>&1 && { gsettings set org.gnome.desktop.interface color-scheme "$PORTAL_SCHEME" 2>/dev/null || true; gsettings set org.gnome.desktop.interface gtk-theme "$GTK_THEME" 2>/dev/null || true; }
+    local p_dark=1; [[ "$mode" == "light" ]] && p_dark=0
+    mkdir -p "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"
+    printf '[Settings]\ngtk-theme-name=%s\ngtk-icon-theme-name=Adwaita\ngtk-font-name=JetBrainsMono Nerd Font 11\ngtk-cursor-theme-name=Adwaita\ngtk-cursor-theme-size=24\ngtk-application-prefer-dark-theme=%s\n' "$GTK_THEME" "$p_dark" | tee "$HOME/.config/gtk-3.0/settings.ini" > "$HOME/.config/gtk-4.0/settings.ini"
+    printf '[ColorScheme]\nactive_colors=#%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #000000, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s\ninactive_colors=#%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #000000, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s\ndisabled_colors=#%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #000000, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s, #%s\n' \
+        "$FG" "$BG_ALT" "$BG_HOV" "$BG_ALT" "$BG" "$BORDER" "$FG" "$HOT" "$FG" "$BG" "$BG" "$ACCENT" "$BG" "$ACCENT" "$HOT" "$BG_ALT" "$BG" "$BG_ALT" "$FG" "$MUTED" "$ACCENT" \
+        "$FG_DIM" "$BG_ALT" "$BG_HOV" "$BG_ALT" "$BG" "$BORDER" "$FG_DIM" "$HOT" "$FG_DIM" "$BG" "$BG" "$BORDER" "$FG" "$ACCENT" "$HOT" "$BG_ALT" "$BG" "$BG_ALT" "$FG_DIM" "$MUTED" "$BORDER" \
+        "$MUTED" "$BG" "$BG_ALT" "$BG" "$BG" "$BORDER" "$MUTED" "$MUTED" "$MUTED" "$BG" "$BG" "$BORDER" "$MUTED" "$MUTED" "$MUTED" "$BG" "$BG" "$BG_ALT" "$MUTED" "$MUTED" "$BORDER" > "$STATE_DIR/qt6-colorscheme.conf"
+    printf '# SuperFedora Qt6 Theme Provider Configuration (hyprqt6engine)\ntheme {\n    color_scheme = %s/qt6-colorscheme.conf\n    icon_theme = Adwaita\n    style = Fusion\n    font = JetBrainsMono Nerd Font\n    font_size = 11\n    font_fixed = JetBrainsMono Nerd Font\n    font_fixed_size = 11\n}\n\nmisc {\n    single_click_activate = false\n    menus_have_icons = true\n    shortcuts_for_context_menus = true\n}\n' "$STATE_DIR" > "$HOME/.config/hypr/hyprqt6engine.conf"
     if [[ "$nl" == "on" ]]; then
         if ! pgrep -x wlsunset >/dev/null 2>&1 && ! pgrep -x hyprsunset >/dev/null 2>&1; then
-            if command -v hyprsunset >/dev/null 2>&1; then nohup hyprsunset -t 4200 >/dev/null 2>&1 &
-            elif command -v wlsunset >/dev/null 2>&1; then nohup wlsunset -t 4200 -T 6500 >/dev/null 2>&1 & fi
+            command -v hyprsunset >/dev/null 2>&1 && { nohup hyprsunset -t 4200 >/dev/null 2>&1 & } || { command -v wlsunset >/dev/null 2>&1 && nohup wlsunset -t 4200 -T 6500 >/dev/null 2>&1 & } || true
         fi
-    else
-        pkill -x wlsunset 2>/dev/null || true; pkill -x hyprsunset 2>/dev/null || true
-    fi
+    else pkill -x wlsunset 2>/dev/null || true; pkill -x hyprsunset 2>/dev/null || true; fi
     echo "$ACCENT" > "$STATE_DIR/rgb-color"
     [[ -s "$STATE_DIR/rgb-devices" ]] && command -v openrgb >/dev/null 2>&1 && (openrgb --noautoconnect -m direct -c "$ACCENT" >/dev/null 2>&1 &) || true
     local tui_theme="border=$TUI_C;title=$TUI_C;prompt=$TUI_C;time=$TUI_TEXT;action=$TUI_C;button=$TUI_C;container=$TUI_BG;input=$TUI_TEXT"

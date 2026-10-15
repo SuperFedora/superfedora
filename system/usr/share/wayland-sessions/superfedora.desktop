@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=SuperFedora
+Comment=SuperFedora 16-Bit Wayland Workstation (Hyprland + Quickshell)
+Exec=uwsm start -e -D Hyprland:SuperFedora hyprland.desktop
+TryExec=uwsm
+DesktopNames=Hyprland;SuperFedora;
+Type=Application
+Keywords=tiling;wayland;compositor;superfedora;hyprland;

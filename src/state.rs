@@ -8,7 +8,8 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub const PALETTES: &[(&str, &str, (u8, u8, u8), (u8, u8, u8))] = &[
+pub type PaletteRow = (&'static str, &'static str, (u8, u8, u8), (u8, u8, u8));
+pub const PALETTES: &[PaletteRow] = &[
     ("01-crimson", "Crimson", (247, 118, 142), (255, 158, 100)), ("02-scarlet", "Scarlet", (255, 95, 110), (247, 118, 142)),
     ("03-ember", "Ember", (255, 122, 89), (224, 175, 104)), ("04-amber", "Amber", (255, 158, 100), (224, 175, 104)),
     ("05-topaz", "Topaz", (224, 175, 104), (158, 206, 106)), ("06-citrine", "Citrine", (240, 208, 104), (115, 218, 202)),

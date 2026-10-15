@@ -1,6 +1,8 @@
-# Login screen, polkit authentication, and systemd Wayland session launcher
+# Login screen, polkit authentication, secret service, and systemd Wayland session launcher
 greetd
 tuigreet
 uwsm
 polkit
 hyprpolkitagent
+gnome-keyring
+libsecret

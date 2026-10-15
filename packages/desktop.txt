@@ -1,6 +1,7 @@
 # Hyprland desktop (COPR lionheartp/Hyprland + Fedora)
 hyprland
 hyprland-guiutils
+hyprqt6engine
 hypridle
 hyprlock
 hyprpaper

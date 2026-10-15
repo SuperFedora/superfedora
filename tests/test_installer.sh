@@ -230,6 +230,20 @@ else
   fail "Missing Waves 1-6 declarative configs"
 fi
 
+# 15. Verify XDG DE unification (first-party .desktop entries, portals, Qt6/GTK3/4 toolkit sync, keyring, Wayland session)
+if [[ -f "$SCRIPT_DIR/dotfiles/.local/share/applications/supersettings.desktop" ]] &&
+   [[ -f "$SCRIPT_DIR/dotfiles/.local/share/applications/superfiles.desktop" ]] &&
+   [[ -f "$SCRIPT_DIR/dotfiles/.config/xdg-desktop-portal/hyprland-portals.conf" ]] &&
+   [[ -f "$SCRIPT_DIR/dotfiles/.config/hypr/hyprqt6engine.conf" ]] &&
+   [[ -f "$SCRIPT_DIR/dotfiles/.config/gtk-3.0/settings.ini" ]] &&
+   [[ -f "$SCRIPT_DIR/dotfiles/.config/gtk-4.0/settings.ini" ]] &&
+   [[ -f "$SCRIPT_DIR/system/usr/share/wayland-sessions/superfedora.desktop" ]] &&
+   grep -q "gnome-keyring" "$SCRIPT_DIR/packages/session.txt"; then
+  pass "XDG DE unification present (.desktop entries, portals, Qt6/GTK3/4 toolkit sync, keyring, superfedora.desktop session)"
+else
+  fail "Missing XDG DE unification configs"
+fi
+
 echo "Test summary: $FAILURES failure(s)."
 if [[ "$FAILURES" -gt 0 ]]; then
   exit 1

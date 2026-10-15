@@ -95,7 +95,7 @@ impl Telemetry {
             for (idx, (prev, cur)) in self.prev_cpus.iter().zip(cur_cpus.iter()).enumerate() {
                 let d_tot = cur.total.saturating_sub(prev.total);
                 let d_act = cur.active.saturating_sub(prev.active);
-                let pct = if d_tot > 0 { (d_act * 100 / d_tot).min(100) } else { 0 };
+                let pct = (d_act * 100).checked_div(d_tot).unwrap_or(0).min(100);
                 if idx == 0 {
                     self.cpu_avg = pct;
                 } else {
@@ -179,7 +179,7 @@ impl Telemetry {
         self.ram_pct = ((self.ram_used_mb * 100) / self.ram_total_mb).min(100) as u16;
         self.swap_total_mb = stot / 1024;
         self.swap_used_mb = stot.saturating_sub(sfree) / 1024;
-        self.swap_pct = if self.swap_total_mb > 0 { ((self.swap_used_mb * 100) / self.swap_total_mb).min(100) as u16 } else { 0 };
+        self.swap_pct = (self.swap_used_mb * 100).checked_div(self.swap_total_mb).unwrap_or(0).min(100) as u16;
     }
 
     fn refresh_hw(&mut self) {

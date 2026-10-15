@@ -65,7 +65,7 @@ if [[ "$MODE" == "check" ]]; then
         elif ! same_file "$SRC/$rel" "$live"; then
             if [[ -f "$STATE_DIR/theme.env" ]]; then
                 case "$rel" in
-                    .config/hypr/hyprpaper.conf|.config/hypr/hyprlock.conf|.config/hypr/conf/looknfeel.conf|.config/quickshell/Theme.qml|.config/fuzzel/fuzzel.ini|.config/kitty/kitty.conf)
+                    .config/hypr/hyprpaper.conf|.config/hypr/hyprlock.conf|.config/hypr/hyprqt6engine.conf|.config/hypr/conf/looknfeel.conf|.config/quickshell/Theme.qml|.config/fuzzel/fuzzel.ini|.config/kitty/kitty.conf|.config/gtk-3.0/settings.ini|.config/gtk-4.0/settings.ini)
                         continue ;;
                 esac
             fi
@@ -73,7 +73,7 @@ if [[ "$MODE" == "check" ]]; then
         fi
     done
     # Files that exist live inside managed directories but not in the repo
-    for dir in .config/hypr .config/quickshell .config/fuzzel .config/kitty; do
+    for dir in .config/hypr .config/quickshell .config/fuzzel .config/kitty .config/xdg-desktop-portal; do
         [[ -d "$TARGET_HOME/$dir" ]] || continue
         while IFS= read -r -d '' f; do
             rel="${f#"$TARGET_HOME"/}"
