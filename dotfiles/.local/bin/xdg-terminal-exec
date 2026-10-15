@@ -41,11 +41,11 @@ resolve_term_bin() {
 }
 
 set_role() {
-    local role="${1,,}" val="${2,,}"
+    local role="${1,,}" val="${2,,}" old_val=""
     case "$role" in
-        terminal|term) DEFAULT_TERMINAL="$val" ;;
+        terminal|term) old_val="$DEFAULT_TERMINAL"; DEFAULT_TERMINAL="$val" ;;
         browser|web)
-            DEFAULT_BROWSER="$val"
+            old_val="$DEFAULT_BROWSER"; DEFAULT_BROWSER="$val"
             local desk="${val}.desktop"
             case "$val" in
                 firefox) desk="org.mozilla.firefox.desktop"; [[ -f "/usr/share/applications/firefox.desktop" ]] && desk="firefox.desktop" ;;
@@ -57,7 +57,7 @@ set_role() {
             command -v xdg-settings >/dev/null 2>&1 && xdg-settings set default-web-browser "$desk" 2>/dev/null || true
             command -v xdg-mime >/dev/null 2>&1 && xdg-mime default "$desk" text/html x-scheme-handler/http x-scheme-handler/https 2>/dev/null || true ;;
         files|filemanager)
-            DEFAULT_FILES="$val"
+            old_val="$DEFAULT_FILES"; DEFAULT_FILES="$val"
             local fdesk="superfiles.desktop"
             case "$val" in
                 nautilus) fdesk="org.gnome.Nautilus.desktop" ;; thunar) fdesk="thunar.desktop" ;;
@@ -65,17 +65,23 @@ set_role() {
             esac
             command -v xdg-mime >/dev/null 2>&1 && xdg-mime default "$fdesk" inode/directory 2>/dev/null || true ;;
         editor|code)
-            DEFAULT_EDITOR="$val"
+            old_val="$DEFAULT_EDITOR"; DEFAULT_EDITOR="$val"
             local edesk="nvim.desktop"
             case "$val" in
-                hx|helix) edesk="Helix.desktop" ;; code|vscode) edesk="code.desktop" ;; zed) edesk="dev.zed.Zed.desktop" ;;
+                hx|helix) edesk="Helix.desktop" ;; code|vscode) edesk="code.desktop" ;; codium) edesk="codium.desktop" ;; zed) edesk="dev.zed.Zed.desktop" ;;
             esac
             command -v xdg-mime >/dev/null 2>&1 && xdg-mime default "$edesk" text/plain text/markdown 2>/dev/null || true ;;
-        monitor|task) DEFAULT_MONITOR="$val" ;;
+        monitor|task) old_val="$DEFAULT_MONITOR"; DEFAULT_MONITOR="$val" ;;
         *) echo "unknown role: $role" >&2; exit 2 ;;
     esac
     save_defaults
-    command -v qs >/dev/null 2>&1 && qs ipc call status refresh >/dev/null 2>&1 || true
+    if [[ -n "$old_val" && "$old_val" != "$val" && -f "$CFG_DIR/dock.json" ]] && command -v jq >/dev/null 2>&1; then
+        jq --arg o "$old_val" --arg n "$val" 'if (.pinned | type) == "array" then .pinned |= map(if (. == $o or ($o == "firefox" and . == "org.mozilla.firefox")) then (if $n == "firefox" then "org.mozilla.firefox" else $n end) else . end) else . end' "$CFG_DIR/dock.json" > "$CFG_DIR/dock.json.tmp" && mv "$CFG_DIR/dock.json.tmp" "$CFG_DIR/dock.json" || true
+    fi
+    if command -v qs >/dev/null 2>&1; then
+        qs ipc --any-display call dock reload >/dev/null 2>&1 || true
+        qs ipc --any-display call status refresh >/dev/null 2>&1 || true
+    fi
     exit 0
 }
 
@@ -101,7 +107,7 @@ case "${1:-}" in
     --editor)
         shift
         case "$DEFAULT_EDITOR" in
-            code|zed|antigravity|subl|gedit|gnome-text-editor)
+            code|codium|zed|antigravity|subl|gedit|gnome-text-editor)
                 command -v "$DEFAULT_EDITOR" >/dev/null 2>&1 && exec "$DEFAULT_EDITOR" "$@" ;;
         esac
         exec "$0" --class floating-tui -e "${DEFAULT_EDITOR:-nvim}" "$@" ;;

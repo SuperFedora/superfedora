@@ -136,8 +136,8 @@
 | Keys | Action |
 | :--- | :--- |
 | Super + B | Web browser |
-| Super + E | File manager (Yazi) |
-| Super + F | Home folder (Yazi) |
+| Super + E | File manager |
+| Super + F | Home folder |
 | Super + Space | Switch keyboard layout |
 | Super + T | Terminal |
 | Super + A | App library |
@@ -193,7 +193,7 @@
 | Super + Alt + Home | Save workspace window layout |
 | Super + Home | Restore workspace window layout |
 | Ctrl + Alt + Delete | Power & recovery settings |
-| Super + Shift + T | Activity monitor (btop) |
+| Super + Shift + T | Activity monitor |
 | Super + Shift + B | Private browser window |
 | Super + P | Pin floating window |
 | Super + ` | Quick AI Console |
