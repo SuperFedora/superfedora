@@ -32,7 +32,7 @@ PanelWindow {
     property real dragStartCoord: 0; property var launchingMap: ({}); property real dockOpacity: 1.0
     property string hoveredName: ""; property int hoveredSlotIdx: 0; property bool edgeDragging: false; property string ghostEdge: ""
     readonly property bool forgeVisible: Status.forgeBusy || Status.forgeRecent
-    readonly property color forgeCol: Status.forgeState === "error" ? Theme.red : (Status.forgeState === "done" ? Theme.green : Theme.yellow)
+    readonly property color forgeCol: Status.forgeState === "error" ? Theme.red : ((Status.forgeState === "ok" || Status.forgeState === "done") ? Theme.green : Theme.yellow)
     readonly property bool menuOpen: win.menuTarget !== null || win.settingsMenu
     readonly property bool activelyInteracting: win.edgeHovered || bodyHover.hovered || menuHover.hovered || win.menuOpen || win.dragIdx >= 0 || win.edgeDragging || win.forgeVisible
     readonly property bool contentShown: win.shown && (!win.autohide || win.activelyInteracting || win.keepRevealed)
@@ -72,12 +72,12 @@ PanelWindow {
     }
 
     function launchItem(item) {
-        if (!item) return; Status.playSfx("click"); const nextMap = Object.assign({}, win.launchingMap); nextMap[item.key] = Date.now(); win.launchingMap = nextMap;
+        if (!item) return; Status.superDeckOpen = false; Status.settingsOpen = false; Status.playSfx("click"); const nextMap = Object.assign({}, win.launchingMap); nextMap[item.key] = Date.now(); win.launchingMap = nextMap;
         if (item.entry && typeof item.entry.execute === "function") item.entry.execute();
         else Quickshell.execDetached(["sh", "-c", "gtk-launch '" + item.key + "' 2>/dev/null || ~/.local/bin/" + item.key + " 2>/dev/null || " + item.key.toLowerCase()]);
     }
     function activateItem(item) {
-        if (!item) return; const wins = item.windows || []; if (wins.length === 0) { win.launchItem(item); return; } Status.playSfx("click");
+        if (!item) return; Status.superDeckOpen = false; Status.settingsOpen = false; const wins = item.windows || []; if (wins.length === 0) { win.launchItem(item); return; } Status.playSfx("click");
         const sorted = wins.slice().sort((a, b) => (a.minimized ? 1 : (a.workspaceId === win.wsId ? 0 : 2)) - (b.minimized ? 1 : (b.workspaceId === win.wsId ? 0 : 2)));
         let pick = sorted[0]; for (let i = 0; i < sorted.length; i++) if (sorted[i].focused) { pick = sorted[(i + 1) % sorted.length]; break; }
         if (pick.minimized) Hyprland.dispatch("movetoworkspace " + win.wsId + ",address:" + pick.address);
@@ -110,13 +110,13 @@ PanelWindow {
         width: 340; height: 54; radius: Theme.radiusSm; color: Theme.bg; border.width: 2; border.color: win.forgeCol
         x: win.position === "left" ? (dockBar.x + dockBar.width + 8) : (win.position === "right" ? (dockBar.x - width - 8) : Math.round((win.width - width) / 2))
         y: win.position === "top" ? (dockBar.y + dockBar.height + 8) : (win.position === "bottom" ? (dockBar.y - height - 8) : Math.round(dockBar.y + (dockBar.height - height) / 2))
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.toggleSuperDeck("forge") }
         ColumnLayout {
             anchors { fill: parent; margins: 7 } spacing: 3
-            RowLayout { Layout.fillWidth: true; spacing: 6; Text { text: "󰙪 FORGE: " + (Status.forgeTarget || "working"); color: win.forgeCol; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true } Text { text: Status.forgePct + "%"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true } }
+            RowLayout { Layout.fillWidth: true; spacing: 6; Text { text: "󰙪 FORGE: " + (Status.forgeTarget || "working"); color: win.forgeCol; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true } Text { text: Status.forgePct + "%"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true } Text { text: Status.forgeBusy ? "[STOP]" : "[×]"; color: Status.forgeBusy ? Theme.red : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (Status.forgeBusy) Status.stopForge(); else Status.dismissForgeBanner(); } } } }
             Rectangle { Layout.fillWidth: true; implicitHeight: 6; radius: 2; color: Theme.bgAlt; border.width: 1; border.color: Theme.border; Rectangle { width: Math.round((parent.width - 2) * Math.max(0, Math.min(100, Status.forgePct)) / 100); height: 4; x: 1; y: 1; radius: 1; color: win.forgeCol } }
             Text { text: Status.forgeStep + (Status.forgeLogLine ? ("  ·  " + Status.forgeLogLine) : ""); color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 4; elide: Text.ElideRight; Layout.fillWidth: true }
         }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.toggleSuperDeck("forge") }
     }
     Rectangle {
         id: hoverTooltip; visible: win.contentShown && !win.menuOpen && win.hoveredName !== "" && !win.edgeDragging && !win.forgeVisible
@@ -232,6 +232,7 @@ PanelWindow {
                     { label: (cfg.autohide ? "[*] " : "[ ] ") + "Auto-Hide Dock", cmd: "autohide toggle" }, { label: (cfg.showAlways !== false ? "[*] " : "[ ] ") + "Show on Tiled Workspaces", cmd: "always toggle" }
                 ] : (win.menuTarget ? [
                     { label: "Open / New Window", act: "launch" }, { label: win.menuTarget.pinned ? "Remove from Dock" : "Keep in Dock", act: "pin" },
+                    { label: "Uninstall WebApp", act: "unforge", hide: !String(win.menuTarget.key || "").startsWith("sf-webapp-") },
                     { label: "Minimize to Dock", act: "min", hide: win.menuTarget.windows.length === 0 }, { label: "Quit Application", act: "quit", hide: win.menuTarget.windows.length === 0 }
                 ].filter(r => !r.hide) : [])
                 Rectangle {
@@ -243,6 +244,7 @@ PanelWindow {
                             const m = parent.modelData, t = win.menuTarget; win.menuTarget = null; win.settingsMenu = false;
                             if (m.cmd) Status.runDockCmd(m.cmd); else if (m.act === "launch" && t) win.launchItem(t);
                             else if (m.act === "pin" && t) Status.runDockCmd((t.pinned ? "unpin '" : "pin '") + t.key + "'");
+                            else if (m.act === "unforge" && t) { win.quitItem(t); Status.removeForge(t.key); }
                             else if (m.act === "min" && t && t.windows.length > 0) Status.runDockCmd("minimize " + t.windows[0].address); else if (m.act === "quit" && t) win.quitItem(t);
                         }
                     }

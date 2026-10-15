@@ -74,7 +74,7 @@ PanelWindow {
         }
         Keys.onPressed: event => {
             if (event.key === Qt.Key_Escape) {
-                if (pop.wifiPassSsid !== "") { pop.wifiPassSsid = ""; box.forceActiveFocus(); } else Status.superDeckOpen = false;
+                pop.wifiPassSsid = ""; Status.superDeckOpen = false;
                 event.accepted = true;
             } else if (((event.modifiers & (Qt.MetaModifier | Qt.AltModifier | Qt.ControlModifier)) || !wifiPassInput.activeFocus) && (event.key === Qt.Key_QuoteLeft || event.key === Qt.Key_AsciiTilde)) {
                 pop.selectTab(0); event.accepted = true;
@@ -161,7 +161,7 @@ PanelWindow {
                         Text { text: "PASSWORD FOR " + pop.wifiPassSsid + ":"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true }
                         Rectangle {
                             Layout.fillWidth: true; implicitHeight: 28; radius: Theme.radiusSm; color: Theme.bg; border.width: 1; border.color: Theme.cyan
-                            TextInput { id: wifiPassInput; anchors { fill: parent; leftMargin: 8; rightMargin: 8 } verticalAlignment: TextInput.AlignVCenter; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; echoMode: TextInput.Password; clip: true; Keys.onReturnPressed: pop.submitWifiPass(); Keys.onEscapePressed: { pop.wifiPassSsid = ""; box.forceActiveFocus(); } }
+                            TextInput { id: wifiPassInput; anchors { fill: parent; leftMargin: 8; rightMargin: 8 } verticalAlignment: TextInput.AlignVCenter; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; echoMode: TextInput.Password; clip: true; Keys.onReturnPressed: pop.submitWifiPass(); Keys.onEscapePressed: { pop.wifiPassSsid = ""; Status.superDeckOpen = false; } }
                         }
                         Rectangle { implicitWidth: 102; implicitHeight: 28; radius: Theme.radiusSm; color: Theme.green; Text { anchors.centerIn: parent; text: "[ CONNECT ]"; color: Theme.bg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: pop.submitWifiPass() } }
                         Rectangle { implicitWidth: 88; implicitHeight: 28; radius: Theme.radiusSm; color: Theme.bgHover; border.width: 1; border.color: Theme.border; Text { anchors.centerIn: parent; text: "[ CANCEL ]"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { pop.wifiPassSsid = ""; box.forceActiveFocus(); } } }

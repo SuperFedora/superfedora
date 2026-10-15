@@ -41,7 +41,7 @@ PanelWindow {
         Rectangle { anchors.fill: parent; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 1; border.color: Theme.cyan; Text { id: tipText; anchors.centerIn: parent; text: bar.hoverTip; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true } }
     }
 
-    MouseArea { anchors.fill: parent; z: -1; onClicked: { Status.superDeckOpen = false; calendarPopup.mode = ""; } onDoubleClicked: { Theme.barOpacity = Theme.barOpacity < 0.99 ? 1.0 : 0.82; Status.playSfx("toggle"); } }
+    MouseArea { anchors.fill: parent; z: -1; onClicked: { Status.superDeckOpen = false; Status.settingsOpen = false; calendarPopup.mode = ""; } onDoubleClicked: { Theme.barOpacity = Theme.barOpacity < 0.99 ? 1.0 : 0.82; Status.playSfx("toggle"); } }
 
     // ---------------- Left ----------------
     RowLayout {

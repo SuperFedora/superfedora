@@ -21,8 +21,8 @@ PanelWindow {
     visible: Status.settingsOpen && win.isTargetMon; screen: win.targetScreen; color: "transparent"
     WlrLayershell.namespace: "superfedora-settings"; WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: win.visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    exclusionMode: ExclusionMode.Ignore
-    implicitWidth: win.winW; implicitHeight: win.winH
+    anchors { top: true; bottom: true; left: true; right: true }
+    margins.top: Theme.barHeight; exclusionMode: ExclusionMode.Ignore
 
     readonly property var categories: [
         { id: "wifi",         icon: "󰤨", title: "Wi-Fi",            sub: "Wireless networks, saved connections & radio state", keywords: "wifi wireless wlan ssid network internet" },
@@ -62,14 +62,17 @@ PanelWindow {
     }
     function runCmd(cmd, closeAfter) { if (closeAfter) Status.settingsOpen = false; Status.playSfx("confirm"); Quickshell.execDetached(["sh", "-c", cmd]); Status.refresh(); }
 
+    MouseArea { id: bgArea; anchors.fill: parent; acceptedButtons: Qt.AllButtons; onClicked: Status.settingsOpen = false }
+
     Rectangle {
-        id: rootBox; anchors.fill: parent; color: Theme.bg; radius: Theme.radius; border.width: 2; border.color: Theme.blue; focus: true
+        id: rootBox; width: win.winW; height: win.winH; anchors.centerIn: parent
+        color: Theme.bg; radius: Theme.radius; border.width: 2; border.color: Theme.blue; focus: true
+        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons }
         Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
 
         Keys.onPressed: event => {
             if (event.key === Qt.Key_Escape) {
-                if (searchBox.activeFocus && searchBox.text !== "") { searchBox.text = ""; win.searchQuery = ""; rootBox.forceActiveFocus(); }
-                else Status.settingsOpen = false;
+                Status.settingsOpen = false;
                 event.accepted = true;
             } else if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_F) {
                 searchBox.forceActiveFocus(); event.accepted = true;
@@ -108,6 +111,7 @@ PanelWindow {
                                 id: searchBox; Layout.fillWidth: true; verticalAlignment: TextInput.AlignVCenter
                                 color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; clip: true
                                 onTextChanged: win.searchQuery = text
+                                Keys.onEscapePressed: Status.settingsOpen = false
                                 Keys.onDownPressed: win.stepCategory(1)
                                 Keys.onUpPressed: win.stepCategory(-1)
                                 Text { visible: searchBox.text === ""; anchors.verticalCenter: parent.verticalCenter; text: "Search settings..."; color: Theme.muted; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2 }
