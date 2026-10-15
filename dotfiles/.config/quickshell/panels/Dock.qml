@@ -16,7 +16,7 @@ PanelWindow {
     readonly property string wsMode: Status.wsModeFor(win.wsId)
     readonly property bool hasFullscreen: (Status.clients || []).some(c => c.workspace && c.workspace.id === win.wsId && c.fullscreen >= 2)
     readonly property bool hasMaximized: (Status.clients || []).some(c => c.workspace && c.workspace.id === win.wsId && c.fullscreen === 1)
-    readonly property bool shown: !win.hasFullscreen && (cfg.showAlways !== false || win.wsMode === "floating")
+    readonly property bool shown: !win.hasFullscreen && !Status.superDeckOpen && (cfg.showAlways !== false || win.wsMode === "floating")
     readonly property bool autohide: cfg.autohide === true || win.hasMaximized
     readonly property var sink: Pipewire.defaultAudioSink; readonly property bool spkReady: sink !== null && sink.audio !== null
     readonly property real spkVol: spkReady ? sink.audio.volume : Status.spkVol; readonly property bool spkMuted: spkReady ? sink.audio.muted : Status.spkMuted
@@ -37,6 +37,7 @@ PanelWindow {
     readonly property bool activelyInteracting: win.edgeHovered || bodyHover.hovered || menuHover.hovered || win.menuOpen || win.dragIdx >= 0 || win.edgeDragging || win.forgeVisible
     readonly property bool contentShown: win.shown && (!win.autohide || win.activelyInteracting || win.keepRevealed)
 
+    Connections { target: Status; function onSuperDeckOpenChanged() { if (Status.superDeckOpen) { win.menuTarget = null; win.settingsMenu = false; } } }
     onActivelyInteractingChanged: if (win.activelyInteracting) { win.keepRevealed = true; hideTimer.stop(); } else hideTimer.restart()
     Timer { id: hideTimer; interval: 350; onTriggered: if (!win.activelyInteracting) win.keepRevealed = false }
     Timer { interval: 8000; running: Object.keys(win.launchingMap).length > 0; repeat: true; onTriggered: win.launchingMap = ({}) }

@@ -22,7 +22,7 @@ PanelWindow {
 
     function openDeck(sec) { calendarPopup.mode = ""; Status.toggleSuperDeck(sec || ""); }
     function toggleCenter(targetMode) {
-        Status.superDeckOpen = false;
+        Status.superDeckOpen = false; Status.appGridOpen = false; Status.recorderOpen = false; Status.settingsOpen = false;
         if (calendarPopup.mode === targetMode) calendarPopup.mode = "";
         else { if (targetMode === "date") calendarPopup.resetToToday(); else Status.refresh(); calendarPopup.mode = targetMode; }
         Status.playSfx("click");
@@ -52,7 +52,7 @@ PanelWindow {
     }
 
     // ---------------- Center: Collapsible Left Tool Expander (◂/▸) + Centered Date/Time + Right Notification Bell ----------------
-    Connections { target: Status; function onCenterToggleSeqChanged() { if (bar.modelData === Quickshell.screens[0]) bar.toggleCenter("notifs"); } }
+    Connections { target: Status; function onCenterToggleSeqChanged() { if (bar.modelData === Quickshell.screens[0]) bar.toggleCenter("notifs"); } function onSuperDeckOpenChanged() { if (Status.superDeckOpen) calendarPopup.mode = ""; } function onAppGridOpenChanged() { if (Status.appGridOpen) calendarPopup.mode = ""; } function onRecorderOpenChanged() { if (Status.recorderOpen) calendarPopup.mode = ""; } function onSettingsOpenChanged() { if (Status.settingsOpen) calendarPopup.mode = ""; } }
 
     BarLabel {
         id: centerClock; anchors.centerIn: parent; property date now: new Date()
@@ -80,7 +80,7 @@ PanelWindow {
         ]
         function triggerTool(id, rightBtn) {
             if (id === "idle") { if (rightBtn) bar.openDeck("power"); else Status.toggleIdle(); }
-            else if (id === "record") { if (rightBtn) Status.startScreenRecord(true); else { Status.recorderOpen = !Status.recorderOpen; Status.playSfx("click"); } }
+            else if (id === "record") { calendarPopup.mode = ""; if (rightBtn) Status.startScreenRecord(true); else { Status.recorderOpen = !Status.recorderOpen; Status.playSfx("click"); } }
             else if (id === "shot") bar.run("~/.config/hypr/scripts/screenshot.sh " + (rightBtn ? "screen" : "region"));
             else if (id === "color") bar.run("~/.config/hypr/scripts/screenshot.sh color");
         }
@@ -104,7 +104,7 @@ PanelWindow {
     // ---------------- Right-Side Vertical Screen Recorder Dock ----------------
     PanelWindow {
         id: recorderDock
-        visible: Status.recorderOpen || Status.screenRecording
+        visible: (Status.recorderOpen || Status.screenRecording) && !Status.superDeckOpen && !Status.appGridOpen && !Status.settingsOpen && calendarPopup.mode === ""
         screen: bar.modelData; color: "transparent"; exclusionMode: ExclusionMode.Ignore
         anchors.right: true; margins.right: 8
         implicitWidth: 144; implicitHeight: recCol.implicitHeight + 24

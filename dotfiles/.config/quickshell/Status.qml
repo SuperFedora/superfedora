@@ -185,8 +185,11 @@ Singleton {
     }
     property bool _quakeShown: false
     function syncQuakeAi(hdrH) { const want = root.superDeckOpen && root.normalizeDeckTab(root.superDeckSection) === "ai"; if (!want && !root._quakeShown) return; root._quakeShown = want; Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/quake-ai.sh " + (want ? ("show " + (hdrH || 40)) : "hide keep-deck") + " >/dev/null 2>&1"]); }
-    onSuperDeckOpenChanged: root.syncQuakeAi()
+    onSuperDeckOpenChanged: { if (root.superDeckOpen) { root.settingsOpen = false; root.appGridOpen = false; root.recorderOpen = false; root.centerToolsOpen = false; root.pocketOpen = false; } root.syncQuakeAi(); }
     onSuperDeckSectionChanged: if (root.superDeckOpen) root.syncQuakeAi()
+    onAppGridOpenChanged: if (root.appGridOpen) { root.superDeckOpen = false; root.settingsOpen = false; root.recorderOpen = false; }
+    onRecorderOpenChanged: if (root.recorderOpen) { root.superDeckOpen = false; root.settingsOpen = false; root.appGridOpen = false; }
+    onSettingsOpenChanged: if (root.settingsOpen) { root.superDeckOpen = false; root.appGridOpen = false; root.recorderOpen = false; }
     function openSettings(page) { root.superDeckOpen = false; if (page) root.settingsPage = root.normalizeSettingsPage(page); root.settingsOpen = true; root.refresh(); root.playSfx("click"); }
     function toggleSettings(page) {
         if (!page) { root.superDeckOpen = false; root.settingsOpen = !root.settingsOpen; }
@@ -195,11 +198,11 @@ Singleton {
     }
     function toggleSuperDeck(sec) {
         const t = (!sec || sec === "last") ? root.normalizeDeckTab(root.superDeckSection) : root.normalizeDeckTab(sec), wasOpen = root.superDeckOpen, prev = root.superDeckSection;
-        root.settingsOpen = false; root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; root.superDeckOpen = true;
+        root.settingsOpen = false; root.appGridOpen = false; root.recorderOpen = false; root.superDeckPowerHighlight = (t === "power"); root.superDeckSection = t; root.superDeckOpen = true;
         if (wasOpen && prev === t) root.syncQuakeAi(); root.refresh(); root.playSfx("click");
     }
     function toggleIdle() { root.idleMode = root.idleMode === "poweroff" ? "lock" : (root.idleMode === "lock" ? "screensaver" : "poweroff"); root.idleEnabled = root.idleMode === "poweroff"; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/toggle-idle.sh " + root.idleMode]); }
-    function startScreenRecord(region) { root.recorderOpen = !region; root.screenRecording = !region; root.screenPaused = false; root.playSfx("confirm"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/screenshot.sh " + (region ? "record-region" : "record")]); }
+    function startScreenRecord(region) { root.superDeckOpen = false; root.recorderOpen = !region; root.screenRecording = !region; root.screenPaused = false; root.playSfx("confirm"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/screenshot.sh " + (region ? "record-region" : "record")]); }
     function pauseScreenRecord() { root.screenPaused = !root.screenPaused; root.playSfx("toggle"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/screenshot.sh record-pause"]); }
     function stopScreenRecord() { root.screenRecording = false; root.screenPaused = false; root.recorderOpen = false; root.playSfx("click"); Quickshell.execDetached(["sh", "-c", "~/.config/hypr/scripts/screenshot.sh record-stop"]); }
     Process { id: idleProc; command: ["sh", "-c", "cat ~/.config/superfedora/idle-mode 2>/dev/null || ([ -f ~/.config/superfedora/stay-awake ] && echo screensaver || echo poweroff)"]; stdout: StdioCollector { onStreamFinished: { const m = text.trim(); root.idleMode = (m === "lock" || m === "screensaver") ? m : "poweroff"; root.idleEnabled = root.idleMode === "poweroff"; } } }
