@@ -97,10 +97,10 @@ compute_geometry() {
     mon_json="$(hyprctl monitors -j 2>/dev/null || echo '[]')"
     read -r MON_NAME MON_X MON_Y MON_W MON_H SPEC_OPEN < <(jq -r '(.[] | select(.focused == true)) // .[0] // {name:"default", x:0, y:0, width:1920, height:1080, scale:1} | "\(.name // "default") \(.x) \(.y) \((.width / (.scale // 1)) | round) \((.height / (.scale // 1)) | round) \(if .specialWorkspace.name == "special:ai" then 1 else 0 end)"' <<<"$mon_json")
     MON_NAME="${MON_NAME:-default}"; MON_X="${MON_X:-0}"; MON_Y="${MON_Y:-0}"; MON_W="${MON_W:-1920}"; MON_H="${MON_H:-1080}"; SPEC_OPEN="${SPEC_OPEN:-0}"
-    full_w=$(( (MON_W * 62 + 50) / 100 )); full_h=$(( (MON_H * 43 + 50) / 100 ))
-    (( full_w > 1080 )) && full_w=1080; (( full_w < 960 )) && full_w=960; (( full_w > MON_W - 40 )) && full_w=$(( MON_W - 40 ))
-    (( full_h > 460 )) && full_h=460; (( full_h < 410 )) && full_h=410; (( full_h > MON_H - 64 )) && full_h=$(( MON_H - 64 ))
-    Q_FULL_H="$full_h"; Q_BASE_Y=$(( MON_Y + 42 ))
+    full_w=$(( (MON_W * 76 + 50) / 100 )); full_h=$(( (MON_H * 78 + 50) / 100 ))
+    (( full_w > 1340 )) && full_w=1340; (( full_w < 1060 )) && full_w=1060; (( full_w > MON_W - 40 )) && full_w=$(( MON_W - 40 ))
+    (( full_h > 840 )) && full_h=840; (( full_h < 660 )) && full_h=660; (( full_h > MON_H - 64 )) && full_h=$(( MON_H - 64 ))
+    Q_FULL_H="$full_h"; Q_BASE_Y=$(( MON_Y + 36 + (MON_H - 36 - full_h) / 2 ))
     Q_X=$(( MON_X + (MON_W - full_w) / 2 + 12 )); Q_Y=$(( Q_BASE_Y + hdr_h + 6 ))
     Q_W=$(( full_w - 24 )); Q_H=$(( full_h - hdr_h - 20 ))
 }
