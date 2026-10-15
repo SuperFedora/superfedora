@@ -38,4 +38,7 @@ module_run() {
     _dirs_t() { [[ -f "$HOME/.config/user-dirs.dirs" ]]; }
     _dirs_i() { xdg-user-dirs-update; }
     command -v xdg-user-dirs-update >/dev/null && need "XDG user folders" _dirs_t _dirs_i
+
+    need_user_service supertheme-sun.timer
+    need_user_service superforge-check.timer
 }

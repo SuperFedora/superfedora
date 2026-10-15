@@ -67,6 +67,8 @@ need_pkgs() {
     for p in "${missing[@]}"; do
         if rpm -q --quiet "$p" 2>/dev/null || rpm -q --quiet --whatprovides "$p" 2>/dev/null; then
             r_added "$p"
+        elif [[ "${SF_COPR_FALLBACK:-0}" == "1" && "$p" =~ ^(hyprland|quickshell|fuzzel)$ ]] && run_logged "$SF_ROOT/lib/forge.sh" "$p"; then
+            r_added "$p (superforge source fallback)"
         else
             r_failed "$p (dnf install)"
         fi
@@ -100,11 +102,19 @@ need_rpmfusion() {
     need "RPM Fusion free + nonfree" _rf_t _rf_i
 }
 
-# need_copr OWNER/PROJECT
+# need_copr OWNER/PROJECT — falls back to superforge source compilation on new Fedora releases
 need_copr() {
-    local copr="$1" id="copr:copr.fedorainfracloud.org:${1/\//:}"
-    _copr_t() { _repo_enabled "$id"; }
-    _copr_i() { as_root dnf install -y dnf5-plugins >/dev/null 2>&1 || true; as_root dnf copr enable -y "$copr"; }
+    local copr="$1" id="copr:copr.fedorainfracloud.org:${1/\//:}" ver
+    ver="$(rpm -E %fedora 2>/dev/null || echo 42)"
+    _copr_t() { _repo_enabled "$id" || [[ "${SF_COPR_FALLBACK:-0}" == "1" ]]; }
+    _copr_i() {
+        as_root dnf install -y dnf5-plugins >/dev/null 2>&1 || true
+        if ! as_root dnf copr enable -y "$copr" && ! as_root dnf copr enable -y "$copr" "fedora-${ver}-$(uname -m)" 2>/dev/null; then
+            warn "COPR $copr not yet published for Fedora $ver; falling back to superforge source compilation"
+            export SF_COPR_FALLBACK=1
+            return 0
+        fi
+    }
     need "COPR $copr" _copr_t _copr_i
 }
 

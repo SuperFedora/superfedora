@@ -1,0 +1,7 @@
+# Managed by SuperFedora — Weekly Native Binary & Toolchain Audit Service
+[Unit]
+Description=SuperFedora Weekly Native Binary & Toolchain Audit
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/sh -c 'for b in "$HOME/.local/bin/superfedora" /usr/local/bin/superfedora; do [ -x "$b" ] && exec "$b" forge status; done'

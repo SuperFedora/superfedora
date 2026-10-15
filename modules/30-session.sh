@@ -1,13 +1,17 @@
 # shellcheck shell=bash
-# desc: Login screen (greetd + tuigreet) launching Hyprland through uwsm
+# desc: Login screen (greetd + tuigreet), Polkit rules, and uwsm Wayland session
 
 module_run() {
     need_pkgs "$SF_ROOT/packages/session.txt"
     need_root_file system/etc/greetd/config.toml /etc/greetd/config.toml
     need_root_file system/etc/tmpfiles.d/superfedora-tuigreet.conf /etc/tmpfiles.d/superfedora-tuigreet.conf
+    need_root_file system/etc/polkit-1/rules.d/50-superfedora.rules /etc/polkit-1/rules.d/50-superfedora.rules
 
     _cache_t() { [[ -d /var/cache/tuigreet ]]; }
-    _cache_i() { as_root systemd-tmpfiles --create /etc/tmpfiles.d/superfedora-tuigreet.conf; }
+    _cache_i() {
+        as_root systemd-tmpfiles --create /etc/tmpfiles.d/superfedora-tuigreet.conf
+        command -v restorecon >/dev/null 2>&1 && as_root restorecon -Rv /etc/greetd /var/cache/tuigreet /etc/polkit-1/rules.d >/dev/null 2>&1 || true
+    }
     need "/var/cache/tuigreet" _cache_t _cache_i
 
     # Only one display manager may own display-manager.service

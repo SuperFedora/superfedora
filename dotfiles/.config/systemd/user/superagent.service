@@ -1,0 +1,14 @@
+# Managed by SuperFedora — Autonomous Telemetry & Cast Comms Daemon
+[Unit]
+Description=SuperFedora Autonomous Telemetry & Cast Comms Daemon
+PartOf=graphical-session.target superfedora-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/sh -c 'for b in "$HOME/.local/bin/superagent" /usr/local/bin/superagent; do [ -x "$b" ] && exec "$b" daemon; done; exit 0'
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=superfedora-session.target

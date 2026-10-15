@@ -98,31 +98,19 @@ impl WorkstationState {
     pub fn load() -> Self {
         let sf_root = Self::resolve_root();
         let home = env::var("HOME").unwrap_or_else(|_| "/home/jeryd".into());
-        let state_dir = env::var("XDG_CONFIG_HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from(&home).join(".config"))
-            .join("superfedora");
-        let version = fs::read_to_string(sf_root.join("VERSION")).unwrap_or_else(|_| "0.5.0".into()).trim().to_string();
+        let state_dir = env::var("XDG_CONFIG_HOME").map(PathBuf::from).unwrap_or_else(|_| PathBuf::from(&home).join(".config")).join("superfedora");
+        if !state_dir.exists() && Path::new("/etc/skel/.config/superfedora").is_dir() {
+            let _ = fs::create_dir_all(&state_dir);
+            if let Ok(entries) = fs::read_dir("/etc/skel/.config/superfedora") {
+                for e in entries.flatten() { let _ = fs::copy(e.path(), state_dir.join(e.file_name())); }
+            }
+        }
+        let version = fs::read_to_string(sf_root.join("VERSION")).unwrap_or_else(|_| "0.8.0".into()).trim().to_string();
         let mut st = Self {
-            version,
-            sf_root,
-            state_dir,
-            theme_color: "12-cobalt".into(),
-            theme_mode: "dark".into(),
-            theme_corners: "square".into(),
-            primary_rgb: (122, 162, 247),
-            secondary_rgb: (187, 154, 247),
-            sfx_on: true,
-            dock_pos: "bottom".into(),
-            dock_autohide: "always".into(),
-            tiling_layout: "dwindle".into(),
-            baseline_snap: "none".into(),
-            guard_status: "ready".into(),
-            forge_items: Vec::new(),
-            webapps: Vec::new(),
-            forge_live: ForgeLive::default(),
-            snapshots: Vec::new(),
-            modules: Vec::new(),
+            version, sf_root, state_dir, theme_color: "12-cobalt".into(), theme_mode: "dark".into(), theme_corners: "square".into(),
+            primary_rgb: (122, 162, 247), secondary_rgb: (187, 154, 247), sfx_on: true, dock_pos: "bottom".into(),
+            dock_autohide: "always".into(), tiling_layout: "dwindle".into(), baseline_snap: "none".into(), guard_status: "ready".into(),
+            forge_items: Vec::new(), webapps: Vec::new(), forge_live: ForgeLive::default(), snapshots: Vec::new(), modules: Vec::new(),
         };
         st.refresh();
         st
@@ -141,8 +129,10 @@ impl WorkstationState {
             return parent.to_path_buf();
         }
         let home = env::var("HOME").unwrap_or_else(|_| "/home/jeryd".into());
-        let proj = PathBuf::from(&home).join("Projects/superfedora/superfedora");
-        if proj.join("lib/core.sh").is_file() { proj } else { PathBuf::from(home).join(".local/share/superfedora") }
+        for cand in [PathBuf::from(&home).join("Projects/superfedora/superfedora"), PathBuf::from(&home).join(".local/share/superfedora"), PathBuf::from("/usr/share/superfedora")] {
+            if cand.join("lib/core.sh").is_file() { return cand; }
+        }
+        PathBuf::from(home).join(".local/share/superfedora")
     }
 
     pub fn primary_color(&self) -> Color { Color::Rgb(self.primary_rgb.0, self.primary_rgb.1, self.primary_rgb.2) }
@@ -186,11 +176,12 @@ impl WorkstationState {
     fn refresh_forge(&mut self) {
         let home = env::var("HOME").unwrap_or_else(|_| "/home/jeryd".into());
         let bin_dir = Path::new(&home).join(".local/bin");
+        let sys_bin = Path::new("/usr/local/bin");
         let stamp_dir = self.state_dir.join("source-built");
         self.forge_items = FORGE_CATALOG
             .iter()
             .map(|&(name, bin_name, sys, desc)| {
-                let bin_path = bin_dir.join(bin_name);
+                let bin_path = if bin_dir.join(bin_name).exists() { bin_dir.join(bin_name) } else { sys_bin.join(bin_name) };
                 let installed = stamp_dir.join(format!("{name}.stamp")).exists() || bin_path.exists();
                 let size_kb = fs::metadata(&bin_path).map(|m| m.len() / 1024).unwrap_or(0);
                 ForgeItem { name: name.into(), kind: sys.into(), desc: desc.into(), installed, size_kb }

@@ -94,13 +94,16 @@ OS_RELEASE="${SUPERFEDORA_OS_RELEASE:-/etc/os-release}"
 [[ "${ID:-}" == fedora ]] || fail "SuperFedora needs Fedora (found ${PRETTY_NAME:-unknown})"
 [[ $EUID -ne 0 ]] || fail "run this as your normal user, not root (sudo is used when needed)"
 command -v sudo >/dev/null || fail "sudo is not installed; as root run: dnf install -y sudo && usermod -aG wheel $USER"
-command -v curl >/dev/null || fail "curl is required"
-
-# tar + gzip are not part of every minimal image
-if ! command -v tar >/dev/null || ! command -v gzip >/dev/null; then
-    say "installing tar and gzip..."
-    sudo dnf install -y tar gzip
+# Stage-0 bootstrap: Fedora Minimal lacks git-core, tar, gzip, zstd, or findutils
+STAGE0_MISSING=0
+for _cmd in git curl tar gzip zstd find; do
+    command -v "$_cmd" >/dev/null 2>&1 || STAGE0_MISSING=1
+done
+if [[ $STAGE0_MISSING -eq 1 ]]; then
+    say "bootstrapping Fedora Minimal stage-0 packages (git-core curl tar gzip zstd findutils)..."
+    sudo dnf install -y git-core curl tar gzip zstd findutils
 fi
+command -v curl >/dev/null || fail "curl is required"
 
 # ------------------------------------------------------------------------------
 if [[ -n "${SUPERFEDORA_REF:-}" ]]; then
@@ -142,8 +145,12 @@ cat > "$BIN_DIR/superfedora" <<EOF
 exec "$DEST/bin/superfedora" "\$@"
 EOF
 chmod +x "$BIN_DIR/superfedora"
-ln -sf "$BIN_DIR/superfedora" "$BIN_DIR/sf"
-say "installed SuperFedora $(cat "$DEST/VERSION") -> $BIN_DIR/sf (and $BIN_DIR/superfedora)"
+ln -sf superfedora "$BIN_DIR/sf"
+if [[ "${SUPERFEDORA_SYSTEM_WIDE:-0}" == "1" && -w /usr/local/bin ]]; then
+    install -m 755 "$BIN_DIR/superfedora" /usr/local/bin/superfedora
+    ln -sf superfedora /usr/local/bin/sf
+fi
+say "installed SuperFedora $(cat "$DEST/VERSION") -> $BIN_DIR/superfedora (alias: $BIN_DIR/sf)"
 
 [[ "${SUPERFEDORA_NO_RUN:-}" == 1 ]] && exit 0
 

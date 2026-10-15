@@ -1,4 +1,6 @@
-# Login screen and session launcher
+# Login screen, polkit authentication, and systemd Wayland session launcher
 greetd
 tuigreet
 uwsm
+polkit
+hyprpolkitagent

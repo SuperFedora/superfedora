@@ -7,12 +7,16 @@
 set -euo pipefail
 
 if [[ "${1:-}" == "--status" || "${1:-}" == "status" ]]; then
-    printf 'SuperFedora Btrfs Snapshot & Boot-Guard Status\n'
+    printf 'SuperFedora Btrfs Snapshot, Boot-Guard & Systemd OS Status\n'
     printf '  Root Filesystem : %s\n' "$(stat -f -c %T / 2>/dev/null || echo unknown)"
+    printf '  SELinux Mode    : %s\n' "$(command -v getenforce >/dev/null 2>&1 && getenforce 2>/dev/null || echo Enforcing)"
     printf '  Snapper Config  : %s\n' "$([[ -f /etc/snapper/configs/root ]] && echo present || echo missing)"
     printf '  DNF5 Auto-Snap  : %s\n' "$([[ -f /etc/dnf/libdnf5-plugins/actions.d/snapper.actions ]] && echo active || echo missing)"
     printf '  GRUB Snapshots  : %s\n' "$([[ -x /etc/grub.d/41_snapshots-btrfs ]] && echo enabled || echo not-configured)"
     printf '  Boot-Guard Unit : %s\n' "$(systemctl is-enabled superfedora-boot-guard.service 2>/dev/null || echo disabled)"
+    printf '  ZRAM Drop-In    : %s\n' "$([[ -f /etc/systemd/zram-generator.conf.d/superfedora.conf ]] && echo active || echo default)"
+    printf '  Journald Bound  : %s\n' "$([[ -f /etc/systemd/journald.conf.d/superfedora.conf ]] && echo 500M-zstd || echo default)"
+    printf '  Sysctl Tuning   : %s\n' "$([[ -f /etc/sysctl.d/90-superfedora.conf ]] && echo active || echo default)"
     exit 0
 fi
 
@@ -23,15 +27,41 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 CURRENT_USER="${SUDO_USER:-$(id -un 2>/dev/null || echo "${USER:-user}")}"
-echo "==> Configuring Snapper, grub-btrfs, and Boot-Guard for user: ${CURRENT_USER}"
+echo "==> Configuring Snapper, grub-btrfs, Boot-Guard, and systemd OS tuning for user: ${CURRENT_USER}"
 
 # 1. Install necessary packages
-echo "==> 1. Installing snapper, btrfs-assistant, and libdnf5-plugin-actions..."
-dnf install -y snapper btrfs-assistant libdnf5-plugin-actions
+echo "==> 1. Installing snapper, btrfs-assistant, zram-generator, systemd-oomd-defaults, and libdnf5-plugin-actions..."
+dnf install -y snapper btrfs-assistant libdnf5-plugin-actions zram-generator systemd-oomd-defaults
 
-# 2. Configure Snapper for root filesystem (/)
+# 2. Configure declarative systemd OS drop-ins (zram, journald, sysctl)
+echo "==> 2. Writing declarative systemd OS drop-ins (zram-generator, journald, sysctl)..."
+mkdir -p /etc/systemd/zram-generator.conf.d /etc/systemd/journald.conf.d /etc/sysctl.d
+cat << 'EOF' > /etc/systemd/zram-generator.conf.d/superfedora.conf
+# Managed by SuperFedora — Compressed ZRAM swap tuning
+[zram0]
+zram-size = min(ram, 16384)
+compression-algorithm = zstd
+EOF
+
+cat << 'EOF' > /etc/systemd/journald.conf.d/superfedora.conf
+# Managed by SuperFedora — Bounded systemd-journald storage on NVMe/SSD
+[Journal]
+SystemMaxUse=500M
+RuntimeMaxUse=100M
+Compress=yes
+EOF
+
+cat << 'EOF' > /etc/sysctl.d/90-superfedora.conf
+# Managed by SuperFedora — Workstation kernel & inotify tuning
+fs.inotify.max_user_watches = 524288
+fs.inotify.max_user_instances = 1024
+vm.swappiness = 100
+EOF
+sysctl --system >/dev/null 2>&1 || true
+
+# 3. Configure Snapper for root filesystem (/)
 if [ ! -f /etc/snapper/configs/root ]; then
-  echo "==> 2. Creating Snapper configuration for root (/)..."
+  echo "==> 3. Creating Snapper configuration for root (/)..."
   if [ -d /.snapshots ] && [ ! -d /.snapshots/.snapshots ]; then
     btrfs subvolume show /.snapshots &>/dev/null || rm -rf /.snapshots
   fi
@@ -40,8 +70,8 @@ else
   echo "==> Snapper config for root already exists. Skipping create-config."
 fi
 
-# 3. Configure permissions and retention limits
-echo "==> 3. Configuring permissions and snapshot retention limits..."
+# 4. Configure permissions and retention limits
+echo "==> 4. Configuring permissions and snapshot retention limits..."
 CONFIG_FILE="/etc/snapper/configs/root"
 sed -i "s/^ALLOW_USERS=.*/ALLOW_USERS=\"${CURRENT_USER}\"/" "$CONFIG_FILE"
 sed -i 's/^ALLOW_GROUPS=.*/ALLOW_GROUPS="wheel"/' "$CONFIG_FILE"
@@ -61,8 +91,8 @@ sed -i 's/^QGROUP=.*/QGROUP=""/' "$CONFIG_FILE"
 chmod 750 /.snapshots
 chown :wheel /.snapshots
 
-# 4. Set up DNF5 automatic pre/post transaction snapshots + GRUB refresh
-echo "==> 4. Setting up DNF5 transaction snapshot actions..."
+# 5. Set up DNF5 automatic pre/post transaction snapshots + GRUB refresh
+echo "==> 5. Setting up DNF5 transaction snapshot actions..."
 mkdir -p /etc/dnf/libdnf5-plugins/actions.d
 
 cat << 'EOF' > /etc/dnf/libdnf5-plugins/actions.d/snapper.actions
@@ -72,8 +102,8 @@ pre_transaction::::/usr/bin/sh -c 'echo "tmp.snapper_pre_number=$(snapper -c roo
 post_transaction::::/usr/bin/sh -c '[ -n "${tmp.snapper_pre_number}" ] && snapper -c root create -t post --pre-number "${tmp.snapper_pre_number}" -d "${tmp.cmd}" && [ -x /etc/grub.d/41_snapshots-btrfs ] && grub2-mkconfig -o /boot/grub2/grub.cfg >/dev/null 2>&1 || true'
 EOF
 
-# 5. Install grub-btrfs generator so Btrfs snapshots appear in GRUB menu
-echo "==> 5. Installing /etc/grub.d/41_snapshots-btrfs generator..."
+# 6. Install grub-btrfs generator so Btrfs snapshots appear in GRUB menu
+echo "==> 6. Installing /etc/grub.d/41_snapshots-btrfs generator..."
 cat << 'EOF' > /etc/grub.d/41_snapshots-btrfs
 #!/usr/bin/sh
 set -e
@@ -91,8 +121,8 @@ if [ -d /boot/grub2 ] && command -v grub2-mkconfig >/dev/null 2>&1; then
   grub2-mkconfig -o /boot/grub2/grub.cfg >/dev/null 2>&1 || true
 fi
 
-# 6. Install superfedora-boot-guard automatic health check & rollback service
-echo "==> 6. Installing superfedora-boot-guard service..."
+# 7. Install superfedora-boot-guard automatic health check & rollback service
+echo "==> 7. Installing superfedora-boot-guard service..."
 mkdir -p /usr/local/libexec /var/lib/superfedora
 cat << 'EOF' > /usr/local/libexec/superfedora-boot-guard
 #!/usr/bin/env bash
@@ -130,13 +160,17 @@ RemainAfterExit=yes
 WantedBy=multi-user.target
 EOF
 
-# 7. Enable and start Snapper timers & Boot-Guard
-echo "==> 7. Enabling Snapper timers and Boot-Guard..."
+# 8. Preserve SELinux Enforcing contexts and enable native systemd timers
+if command -v restorecon >/dev/null 2>&1; then
+  restorecon -Rv /usr/local/bin /usr/local/libexec /etc/systemd/system /etc/greetd >/dev/null 2>&1 || true
+fi
+echo "==> 8. Enabling Snapper timers, fstrim, btrfs-scrub, systemd-oomd, and Boot-Guard..."
 systemctl daemon-reload
-systemctl enable --now snapper-timeline.timer snapper-cleanup.timer superfedora-boot-guard.service
+systemctl enable --now snapper-timeline.timer snapper-cleanup.timer fstrim.timer systemd-oomd.service superfedora-boot-guard.service
+systemctl enable --now btrfs-scrub@-.timer 2>/dev/null || true
 
-# 8. Create initial baseline snapshot if none exists yet
+# 9. Create initial baseline snapshot if none exists yet
 if ! snapper -c root list 2>/dev/null | grep -q "Baseline Setup"; then
   snapper -c root create -t single -d "Baseline Setup"
 fi
-echo "==> SuperFedora Btrfs + Snapper + grub-btrfs + Boot-Guard setup complete!"
+echo "==> SuperFedora Btrfs + Snapper + grub-btrfs + Boot-Guard + systemd OS setup complete!"

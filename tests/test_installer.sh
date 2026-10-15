@@ -163,6 +163,48 @@ for role_svg in ai security builder engineer app; do
   fi
 done
 
+# 10. Verify sf is a relative symlink to superfedora in $MOCK_HOME/.local/bin
+if [[ -L "$MOCK_HOME/.local/bin/sf" ]] && [[ "$(readlink "$MOCK_HOME/.local/bin/sf")" == "superfedora" ]]; then
+  pass "install.sh creates relative symlink sf -> superfedora"
+else
+  fail "install.sh did not create relative symlink sf -> superfedora (found: $(readlink "$MOCK_HOME/.local/bin/sf" 2>/dev/null || echo not-a-symlink))"
+fi
+
+# 11. Test Fedora Minimal Stage-0 bootstrap when zstd is missing
+STAGE0_PATH="$TMP_TEST/stage0_bin"
+mkdir -p "$STAGE0_PATH"
+for cmd in bash sh printf tr sed head tar gzip find mkdir rm mv chmod ln cat dirname mktemp; do
+  p="$(command -v "$cmd" 2>/dev/null || true)"
+  [[ -n "$p" ]] && ln -sf "$p" "$STAGE0_PATH/$cmd"
+done
+cp "$MOCK_BIN/curl" "$STAGE0_PATH/curl"
+cat > "$STAGE0_PATH/sudo" << 'EOF'
+#!/bin/sh
+echo "[MOCK_SUDO] $*"
+exit 0
+EOF
+chmod +x "$STAGE0_PATH/sudo"
+stage0_out="$(HOME="$MOCK_HOME" XDG_DATA_HOME="$MOCK_HOME/.local/share" SUPERFEDORA_OS_RELEASE="$MOCK_OS_RELEASE" SUPERFEDORA_NO_RUN=1 PATH="$STAGE0_PATH" "$INSTALLER" </dev/null 2>&1)" || true
+if [[ "$stage0_out" == *"[MOCK_SUDO] dnf install -y git-core curl tar gzip zstd findutils"* ]]; then
+  pass "Stage-0 bootstrap installs git-core curl tar gzip zstd findutils on Fedora Minimal"
+else
+  fail "Stage-0 bootstrap did not invoke dnf install: $stage0_out"
+fi
+
+# 12. Verify systemd --user units, user-tmpfiles.d, and declarative OS drop-ins exist
+for u in superfedora-session.target supershell.service superagent.service idlescreen.service supertheme-sun.service supertheme-sun.timer superforge-check.service superforge-check.timer; do
+  if [[ -f "$SCRIPT_DIR/dotfiles/.config/systemd/user/$u" ]]; then
+    pass "systemd user unit present: $u"
+  else
+    fail "Missing systemd user unit: $u"
+  fi
+done
+if [[ -f "$SCRIPT_DIR/dotfiles/.config/user-tmpfiles.d/superfedora.conf" ]] && [[ -f "$SCRIPT_DIR/system/etc/systemd/zram-generator.conf.d/superfedora.conf" ]]; then
+  pass "user-tmpfiles.d/superfedora.conf and declarative systemd OS drop-ins present"
+else
+  fail "Missing user-tmpfiles.d/superfedora.conf or systemd OS drop-ins"
+fi
+
 echo "Test summary: $FAILURES failure(s)."
 if [[ "$FAILURES" -gt 0 ]]; then
   exit 1

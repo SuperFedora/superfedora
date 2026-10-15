@@ -5,6 +5,14 @@ All notable changes to SuperFedora. Every change ships as a tagged release
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-10-15
+
+### Added
+- **Canonical `superfedora` CLI & Relative `sf` Alias:** Promoted `superfedora` as the primary binary across all scripts, docs, and source builders while installing `sf` as a relative symlink (`ln -sf superfedora ~/.local/bin/sf`).
+- **Fedora Minimal Stage-0 Bootstrap & Future Release (`42 -> 43 -> 44+`) Hardening:** Added Stage-0 bootstrap (`git-core curl tar gzip zstd findutils`) in `install.sh`, expanded `packages/base.txt` and `packages/session.txt` for bare Fedora Minimal netinstalls, added COPR-to-`superforge` source compilation fallback in `lib/check.sh`, and added `superfedora system-upgrade [releasever]` (`src/ops.rs`).
+- **Native `systemd` Session, Daemons, Timers & Declarative OS Tuning:** Added `dotfiles/.config/systemd/user/` units (`superfedora-session.target`, `supershell.service`, `superagent.service`, `idlescreen.service`, `supertheme-sun.service`, `supertheme-sun.timer`, `superforge-check.service`, `superforge-check.timer`), `dotfiles/.config/user-tmpfiles.d/superfedora.conf`, declarative OS drop-ins (`zram-generator`, `journald`, `sysctl`), and `superfedora service [status|start|restart|logs]`.
+- **Multi-User Layout, SELinux Enforcing & Polkit Integration:** Added `/usr/local/bin` and `/usr/share/superfedora` fallback, `/etc/skel/.config/superfedora` seeding, `/etc/polkit-1/rules.d/50-superfedora.rules`, `restorecon` SELinux enforcement, and `superfedora repo [status|test|sync]`.
+
 ## [0.6.0] — 2026-10-15
 
 ### Added

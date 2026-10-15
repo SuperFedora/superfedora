@@ -42,8 +42,14 @@ if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
     exit 1
 fi
 
-# Sanity: shell scripts must parse before anything is published.
-bash -n bin/superfedora || { echo "error: syntax check failed: bin/superfedora" >&2; exit 1; }
+# Sanity: bin/superfedora must exist (ELF binary or valid shell script), and shell scripts must parse.
+[[ -x bin/superfedora ]] || { echo "error: bin/superfedora is missing or not executable" >&2; exit 1; }
+if head -c 2 bin/superfedora | grep -q '^#!'; then
+    bash -n bin/superfedora || { echo "error: syntax check failed: bin/superfedora" >&2; exit 1; }
+fi
+mkdir -p "$HOME/.local/bin"
+install -m 755 bin/superfedora "$HOME/.local/bin/.sf.tmp.$$" && mv -f "$HOME/.local/bin/.sf.tmp.$$" "$HOME/.local/bin/superfedora"
+ln -sf superfedora "$HOME/.local/bin/sf"
 while IFS= read -r -d '' f; do
     bash -n "$f" || { echo "error: syntax check failed: $f" >&2; exit 1; }
 done < <(find . -path ./.git -prune -o -name '*.sh' -type f -print0)

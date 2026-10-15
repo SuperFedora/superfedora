@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# desc: Fedora version, network, sudo and a Btrfs safety snapshot
+# desc: Fedora version, SELinux, systemd OS tuning, sudo and Btrfs safety snapshot
 
 module_run() {
     # shellcheck source=/dev/null
@@ -9,6 +9,15 @@ module_run() {
     else
         r_failed "Fedora 42 or newer required (found ${PRETTY_NAME:-unknown})"
         is_install && die "unsupported system"
+    fi
+
+    if command -v getenforce >/dev/null 2>&1; then
+        local se_mode; se_mode="$(getenforce 2>/dev/null || echo Enforcing)"
+        if [[ "$se_mode" == "Enforcing" ]]; then
+            r_ok "SELinux ($se_mode)"
+        else
+            warn "SELinux is $se_mode (SuperFedora supports Enforcing mode)"
+        fi
     fi
 
     if curl -fsS --max-time 10 -o /dev/null https://github.com; then
@@ -25,15 +34,24 @@ module_run() {
         r_ok "sudo"
     fi
 
+    # Declarative systemd OS drop-ins (ZRAM, bounded journald, sysctl inotify/swappiness)
+    need_root_file system/etc/systemd/zram-generator.conf.d/superfedora.conf /etc/systemd/zram-generator.conf.d/superfedora.conf
+    need_root_file system/etc/systemd/journald.conf.d/superfedora.conf /etc/systemd/journald.conf.d/superfedora.conf
+    need_root_file system/etc/sysctl.d/90-superfedora.conf /etc/sysctl.d/90-superfedora.conf
+    need_service fstrim.timer
+    need_service systemd-oomd.service
+
     # Safety snapshot before the first change (Btrfs root + snapper)
     local fstype; fstype="$(stat -f -c %T / 2>/dev/null)"
     if [[ "$fstype" != btrfs ]]; then
         info "root is $fstype, not Btrfs: no snapshot"
         return 0
     fi
-    _snapper_t() { command -v snapper >/dev/null && sudo -n snapper -c root list >/dev/null 2>&1 || snapper -c root list >/dev/null 2>&1; }
+    _snapper_t() { command -v snapper >/dev/null && (sudo -n snapper -c root list >/dev/null 2>&1 || snapper -c root list >/dev/null 2>&1); }
     _snapper_i() { as_root bash "$SF_ROOT/lib/setup-btrfs-snapper.sh"; }
     need "Snapper on Btrfs root" _snapper_t _snapper_i
+    need_service snapper-timeline.timer
+    need_service snapper-cleanup.timer
 
     if is_install && command -v snapper >/dev/null && [[ ! -s "$SF_STATE/last_pre_install_snapshot" ]]; then
         local n

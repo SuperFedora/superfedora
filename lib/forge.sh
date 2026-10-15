@@ -4,13 +4,13 @@
 # ==============================================================================
 # forge.sh — Hardware-Tuned Source Builder & Firefox Chromeless WebApp Installer
 # ==============================================================================
-# Usage:
-#   sf forge status                           Show CPU/linker flags, presets & WebApps
-#   sf forge <preset|owner/repo>              Clone, tune (-march=native), build & install
-#   sf forge [webapp] <url> [name] [--isolated|--shared] Install chromeless Firefox WebApp
-#   sf forge remove <name|slug>               Uninstall a forged WebApp or binary
-#   sf forge update [--force]                 Update DNF RPMs, Flatpaks, Rustup, source builds & WebApps
-#   sf forge deps <target> [--install]        Check or install Fedora -devel dependencies
+# Usage (alias: sf forge):
+#   superfedora forge status                  Show CPU/linker flags, presets & WebApps
+#   superfedora forge <preset|owner/repo>     Clone, tune (-march=native), build & install
+#   superfedora forge [webapp] <url> [name]   Install chromeless Firefox WebApp
+#   superfedora forge remove <name|slug>      Uninstall a forged WebApp or binary
+#   superfedora forge update [--force]        Update DNF RPMs, Flatpaks, Rustup, source builds & WebApps
+#   superfedora forge deps <target> [--install] Check or install Fedora -devel dependencies
 # ==============================================================================
 set -euo pipefail
 
@@ -20,7 +20,7 @@ FORGE_JSON="$STATE_DIR/forge.json"; LIVE_JSON="$STATE_DIR/forge-live.json"; BIN_
 WEBAPP_DIR="$HOME/.local/share/superfedora/webapps"; SYSROOT="$HOME/.local/sysroot/usr"
 TMP_BUILD="${XDG_CACHE_HOME:-$HOME/.cache}/superfedora/forge-build"; FORGE_LOG="$TMP_BUILD/forge.log"
 mkdir -p "$TMP_BUILD" "$STATE_DIR" "$BIN_DIR"; FORGE_ACTIVE_TARGET=""; CURRENT_TMP=""
-export TMPDIR="$TMP_BUILD" PATH="$BIN_DIR:$HOME/.cargo/bin:$SYSROOT/bin:$SYSROOT/libexec/qt6:/usr/bin:/bin:$PATH"
+export TMPDIR="$TMP_BUILD" PATH="$BIN_DIR:$HOME/.cargo/bin:$SYSROOT/bin:$SYSROOT/libexec/qt6:/usr/local/bin:/usr/bin:/bin:$PATH"
 [[ -d "$SYSROOT" ]] && export LD_LIBRARY_PATH="$SYSROOT/lib64:${LD_LIBRARY_PATH:-}" LIBRARY_PATH="$SYSROOT/lib64:$HOME/.local/usr/lib64:$HOME/.local/lib:/usr/lib64" CPATH="$SYSROOT/include:$HOME/.local/usr/include" PKG_CONFIG_PATH="$SYSROOT/lib64/pkgconfig:$SYSROOT/share/pkgconfig:/usr/lib64/pkgconfig:/usr/share/pkgconfig" CMAKE_PREFIX_PATH="$SYSROOT;/usr"
 
 set_live() {
@@ -97,7 +97,7 @@ record_forge() {
 install_bin() {
     local src="$1" dst_name="${2:-$(basename "$1")}"; mkdir -p "$BIN_DIR"
     install -m 755 "$src" "$BIN_DIR/.${dst_name}.tmp.$$" && mv -f "$BIN_DIR/.${dst_name}.tmp.$$" "$BIN_DIR/$dst_name"
-    [[ "$dst_name" == "superfedora" ]] && { install -m 755 "$src" "$SF_ROOT/bin/.sf.tmp.$$" && mv -f "$SF_ROOT/bin/.sf.tmp.$$" "$SF_ROOT/bin/superfedora"; ln -sf "$BIN_DIR/superfedora" "$BIN_DIR/sf"; }
+    [[ "$dst_name" == "superfedora" ]] && { install -m 755 "$src" "$SF_ROOT/bin/.sf.tmp.$$" && mv -f "$SF_ROOT/bin/.sf.tmp.$$" "$SF_ROOT/bin/superfedora"; ln -sf superfedora "$BIN_DIR/sf"; [[ -w /usr/local/bin && "${SUPERFEDORA_SYSTEM_WIDE:-0}" == "1" ]] && { install -m 755 "$src" /usr/local/bin/superfedora; ln -sf superfedora /usr/local/bin/sf; } || true; }
     echo "[OK] Installed $BIN_DIR/$dst_name (-march=$MARCH_TARGET, linker=$LINKER)" | tee -a "$FORGE_LOG"
 }
 

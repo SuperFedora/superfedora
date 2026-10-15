@@ -1,19 +1,22 @@
 # What a Fedora "Minimal Install" lacks for a laptop desktop.
 # One package per line; '#' starts a comment.
 
-# Core tools
+# Core Stage-0 & CLI tools
 bash-completion
 curl
 diffutils
-wget2-wget
+findutils
+git-core
 git
-jq
-tar
 gzip
-xz
-unzip
+jq
 man-db
 sudo
+tar
+unzip
+wget2-wget
+xz
+zstd
 
 # Networking
 NetworkManager
@@ -21,31 +24,42 @@ NetworkManager-wifi
 NetworkManager-bluetooth
 linux-firmware
 
-# Audio (PipeWire)
+# Audio (PipeWire + WirePlumber)
 pipewire
 pipewire-pulseaudio
 pipewire-alsa
+pipewire-utils
 wireplumber
 alsa-ucm
 alsa-sof-firmware
 
-# Bluetooth, power, hardware
+# Bluetooth, power, hardware & systemd OS tuning
 bluez
 upower
 tuned-ppd
 brightnessctl
 fwupd
 polkit
+policycoreutils
+zram-generator
+systemd-oomd-defaults
 
-# Graphics / video acceleration (VA-API from RPM Fusion)
+# Graphics / Wayland / video acceleration (VA-API from RPM Fusion)
+libwayland-client
+libwayland-server
 mesa-dri-drivers
 mesa-vulkan-drivers
+mesa-libEGL
+mesa-libgbm
 intel-media-driver
 mesa-va-drivers-freeworld
 
-# Desktop plumbing
+# Desktop plumbing & XDG portals
 xdg-user-dirs
 xdg-utils
+xdg-desktop-portal
+xdg-desktop-portal-gtk
+xdg-desktop-portal-hyprland
 gnome-keyring
 gvfs
 dbus-broker

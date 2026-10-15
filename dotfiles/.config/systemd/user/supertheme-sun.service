@@ -1,0 +1,7 @@
+# Managed by SuperFedora — Solar Day/Night Palette & Nightlight Sync Service
+[Unit]
+Description=SuperFedora Solar Day/Night Palette & Nightlight Sync
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/sh -c 'for b in "$HOME/.local/bin/superfedora" /usr/local/bin/superfedora; do [ -x "$b" ] && exec "$b" theme reload; done'

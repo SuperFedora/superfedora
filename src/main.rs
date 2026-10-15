@@ -6,6 +6,7 @@
 
 mod charts_cli;
 mod cli;
+mod ops;
 mod settings_engine;
 mod state;
 mod telemetry;

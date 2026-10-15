@@ -1,0 +1,15 @@
+// Copyright 2026 SuperFedora Contributors
+// SPDX-License-Identifier: Apache-2.0
+// Managed by SuperFedora — Polkit rules for wheel users (Snapper, DNF5, systemd)
+
+polkit.addRule(function(action, subject) {
+    if (!subject.isInGroup("wheel")) {
+        return polkit.Result.NOT_HANDLED;
+    }
+    if (action.id.indexOf("org.opensuse.snapper.") === 0 ||
+        action.id.indexOf("org.rpm.dnf.v0.") === 0 ||
+        action.id === "org.freedesktop.systemd1.manage-units") {
+        return polkit.Result.AUTH_ADMIN_KEEP;
+    }
+    return polkit.Result.NOT_HANDLED;
+});

@@ -18,7 +18,7 @@ pub fn print_usage(st: &WorkstationState) {
     let b = "\x1b[1m";
     let r = "\x1b[0m";
     println!("{p}{b}SuperFedora v{} — Native Rust 16-Bit Workstation Engine & TUI{r}", st.version);
-    println!("Usage: {b}sf{r} [command] [options]   or   {b}superfedora{r} [command] [options]\n");
+    println!("Usage: {b}superfedora{r} [command] [options]   (shorthand alias: {b}sf{r})\n");
     println!("{s}{b}Graphical TUI & Telemetry Commands:{r}");
     println!("  {b}tui | welcome | deck{r} Launch full-screen 16-Bit Rust Graphical TUI (default in TTY)");
     println!("  {b}vitals | charts{r}      Render live 16-bit CPU per-core, RAM, GPU, Thermal & Disk bar charts");
@@ -28,6 +28,9 @@ pub fn print_usage(st: &WorkstationState) {
     println!("  {b}install{r}              Check every module and install whatever is missing");
     println!("  {b}status | doctor{r}      Audit workstation modules & print readiness bar chart");
     println!("  {b}update{r}               Fetch the latest SuperFedora release, then run install");
+    println!("  {b}system-upgrade [ver]{r} Upgrade Fedora release (Snapper + dnf5 + superforge)");
+    println!("  {b}service [action]{r}     Inspect/control systemd OS & user session units/timers");
+    println!("  {b}repo [status|test]{r}   Multi-repo orchestration across @SuperFedora repos");
     println!("  {b}build [action]{r}       Compile & tune core stack from source (-march=native)");
     println!("  {b}dotfiles [--check]{r}   Deploy desktop configs (or list drift from this release)");
     println!("  {b}dock [action]{r}        SuperDock position, autohide, pin & workspace layout");
@@ -111,6 +114,9 @@ pub fn dispatch(cmd: &str, args: &[String], st: &mut WorkstationState) -> i32 {
             Some("tui") => run_tui(2),
             _ => exec_bin_or_script(st, "supertheme", "lib/apply-theme.sh", args),
         },
+        "system-upgrade" | "dist-upgrade" | "release-upgrade" => crate::ops::run_system_upgrade(st, args),
+        "service" | "services" | "systemd" => crate::ops::run_service_cmd(st, args),
+        "repo" | "repos" => crate::ops::run_repo_cmd(st, args),
         "dock" | "superdock" | "panel" | "panels" => exec_bin_or_script(st, "superdock", "lib/panel-ctl.sh", args),
         "bar" | "superbar" => exec_bin_or_script(st, "superbar", "lib/panel-ctl.sh", args),
         "notify" | "supernotify" | "notifications" | "notif" => exec_bin_or_script(st, "supernotify", "lib/notify-ctl.sh", args),
@@ -124,25 +130,17 @@ pub fn dispatch(cmd: &str, args: &[String], st: &mut WorkstationState) -> i32 {
             exec_script(st, "dotfiles/.config/hypr/scripts/toggle-touchpad.sh", &prepend(cmd, args))
         }
         "io" => exec_script(st, "dotfiles/.config/hypr/scripts/toggle-touchpad.sh", args),
-        "settings-probe" => {
-            crate::settings_engine::print_probe();
-            0
-        }
+        "settings-probe" => { crate::settings_engine::print_probe(); 0 }
         "settings-apply" => crate::settings_engine::apply_setting(args),
         "settings" | "supersettings" | "config" => {
             if let Some(sub) = args.first().map(|s| s.as_str()) {
-                if sub == "probe" {
-                    crate::settings_engine::print_probe();
-                    return 0;
-                } else if sub == "apply" {
-                    return crate::settings_engine::apply_setting(&args[1..]);
-                }
+                if sub == "probe" { crate::settings_engine::print_probe(); return 0; }
+                if sub == "apply" { return crate::settings_engine::apply_setting(&args[1..]); }
             }
             exec_bin_or_script(st, "supersettings", "lib/panel-ctl.sh", args)
         }
         "modules" | "list" => {
-            let p = ansi_rgb(st.primary_rgb);
-            let s = ansi_rgb(st.secondary_rgb);
+            let (p, s) = (ansi_rgb(st.primary_rgb), ansi_rgb(st.secondary_rgb));
             println!("{p}\x1b[1m━━ SUPERFEDORA WORKSTATION MODULES ({})\x1b[0m", st.modules.len());
             for (num, name, desc, _) in &st.modules {
                 println!("  {s}\x1b[1m{num}\x1b[0m  \x1b[1m{name:<14}\x1b[0m {}  {desc}", bar_str(100, 10, st.primary_rgb));
@@ -150,11 +148,7 @@ pub fn dispatch(cmd: &str, args: &[String], st: &mut WorkstationState) -> i32 {
             0
         }
         "install" | "status" | "check" | "audit" | "doctor" | "update" => run_module_engine(cmd, args, st),
-        _ => {
-            eprintln!("unknown command: {cmd}");
-            print_usage(st);
-            2
-        }
+        _ => { eprintln!("unknown command: {cmd}"); print_usage(st); 2 }
     }
 }
 
@@ -167,9 +161,13 @@ fn prepend(first: &str, rest: &[String]) -> Vec<String> {
 
 fn exec_bin_or_script(st: &WorkstationState, bin_name: &str, rel: &str, args: &[String]) -> i32 {
     let home = env::var("HOME").unwrap_or_else(|_| "/home/jeryd".into());
-    let local_bin = std::path::Path::new(&home).join(".local/bin").join(bin_name);
-    if local_bin.is_file() {
-        return Command::new(local_bin).env("SF_ROOT", &st.sf_root).args(args).status().map(|s| s.code().unwrap_or(0)).unwrap_or(1);
+    for cand in [
+        std::path::Path::new(&home).join(".local/bin").join(bin_name),
+        std::path::PathBuf::from("/usr/local/bin").join(bin_name),
+    ] {
+        if cand.is_file() {
+            return Command::new(cand).env("SF_ROOT", &st.sf_root).args(args).status().map(|s| s.code().unwrap_or(0)).unwrap_or(1);
+        }
     }
     exec_script(st, rel, args)
 }

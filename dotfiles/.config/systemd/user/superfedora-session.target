@@ -1,0 +1,10 @@
+# Managed by SuperFedora — Unified systemd --user graphical session target
+[Unit]
+Description=SuperFedora 16-Bit Wayland Workstation Session
+Documentation=man:systemd.special(7)
+BindsTo=graphical-session.target
+Wants=graphical-session-pre.target supershell.service superagent.service idlescreen.service supertheme-sun.timer superforge-check.timer
+After=graphical-session-pre.target
+
+[Install]
+WantedBy=graphical-session.target

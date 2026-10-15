@@ -4,11 +4,11 @@
 # ==============================================================================
 # build-source.sh — Localhost Hardware-Optimized Source Builder (-march=native)
 # ==============================================================================
-# Usage:
-#   sf build status                 Show detected localhost CPU & build flags
-#   sf build profile                Generate ~/.config/superfedora/hardware-flags.env
-#   sf build all [--force]          Compile workstation suite for localhost CPU
-#   sf build <component> [--force]  Compile one target (wlctl|bluetui|wiremix|tuigreet|fuzzel|btop)
+# Usage (alias: sf build):
+#   superfedora build status                 Show detected localhost CPU & build flags
+#   superfedora build profile                Generate ~/.config/superfedora/hardware-flags.env
+#   superfedora build all [--force]          Compile workstation suite for localhost CPU
+#   superfedora build <component> [--force]  Compile one target (superfedora|wlctl|bluetui|wiremix|tuigreet|fuzzel|btop)
 # ==============================================================================
 set -euo pipefail
 
@@ -178,7 +178,8 @@ build_target() {
             if [[ -x "$sf_bin" ]]; then
                 install -m 755 "$sf_bin" "$SF_ROOT/bin/.sf.tmp.$$" && mv -f "$SF_ROOT/bin/.sf.tmp.$$" "$SF_ROOT/bin/superfedora"
                 install -m 755 "$sf_bin" "$HOME/.local/bin/.sf.tmp.$$" && mv -f "$HOME/.local/bin/.sf.tmp.$$" "$HOME/.local/bin/superfedora"
-                ln -sf "$HOME/.local/bin/superfedora" "$HOME/.local/bin/sf"
+                ln -sf superfedora "$HOME/.local/bin/sf"
+                [[ -w /usr/local/bin && "${SUPERFEDORA_SYSTEM_WIDE:-0}" == "1" ]] && { install -m 755 "$sf_bin" /usr/local/bin/superfedora; ln -sf superfedora /usr/local/bin/sf; } || true
                 mark_built superfedora
             fi ;;
         *)
