@@ -3,12 +3,12 @@ import QtQuick.Layouts
 import Quickshell
 import "panels"
 
-// Center popover: mode === "date" (GNOME/COSMIC Notification Center + Month Calendar)
+// Center popover: mode === "date" (Month Calendar), mode === "notifs" (Notification Center),
 // or mode === "time" (Clock & World Clocks).
 PanelWindow {
     id: cal
 
-    property string mode: ""    // "" | "date" | "time"
+    property string mode: ""    // "" | "date" | "notifs" | "time"
     property var targetScreen: Quickshell.screens[0]
     property int viewYear: new Date().getFullYear()
     property int viewMonth: new Date().getMonth()
@@ -19,7 +19,7 @@ PanelWindow {
     anchors.top: true
     margins.top: Theme.barHeight + 6
     exclusionMode: ExclusionMode.Ignore
-    implicitWidth: cal.mode === "time" ? 300 : 616
+    implicitWidth: cal.mode === "notifs" ? 364 : (cal.mode === "time" ? 300 : 284)
     implicitHeight: box.implicitHeight
 
     function resetToToday() {
@@ -75,22 +75,24 @@ PanelWindow {
     Rectangle {
         id: box
         width: parent.width
-        implicitHeight: (cal.mode === "date" ? dateRow.implicitHeight : timeCol.implicitHeight) + 24
+        implicitHeight: (cal.mode === "notifs" ? notifBox.implicitHeight : (cal.mode === "date" ? dateCol.implicitHeight : timeCol.implicitHeight)) + 24
         color: Theme.bg; radius: Theme.radius; border.width: 2; border.color: Theme.blue
 
-        // ---------------- Date Mode: GNOME/COSMIC Notification Center + Month Calendar ----------------
-        RowLayout {
-            id: dateRow
+        // ---------------- Notifs Mode: 16-Bit Workstation Notification Center ----------------
+        ColumnLayout {
+            id: notifBox
+            visible: cal.mode === "notifs"
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
+            spacing: 8
+            NotificationList { Layout.fillWidth: true; Layout.alignment: Qt.AlignTop }
+        }
+
+        // ---------------- Date Mode: Month Calendar ----------------
+        ColumnLayout {
+            id: dateCol
             visible: cal.mode === "date"
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
-            spacing: 12
-
-            NotificationList { Layout.fillWidth: true; Layout.preferredWidth: 320; Layout.alignment: Qt.AlignTop }
-            Rectangle { width: 1; Layout.fillHeight: true; color: Theme.border }
-
-            ColumnLayout {
-                id: dateCol
-                Layout.preferredWidth: 256; Layout.alignment: Qt.AlignTop; spacing: 8
+            spacing: 8
 
                 RowLayout {
                     Layout.fillWidth: true
@@ -136,7 +138,6 @@ PanelWindow {
                         }
                     }
                 }
-            }
         }
 
         // ---------------- Time Mode: Clock Settings & World Clocks ----------------

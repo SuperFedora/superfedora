@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Wayland
 import Quickshell.Widgets
 import Quickshell.Io
 import Quickshell.Services.Notifications
@@ -137,6 +138,7 @@ Scope {
             readonly property var zoneToasts: root.activeToasts.filter(t => t.zone === zoneWin.zid)
             visible: zoneWin.zoneToasts.length > 0 && !Status.sessionLocked
             screen: Quickshell.screens[0]; color: "transparent"; exclusionMode: ExclusionMode.Ignore
+            WlrLayershell.namespace: "superfedora-notifications"; WlrLayershell.layer: WlrLayer.Overlay; WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
             anchors { top: zoneWin.zid !== "bottom-center"; bottom: zoneWin.zid === "bottom-center"; right: zoneWin.zid === "top-right" }
             margins { top: zoneWin.zid === "top-center" ? ((bannerOverlay.active && bannerOverlay.kind === "warning") ? Theme.barHeight + 162 : Theme.barHeight + 10) : (Theme.barHeight + 8); bottom: 68; right: 10 }
             implicitWidth: zoneWin.modelData.w; implicitHeight: zoneCol.implicitHeight

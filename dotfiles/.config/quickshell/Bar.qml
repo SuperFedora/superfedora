@@ -51,54 +51,53 @@ PanelWindow {
         BarLabel { id: modeLabel; property string mode: ""; visible: mode !== ""; text: "󰌌 " + mode.toUpperCase() + "  ·  Esc to exit"; color: Theme.yellow; pixelSize: Theme.fontSize; bold: true; onClicked: Hyprland.dispatch("submap reset"); Connections { target: Hyprland; function onRawEvent(event) { if (event.name === "submap") modeLabel.mode = event.data; } } }
     }
 
-    // ---------------- Center: Collapsible Left Tool Expander (◂/▸) + Centered Combined Date/Time Button ----------------
-    Connections { target: Status; function onCenterToggleSeqChanged() { if (bar.modelData === Quickshell.screens[0]) bar.toggleCenter("date"); } }
+    // ---------------- Center: Collapsible Left Tool Expander (◂/▸) + Centered Date/Time + Right Notification Bell ----------------
+    Connections { target: Status; function onCenterToggleSeqChanged() { if (bar.modelData === Quickshell.screens[0]) bar.toggleCenter("notifs"); } }
 
     BarLabel {
         id: centerClock; anchors.centerIn: parent; property date now: new Date()
         Timer { interval: Status.clockSeconds ? 1000 : 5000; running: true; repeat: true; triggeredOnStart: true; onTriggered: centerClock.now = new Date() }
-        pixelSize: Theme.fontSize; bold: true; color: calendarPopup.mode !== "" ? Theme.cyan : Theme.fg
+        pixelSize: Theme.fontSize; bold: true; color: (calendarPopup.mode === "date" || calendarPopup.mode === "time") ? Theme.cyan : Theme.fg
         text: Qt.formatDateTime(centerClock.now, "ddd, MMM d   " + (Status.clock24h ? (Status.clockSeconds ? "HH:mm:ss" : "HH:mm") : (Status.clockSeconds ? "h:mm:ss AP" : "h:mm AP")))
-        onHoveredChanged: bar.setTip("Calendar & Notifications  ·  Right-click: Clock & World Time", hovered); onClicked: bar.toggleCenter("date"); onRightClicked: bar.toggleCenter("time")
+        onHoveredChanged: bar.setTip("Calendar  ·  Right-click: Clock & World Time", hovered); onClicked: bar.toggleCenter("date"); onRightClicked: bar.toggleCenter("time")
+    }
+
+    BarLabel {
+        id: notifBell; anchors { left: centerClock.right; verticalCenter: parent.verticalCenter; leftMargin: 2 }
+        pixelSize: Theme.fontSize; bold: Status.dnd || Status.notifUnread > 0 || calendarPopup.mode === "notifs"
+        color: calendarPopup.mode === "notifs" ? Theme.cyan : (Status.dnd ? Theme.yellow : (Status.notifUnread > 0 ? Theme.cyan : Theme.fgDim))
+        text: Status.dnd ? "󰂛" : (Status.notifUnread > 0 ? ("󰂞 " + Status.notifUnread) : "󰂚")
+        onHoveredChanged: bar.setTip("Notifications (" + Status.notifUnread + " unread)  ·  Right-click: Do Not Disturb (" + (Status.dnd ? "ON" : "OFF") + ")", hovered); onClicked: bar.toggleCenter("notifs"); onRightClicked: { if (Status.notifAction) Status.notifAction("toggleDnd"); Status.playSfx("toggle"); }
     }
 
     RowLayout {
-        id: centerLeftTools
-        anchors { right: centerClock.left; verticalCenter: parent.verticalCenter; rightMargin: 2 }
-        spacing: 3
-
+        id: centerLeftTools; anchors { right: centerClock.left; verticalCenter: parent.verticalCenter; rightMargin: 2 } spacing: 3
         readonly property var tools: [
             { id: "color",  active: false, col: Theme.magenta, txt: "󰈊", tip: "Color Picker  ·  Copy screen pixel hex to clipboard" },
-            { id: "shot",   active: false, col: Theme.cyan,   txt: "󰹑", tip: "Screenshot  ·  Left-click: Region  ·  Right-click: Full Screen" },
+            { id: "shot",   active: false, col: Theme.cyan,    txt: "󰹑", tip: "Screenshot  ·  Left-click: Region  ·  Right-click: Full Screen" },
             { id: "record", active: Status.recorderOpen || Status.screenRecording, col: Theme.red, txt: "󰻂", tip: "Screen Recorder  ·  Toggle Start / Pause recording controls" },
-            { id: "dnd",    active: Status.dnd || Status.notifUnread > 0, col: Status.dnd ? Theme.yellow : Theme.cyan, txt: Status.dnd ? "󰂛" : (Status.notifUnread > 0 ? ("󰂞 " + Status.notifUnread) : "󰂚"), tip: Status.dnd ? "Do Not Disturb: ON (Click to allow notifications)" : "Do Not Disturb: OFF (Click to silence notifications)" },
             { id: "idle",   active: Status.idleMode !== "poweroff", col: Status.idleMode === "lock" ? Theme.cyan : Theme.yellow, txt: Status.idleMode === "lock" ? "󰅶 󰌾" : (Status.idleMode === "screensaver" ? "󰅶" : "󰒲"), tip: Status.idleMode === "lock" ? "Coffee / Idle Mode: Lock After Timer (2m Screensaver → 5m Lock · No Screen Power Off) · Click to cycle" : (Status.idleMode === "screensaver" ? "Coffee / Idle Mode: Only Screensaver (2m Screensaver · Never Locks or Powers Off) · Click to cycle" : "Coffee / Idle Mode: Screen Power Off (2m Screensaver → 5m Lock → 10m Screen Off) · Click to cycle") }
         ]
-
         function triggerTool(id, rightBtn) {
             if (id === "idle") { if (rightBtn) bar.openDeck("power"); else Status.toggleIdle(); }
-            else if (id === "dnd") { if (rightBtn) bar.toggleCenter("date"); else if (Status.notifAction) Status.notifAction("toggleDnd"); }
             else if (id === "record") { if (rightBtn) Status.startScreenRecord(true); else { Status.recorderOpen = !Status.recorderOpen; Status.playSfx("click"); } }
             else if (id === "shot") bar.run("~/.config/hypr/scripts/screenshot.sh " + (rightBtn ? "screen" : "region"));
             else if (id === "color") bar.run("~/.config/hypr/scripts/screenshot.sh color");
         }
-
         Repeater {
             model: centerLeftTools.tools
             Rectangle {
-                id: ctChip; required property var modelData
-                readonly property bool shown: Status.centerToolsOpen || (modelData.active && (modelData.id === "idle" || modelData.id === "dnd" || modelData.id === "record"))
+                id: ctChip; required property var modelData; readonly property bool shown: Status.centerToolsOpen || (modelData.active && (modelData.id === "idle" || modelData.id === "record"))
                 visible: shown; implicitWidth: shown ? ctTxt.implicitWidth + 12 : 0; implicitHeight: Theme.barHeight - 8; radius: Theme.radiusSm
                 color: ctChipM.pressed ? Theme.bgAlt : (ctChipM.containsMouse ? Theme.bgHover : "transparent"); border.width: modelData.active ? 1 : 0; border.color: modelData.col
                 Text { id: ctTxt; anchors.centerIn: parent; text: ctChip.modelData.txt; color: ctChip.modelData.active ? ctChip.modelData.col : (ctChipM.containsMouse ? Theme.cyan : Theme.fgDim); font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: ctChip.modelData.active }
                 MouseArea { id: ctChipM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.RightButton; onContainsMouseChanged: bar.setTip(ctChip.modelData.tip, containsMouse); onClicked: e => centerLeftTools.triggerTool(ctChip.modelData.id, e.button === Qt.RightButton) }
             }
         }
-
         Rectangle {
             implicitWidth: 22; implicitHeight: Theme.barHeight - 8; radius: Theme.radiusSm; color: ctMouse.containsMouse ? Theme.bgHover : "transparent"
             Text { anchors.centerIn: parent; text: Status.centerToolsOpen ? "▸" : "◂"; color: Status.centerToolsOpen || ctMouse.containsMouse ? Theme.cyan : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize }
-            MouseArea { id: ctMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onContainsMouseChanged: bar.setTip(Status.centerToolsOpen ? "Hide Quick Tools" : "Expand Quick Tools (Hot Coffee, DND, Record, Screenshot, Color Picker)", containsMouse); onClicked: { Status.centerToolsOpen = !Status.centerToolsOpen; Status.playSfx("click"); } }
+            MouseArea { id: ctMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onContainsMouseChanged: bar.setTip(Status.centerToolsOpen ? "Hide Quick Tools" : "Expand Quick Tools (Coffee / Idle Mode, Record, Screenshot, Color Picker)", containsMouse); onClicked: { Status.centerToolsOpen = !Status.centerToolsOpen; Status.playSfx("click"); } }
         }
     }
 
