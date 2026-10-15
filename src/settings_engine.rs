@@ -112,14 +112,34 @@ pub fn print_probe() {
     println!("DSK|{}|{}", root_str, home_str);
 
     let cfg = cfg_dir();
-    let ui_scale = fs::read_to_string(cfg.join("ui-scale")).ok().and_then(|s| s.trim().parse::<u32>().ok()).unwrap_or(15);
+    let ui_scale = fs::read_to_string(cfg.join("ui-scale")).ok().and_then(|s| s.trim().parse::<u32>().ok()).unwrap_or(14);
     let anim_off = fs::read_to_string(cfg.join("animations")).map(|s| s.trim() == "0" || s.trim() == "off").unwrap_or(false);
     let orca_on = pgrep_exact("orca");
     let night_on = pgrep_exact("wlsunset");
     let tpad_on = fs::read_to_string(cfg.join("touchpad-enabled")).map(|s| s.trim() != "0" && s.trim() != "off").unwrap_or(true);
     let mono_on = fs::read_to_string(cfg.join("mono-audio")).map(|s| s.trim() == "1" || s.trim() == "on").unwrap_or(false);
-    let ws_mode = crate::ops::mode::active_mode();
-    let gpu = crate::ops::hardware::detect_gpu_profile();
+    let ws_mode = fs::read_to_string(cfg.join("workstation-mode"))
+        .unwrap_or_else(|_| "balanced".into())
+        .trim()
+        .to_string();
+    let mut gpu_arch = String::from("Generic KMS/DRM GPU");
+    let mut va_drv = "radeonsi (Mesa Freeworld)";
+    if let Ok(entries) = fs::read_dir("/sys/bus/pci/devices") {
+        for e in entries.flatten() {
+            let p = e.path();
+            if fs::read_to_string(p.join("class")).unwrap_or_default().trim().starts_with("0x03") {
+                match fs::read_to_string(p.join("vendor")).unwrap_or_default().trim() {
+                    "0x1002" => { gpu_arch = "AMD RDNA / Radeon".into(); va_drv = "radeonsi (Mesa Freeworld)"; }
+                    "0x8086" => { gpu_arch = "Intel Arc / Xe".into(); va_drv = "iHD (Intel Media Driver)"; }
+                    "0x10de" => { gpu_arch = "NVIDIA RTX / GeForce".into(); va_drv = "nvidia (NVDEC VA-API)"; }
+                    _ => {}
+                }
+                break;
+            }
+        }
+    }
+    let ff_ok = Path::new("/usr/bin/ffmpeg").exists();
+    let dmabuf_ok = cfg.join("firefox-vaapi.js").is_file();
     let pk_idle = if Path::new("/etc/systemd/system/packagekit.service.d/superfedora-timeout.conf").exists() {
         "On-Demand (30s ShutdownTimeout)"
     } else {
@@ -127,10 +147,10 @@ pub fn print_probe() {
     };
     println!(
         "GPU|{}|{}|{}|{}",
-        gpu.vendor_arch,
-        gpu.va_driver_name,
-        if gpu.ffmpeg_full { "Full FFmpeg + VA-API" } else { "ffmpeg-free" },
-        if gpu.firefox_vaapi { "Zero-Copy DMABUF Active" } else { "Standard" }
+        gpu_arch,
+        va_drv,
+        if ff_ok { "Full FFmpeg + VA-API" } else { "ffmpeg-free" },
+        if dmabuf_ok { "Zero-Copy DMABUF Active" } else { "Standard" }
     );
     println!("MODE|{}|{}", ws_mode, pk_idle);
     println!(
@@ -151,13 +171,15 @@ pub fn apply_setting(args: &[String]) -> i32 {
 
     match act {
         "mode" | "profile" => {
-            let mut st = crate::state::WorkstationState::load();
-            let sub = if val.is_empty() { "cycle" } else { val };
-            crate::ops::mode::run_mode_cmd(&mut st, &[sub.to_string()])
+            let next = if val.is_empty() { "cycle" } else { val };
+            let _ = Command::new("superfedora").args(["mode", next]).stdout(Stdio::null()).stderr(Stdio::null()).status();
+            let _ = Command::new("qs").args(["ipc", "call", "status", "refresh"]).stdout(Stdio::null()).stderr(Stdio::null()).status();
+            0
         }
         "hardware" | "vaapi" => {
-            let st = crate::state::WorkstationState::load();
-            crate::ops::hardware::run_hardware_cmd(&st, &["optimize".into()])
+            let _ = Command::new("superfedora").args(["hardware", "optimize"]).stdout(Stdio::null()).stderr(Stdio::null()).status();
+            let _ = Command::new("qs").args(["ipc", "call", "status", "refresh"]).stdout(Stdio::null()).stderr(Stdio::null()).status();
+            0
         }
         "theme" | "palette" => {
             let sub = if val.is_empty() { "toggle" } else { val };
@@ -172,11 +194,13 @@ pub fn apply_setting(args: &[String]) -> i32 {
         "ui-scale" => {
             let sz: u32 = match val {
                 "compact" | "small" | "13" => 13,
-                "large" | "17" => 17,
-                "xlarge" | "xl" | "20" => 20,
-                _ => 15,
+                "default" | "normal" | "14" => 14,
+                "large" | "16" | "17" => 16,
+                "xlarge" | "xl" | "18" | "20" => 18,
+                _ => val.parse::<u32>().unwrap_or(14).clamp(12, 22),
             };
             let _ = fs::write(cfg.join("ui-scale"), format!("{sz}\n"));
+            let _ = Command::new("qs").args(["ipc", "call", "theme", "reload"]).stdout(Stdio::null()).stderr(Stdio::null()).status();
             let _ = Command::new("qs").args(["ipc", "call", "status", "refresh"]).stdout(Stdio::null()).stderr(Stdio::null()).status();
             0
         }
