@@ -40,29 +40,32 @@ Item {
     function setSlider(kind, ratio) { const v = Math.max(0.0, Math.min(1.0, ratio)); if (kind === "bright") Status.setBrightness(Math.max(0.05, v)); else if (kind === "spk") Status.setSpeakerVolume(v); else if (kind === "mic") Status.setMicVolume(v); }
     function openCardPanel(it) { if (!it) return; const targetCat = it.cats.indexOf(pg.activePage) >= 0 ? pg.activePage : (it.cats[0] || pg.activePage); pg.clearSearchRequested(); Status.openSettingsItem(targetCat, it.id, ""); }
     function actionVerb(a, it) {
-        if (!a) return "Run";
+        if (!a) return "Open";
         const id = it ? (it.id || "") : "", l = (a.l || "").toLowerCase(), act = a.act || "";
-        if (id.indexOf("app-") === 0 && l.indexOf("test") < 0 && l.indexOf("open") < 0) return a.on ? "󰄬 Default" : "Set default";
+        if (id === "pwr-btrfs" && l.includes("create")) return "Create";
+        if (id.indexOf("app-def-") === 0 && !l.startsWith("open ") && !l.startsWith("edit ") && !l.startsWith("reset ")) return a.on ? "󰄬 Default" : "Set default";
         if (a.on) return "󰄬 Selected";
-        if (act === "cmdClose" || l.indexOf("open ") === 0 || l.indexOf("launch") === 0 || l.indexOf(" browse") >= 0 || l.indexOf("tui") >= 0 || l.indexOf("folder") >= 0) return "Open";
-        if (l.indexOf("edit ") === 0 || l.indexOf(".conf") >= 0 || l.indexOf("bashrc") >= 0) return "Edit";
-        if (l.indexOf("play") >= 0 || l.indexOf("sound") >= 0 || l.indexOf("test ") === 0 || l.indexOf("banner") >= 0 || l.indexOf("toast") >= 0 || l.indexOf("preview") >= 0 || l.indexOf("start screensaver") >= 0) return "Preview";
-        if (l.indexOf("scan") >= 0 || l.indexOf("rescan") >= 0 || l.indexOf("check") >= 0) return "Scan"; if (l.indexOf("copy") >= 0) return "Copy"; if (l.indexOf("flush") >= 0) return "Flush";
-        if (l.indexOf("clear") >= 0 || l.indexOf("empty") >= 0 || l.indexOf("vacuum") >= 0) return "Clear"; if (l.indexOf("restart") >= 0 || l.indexOf("reload") >= 0 || l.indexOf("reset") >= 0) return "Reset";
-        if (l.indexOf("mute") >= 0 || l.indexOf("toggle") >= 0 || act.indexOf("Toggle") >= 0 || act.indexOf("Mute") >= 0 || act === "barOpacity" || act === "clock24" || act === "clockSec") return "Toggle";
-        if (l.indexOf("switch") >= 0 || l.indexOf("next ") === 0 || l.indexOf("prev ") === 0) return "Switch";
-        if (l.indexOf("status") >= 0 || l.indexOf("inspect") >= 0 || l.indexOf("table") >= 0 || l.indexOf("show ") === 0 || l.indexOf("list") >= 0 || l.indexOf("active ") === 0 || l.indexOf("verify") >= 0) return "Inspect";
-        if (id === "disp-bright" || id === "disp-scale" || id === "snd-spk" || id === "snd-mic" || id === "pwr-mode" || id === "pwr-screen" || id === "ui-theme" || id === "ui-Night" || id === "ui-bar" || id === "ui-saver" || id === "kb-layout" || id === "kb-rate" || id === "Language") return "Select";
-        return "Run";
+        if (act === "banner" || act === "cast" || l.includes("play") || l.includes("sound") || l.startsWith("test ") || l.includes("toast") || l.includes("preview") || l.includes("print test")) return "Preview";
+        if (l.startsWith("edit ") || l.includes(".conf") || l.includes(".toml") || l.includes(".env") || l.includes(".list") || l.includes("clocks")) return "Edit";
+        if (l.includes("status") || l.includes("inspect") || l.includes("table") || l.includes("list ") || l.includes("sockets") || l.includes("statistics") || l.includes("health") || l.includes("permissions") || l.includes("detect") || l.includes("probe") || l.includes("verify")) return "Inspect";
+        if (act === "cmdClose" || l.startsWith("open ") || l.includes("tui") || l.includes("gui") || l.includes("manager") || l.includes("editor") || l.includes("console") || l.includes("mixer") || l.includes("analyzer") || l.includes("web ") || l.includes("add or manage") || l.includes("shortcuts") || id === "app-defaults") return "Open";
+        if (l.includes("scan") || l.includes("rescan") || l.includes("check") || l.includes("firmware")) return "Scan"; if (l.includes("copy")) return "Copy"; if (l.includes("flush")) return "Flush";
+        if (l.includes("clear")) return "Clear"; if (l.includes("reset")) return "Reset"; if (l.includes("export")) return "Export"; if (l.includes("import")) return "Import";
+        if (l.includes("update ") || l.startsWith("update")) return "Update"; if (l.includes("optimize")) return "Optimize"; if (l.includes("enroll") || l.includes("generate") || l.includes("change password")) return "Configure";
+        if (l.includes("zoom")) return "Adjust"; if (l.includes("mute") || l.includes("toggle") || l.includes("lock camera") || l.includes("enable camera") || l.includes("orca") || l.includes("mono") || l.includes("timezone") || act === "barOpacity" || act === "clock24" || act === "clockSec" || act === "kbdLight") return "Toggle";
+        if (l.includes("switch") || l.startsWith("next ") || l.startsWith("previous ") || l.includes("cycle")) return "Switch";
+        if (id === "disp-bright" || id === "disp-night" || id === "disp-scale" || id === "snd-spk" || id === "snd-mic" || id === "dev-touchpad" || id === "dev-kbd" || id === "ui-mode" || id === "wm-dock" || id === "wm-layout" || id === "acc-fontsize" || id === "acc-motion" || id === "pwr-mode" || id === "pwr-battery" || id === "pwr-idle") return "Select";
+        return "Open";
     }
     function actionSub(a, it) {
         if (!a) return "";
         const v = pg.actionVerb(a, it), t = it ? it.title : "setting";
-        if (a.on) return (it && it.id.indexOf("app-") === 0) ? ("Active default handler for " + t) : ("Currently active selection for " + t);
-        if (v === "Set default") return "Set as your default handler for " + t; if (v === "Select") return "Switch " + t + " to " + a.l;
-        if (v === "Open") return "Open interactive tool or window"; if (v === "Edit") return "Open configuration file in editor";
-        if (v === "Inspect") return "Inspect live system state in floating terminal"; if (v === "Preview") return "Trigger immediate live preview";
-        return v === "Toggle" ? "Toggle setting state immediately" : ("Execute action for " + t);
+        if (v === "󰄬 Default") return "Active default handler for " + t; if (v === "Set default") return "Set as your default handler for " + t;
+        if (v === "󰄬 Selected") return "Currently active selection for " + t; if (v === "Select") return "Switch " + t + " to " + a.l;
+        if (v === "Open") return "Launch interactive interface or window"; if (v === "Edit") return "Open configuration file in default editor";
+        if (v === "Inspect") return "Inspect live system state and diagnostics"; if (v === "Preview") return "Trigger immediate live preview";
+        if (v === "Toggle") return "Toggle setting state immediately"; if (v === "Switch") return "Cycle to the next state";
+        return v + " — " + t;
     }
 
     NumberAnimation { id: panelAnim; target: contentCol; property: "opacity"; from: 0.78; to: 1.0; duration: 95; easing.type: Easing.OutCubic }

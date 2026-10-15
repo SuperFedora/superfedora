@@ -46,13 +46,13 @@ MimeType=inode/directory;
 EOF
     }
     _fm_t() {
-        [[ -f "$HOME/.local/share/applications/yazi.desktop" || -f /usr/share/applications/yazi.desktop ]] &&
-        [[ "$(xdg-mime query default inode/directory 2>/dev/null)" == yazi.desktop ]]
+        [[ -f "$HOME/.local/share/applications/superfiles.desktop" || -f "$HOME/.local/share/applications/yazi.desktop" || -f /usr/share/applications/yazi.desktop ]] &&
+        [[ "$(xdg-mime query default inode/directory 2>/dev/null)" =~ ^(superfiles|yazi)\.desktop$ ]]
     }
     _fm_i() {
         _ensure_yazi_desktop
-        grep -q '^inode/directory=yazi.desktop' "$HOME/.config/mimeapps.list" 2>/dev/null || \
-            xdg-mime default yazi.desktop inode/directory
+        grep -qE '^inode/directory=(superfiles|yazi)\.desktop' "$HOME/.config/mimeapps.list" 2>/dev/null || \
+            xdg-mime default superfiles.desktop inode/directory
     }
     command -v xdg-mime >/dev/null && need "default file manager: Yazi" _fm_t _fm_i
 
