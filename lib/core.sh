@@ -86,4 +86,5 @@ summary() {
         printf '\n  %sFailures%s (details in %s):\n' "$C_RED" "$C_R" "$SF_LOG"
         printf '    - %s\n' "${SF_FAILURES[@]}"
     fi
+    return 0
 }

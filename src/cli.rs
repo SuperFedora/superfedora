@@ -206,7 +206,8 @@ if [[ "$CMD_NAME" == "install" || "$CMD_NAME" == "update" ]]; then
     printf '%sSuperFedora v%s%s — %s [%s]\n' "$C_B" "$SF_VERSION" "$C_R" "$([[ $MODE == dry-run ]] && echo 'dry run, nothing will change' || echo 'installing what is missing')" "$mode_lbl"
     _log_file "superfedora $MODE v$SF_VERSION ($SF_BUILD_MODE)"
     run_modules; summary
-    [[ $MODE == install ]] && { echo "$SF_VERSION" > "$SF_STATE/version"; echo "$SF_BUILD_MODE" > "$SF_STATE/build-mode"; [[ $SF_FAILED -eq 0 ]] || exit 1; }
+    if [[ $MODE == install ]]; then echo "$SF_VERSION" > "$SF_STATE/version"; echo "$SF_BUILD_MODE" > "$SF_STATE/build-mode"; fi
+    [[ $SF_FAILED -eq 0 ]] || exit 1
 else
     printf '%sSuperFedora v%s%s — status (installed: %s, mode: %s)\n' "$C_B" "$SF_VERSION" "$C_R" "$(cat "$SF_STATE/version" 2>/dev/null || echo none)" "$SF_BUILD_MODE"
     run_modules; summary
