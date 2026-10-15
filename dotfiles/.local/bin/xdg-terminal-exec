@@ -1,3 +1,167 @@
-#!/bin/sh
-# Default terminal launcher used by Hyprland ($terminal) and desktop files.
-exec kitty "$@"
+#!/usr/bin/env bash
+# Copyright 2026 SuperFedora Contributors
+# SPDX-License-Identifier: Apache-2.0
+# ==============================================================================
+# xdg-terminal-exec — SuperFedora Default App & Universal Terminal Dispatcher
+# ==============================================================================
+# Modes:
+#   xdg-terminal-exec [--class ID] [--title T] [-e CMD...]   Launch default terminal
+#   xdg-terminal-exec --browser [URL...]                     Launch default browser
+#   xdg-terminal-exec --files [DIR...]                       Launch default file manager
+#   xdg-terminal-exec --editor [FILE...]                     Launch default editor
+#   xdg-terminal-exec --monitor                              Launch default system monitor
+#   xdg-terminal-exec --set <role> <val>                     Set default app for role
+#   xdg-terminal-exec --probe                                Emit DEF|term|browser|files|editor|monitor
+# ==============================================================================
+set -euo pipefail
+
+CFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/superfedora"
+DEF_FILE="$CFG_DIR/defaults.env"
+DEFAULT_TERMINAL="kitty"
+DEFAULT_BROWSER="firefox"
+DEFAULT_FILES="yazi"
+DEFAULT_EDITOR="nvim"
+DEFAULT_MONITOR="btop"
+# shellcheck disable=SC1090
+[[ -f "$DEF_FILE" ]] && source "$DEF_FILE"
+
+save_defaults() {
+    mkdir -p "$CFG_DIR"
+    printf 'DEFAULT_TERMINAL="%s"\nDEFAULT_BROWSER="%s"\nDEFAULT_FILES="%s"\nDEFAULT_EDITOR="%s"\nDEFAULT_MONITOR="%s"\n' \
+        "$DEFAULT_TERMINAL" "$DEFAULT_BROWSER" "$DEFAULT_FILES" "$DEFAULT_EDITOR" "$DEFAULT_MONITOR" > "$DEF_FILE"
+    printf '%s.desktop\n' "$DEFAULT_TERMINAL" > "${XDG_CONFIG_HOME:-$HOME/.config}/xdg-terminals.list"
+}
+
+resolve_term_bin() {
+    local t
+    for t in "$DEFAULT_TERMINAL" "${TERMINAL:-}" kitty foot ghostty alacritty wezterm ptyxis kgx; do
+        [[ -n "$t" ]] && command -v "$t" >/dev/null 2>&1 && { echo "$t"; return 0; }
+    done
+    echo "kitty"
+}
+
+set_role() {
+    local role="${1,,}" val="${2,,}"
+    case "$role" in
+        terminal|term) DEFAULT_TERMINAL="$val" ;;
+        browser|web)
+            DEFAULT_BROWSER="$val"
+            local desk="${val}.desktop"
+            case "$val" in
+                firefox) desk="org.mozilla.firefox.desktop"; [[ -f "/usr/share/applications/firefox.desktop" ]] && desk="firefox.desktop" ;;
+                brave|brave-browser) desk="brave-browser.desktop" ;;
+                chrome|google-chrome) desk="google-chrome.desktop" ;;
+                chromium) desk="chromium-browser.desktop"; [[ -f "/usr/share/applications/org.chromium.Chromium.desktop" ]] && desk="org.chromium.Chromium.desktop" ;;
+                zen|zen-browser) desk="zen.desktop" ;;
+            esac
+            command -v xdg-settings >/dev/null 2>&1 && xdg-settings set default-web-browser "$desk" 2>/dev/null || true
+            command -v xdg-mime >/dev/null 2>&1 && xdg-mime default "$desk" text/html x-scheme-handler/http x-scheme-handler/https 2>/dev/null || true ;;
+        files|filemanager)
+            DEFAULT_FILES="$val"
+            local fdesk="superfiles.desktop"
+            case "$val" in
+                nautilus) fdesk="org.gnome.Nautilus.desktop" ;; thunar) fdesk="thunar.desktop" ;;
+                dolphin)  fdesk="org.kde.dolphin.desktop" ;;    nemo)   fdesk="nemo.desktop" ;;
+            esac
+            command -v xdg-mime >/dev/null 2>&1 && xdg-mime default "$fdesk" inode/directory 2>/dev/null || true ;;
+        editor|code)
+            DEFAULT_EDITOR="$val"
+            local edesk="nvim.desktop"
+            case "$val" in
+                hx|helix) edesk="Helix.desktop" ;; code|vscode) edesk="code.desktop" ;; zed) edesk="dev.zed.Zed.desktop" ;;
+            esac
+            command -v xdg-mime >/dev/null 2>&1 && xdg-mime default "$edesk" text/plain text/markdown 2>/dev/null || true ;;
+        monitor|task) DEFAULT_MONITOR="$val" ;;
+        *) echo "unknown role: $role" >&2; exit 2 ;;
+    esac
+    save_defaults
+    command -v qs >/dev/null 2>&1 && qs ipc call status refresh >/dev/null 2>&1 || true
+    exit 0
+}
+
+case "${1:-}" in
+    --probe)
+        printf 'DEF|%s|%s|%s|%s|%s\n' "$DEFAULT_TERMINAL" "$DEFAULT_BROWSER" "$DEFAULT_FILES" "$DEFAULT_EDITOR" "$DEFAULT_MONITOR"
+        exit 0 ;;
+    --set)
+        shift; set_role "${1:-}" "${2:-}" ;;
+    --browser)
+        shift
+        for b in "$DEFAULT_BROWSER" "${DEFAULT_BROWSER}-browser" firefox brave-browser google-chrome chromium; do
+            command -v "$b" >/dev/null 2>&1 && exec "$b" "$@"
+        done
+        exec xdg-open "${1:-https://superfedora.github.io}" ;;
+    --files)
+        shift
+        case "$DEFAULT_FILES" in
+            nautilus|thunar|dolphin|nemo|pcmanfm)
+                command -v "$DEFAULT_FILES" >/dev/null 2>&1 && exec "$DEFAULT_FILES" "$@" ;;
+        esac
+        exec "$0" --class superfiles -e "${DEFAULT_FILES:-yazi}" "$@" ;;
+    --editor)
+        shift
+        case "$DEFAULT_EDITOR" in
+            code|zed|antigravity|subl|gedit|gnome-text-editor)
+                command -v "$DEFAULT_EDITOR" >/dev/null 2>&1 && exec "$DEFAULT_EDITOR" "$@" ;;
+        esac
+        exec "$0" --class floating-tui -e "${DEFAULT_EDITOR:-nvim}" "$@" ;;
+    --monitor)
+        shift
+        case "$DEFAULT_MONITOR" in
+            missioncenter|io.missioncenter.MissionCenter|resources|gnome-system-monitor)
+                command -v "$DEFAULT_MONITOR" >/dev/null 2>&1 && exec "$DEFAULT_MONITOR" "$@" ;;
+        esac
+        exec "$0" --class floating-term -e "${DEFAULT_MONITOR:-btop}" "$@" ;;
+esac
+
+APP_CLASS=""
+APP_TITLE=""
+EXEC_ARGS=()
+PASSTHROUGH=()
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --class|--app-id) APP_CLASS="${2:-}"; shift 2 ;;
+        --class=*|--app-id=*) APP_CLASS="${1#*=}"; shift ;;
+        --title|-T) APP_TITLE="${2:-}"; shift 2 ;;
+        --title=*) APP_TITLE="${1#*=}"; shift ;;
+        -e|--command) shift; EXEC_ARGS=("$@"); break ;;
+        *) PASSTHROUGH+=("$1"); shift ;;
+    esac
+done
+
+TERM_BIN="$(resolve_term_bin)"
+CMD=("$TERM_BIN")
+
+case "${TERM_BIN##*/}" in
+    kitty)
+        [[ -n "$APP_CLASS" ]] && CMD+=(--class "$APP_CLASS")
+        [[ -n "$APP_TITLE" ]] && CMD+=(--title "$APP_TITLE")
+        CMD+=("${PASSTHROUGH[@]}")
+        [[ ${#EXEC_ARGS[@]} -gt 0 ]] && CMD+=(-e "${EXEC_ARGS[@]}") ;;
+    foot|footclient)
+        [[ -n "$APP_CLASS" ]] && CMD+=("--app-id=$APP_CLASS")
+        [[ -n "$APP_TITLE" ]] && CMD+=("--title=$APP_TITLE")
+        CMD+=("${PASSTHROUGH[@]}")
+        [[ ${#EXEC_ARGS[@]} -gt 0 ]] && CMD+=("${EXEC_ARGS[@]}") ;;
+    ghostty)
+        [[ -n "$APP_CLASS" ]] && CMD+=("--class=$APP_CLASS")
+        [[ -n "$APP_TITLE" ]] && CMD+=("--title=$APP_TITLE")
+        CMD+=("${PASSTHROUGH[@]}")
+        [[ ${#EXEC_ARGS[@]} -gt 0 ]] && CMD+=(-e "${EXEC_ARGS[@]}") ;;
+    alacritty)
+        [[ -n "$APP_CLASS" ]] && CMD+=(--class "$APP_CLASS")
+        [[ -n "$APP_TITLE" ]] && CMD+=(--title "$APP_TITLE")
+        CMD+=("${PASSTHROUGH[@]}")
+        [[ ${#EXEC_ARGS[@]} -gt 0 ]] && CMD+=(-e "${EXEC_ARGS[@]}") ;;
+    wezterm)
+        CMD+=(start)
+        [[ -n "$APP_CLASS" ]] && CMD+=(--class "$APP_CLASS")
+        CMD+=("${PASSTHROUGH[@]}")
+        [[ ${#EXEC_ARGS[@]} -gt 0 ]] && CMD+=(-- "${EXEC_ARGS[@]}") ;;
+    *)
+        CMD+=("${PASSTHROUGH[@]}")
+        [[ ${#EXEC_ARGS[@]} -gt 0 ]] && CMD+=(-e "${EXEC_ARGS[@]}") ;;
+esac
+
+exec "${CMD[@]}"

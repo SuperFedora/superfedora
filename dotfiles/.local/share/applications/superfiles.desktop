@@ -2,7 +2,7 @@
 Name=SuperFiles
 GenericName=File Manager
 Comment=SuperFedora Floating Terminal File Manager (Yazi)
-Exec=kitty --class superfiles -e yazi %u
+Exec=xdg-terminal-exec --files %u
 Icon=system-file-manager
 Terminal=false
 Type=Application

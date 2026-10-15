@@ -2,7 +2,7 @@
 Name=SuperForge
 GenericName=Source Build & Package Engine
 Comment=SuperFedora Declarative Source Builder & Toolchain Manager
-Exec=kitty --class superfiles -e superforge tui
+Exec=xdg-terminal-exec --class superfiles -e superforge tui
 Icon=applications-development
 Terminal=false
 Type=Application

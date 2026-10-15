@@ -147,8 +147,8 @@ apply_all() {
         "$color" "$NAME" "$mode" "$BG" "$BG_ALT" "$BG_HOV" "$BORDER" "$FG" "$FG_DIM" "$MUTED" "$ACCENT" "$HOT" "$corners" "$nl_bool" "$qs_rad" "$qs_rad_sm" > "$STATE_DIR/quickshell-theme.json"
     command -v qs >/dev/null 2>&1 && qs ipc call theme reload >/dev/null 2>&1 || true
 
-    # 5. Fuzzel, Kitty, Ghostty, Tmux & Neovim Terminal Theme Sync
-    printf '# Fuzzel Configuration — SuperFedora 16-Bit Theme (%s / %s / %s)\nfont=JetBrainsMono Nerd Font:size=12\ndpi-aware=auto\nprompt="> "\nicon-theme=Adwaita\nterminal=kitty -e\nwidth=36\nlines=10\nhorizontal-pad=24\nvertical-pad=16\ninner-pad=10\n\n[colors]\nbackground=%sf2\ntext=%sff\nmatch=%sff\nselection=%sff\nselection-text=%sff\nselection-match=%sff\nborder=%sff\n\n[border]\nwidth=2\nradius=%s\n' \
+    # 5. Fuzzel, Kitty, Foot, Ghostty, Tmux & Neovim Terminal Theme Sync
+    printf '# Fuzzel Configuration — SuperFedora 16-Bit Theme (%s / %s / %s)\nfont=JetBrainsMono Nerd Font:size=12\ndpi-aware=auto\nprompt="> "\nicon-theme=Adwaita\nterminal=xdg-terminal-exec -e\nwidth=36\nlines=10\nhorizontal-pad=24\nvertical-pad=16\ninner-pad=10\n\n[colors]\nbackground=%sf2\ntext=%sff\nmatch=%sff\nselection=%sff\nselection-text=%sff\nselection-match=%sff\nborder=%sff\n\n[border]\nwidth=2\nradius=%s\n' \
         "$NAME" "$mode" "$corners" "$BG" "$FG" "$ACCENT" "$SEL_BG" "$FG" "$HOT" "$ACCENT" "$fuzzel_rad" > "$HOME/.config/fuzzel/fuzzel.ini"
     if [[ -f "$HOME/.config/kitty/kitty.conf" ]]; then
         sed -i -e "s/^foreground .*/foreground            $KITTY_FG/" -e "s/^background .*/background            $KITTY_BG/" \
@@ -159,6 +159,7 @@ apply_all() {
         pkill -USR1 -x kitty 2>/dev/null || true
     fi
     printf 'background = #%s\nforeground = #%s\ncursor-color = #%s\nselection-background = #%s\n' "$BG" "$FG" "$ACCENT" "$SEL_BG" > "$STATE_DIR/ghostty-theme.conf"
+    printf '[colors]\nbackground=%s\nforeground=%s\nselection-background=%s\nselection-foreground=%s\n' "$BG" "$FG" "$SEL_BG" "$FG" > "$STATE_DIR/foot-theme.ini"
     printf 'set -g status-style "bg=#%s,fg=#%s"\nset -g pane-active-border-style "fg=#%s"\nset -g pane-border-style "fg=#%s"\n' "$BG_ALT" "$FG" "$ACCENT" "$BORDER" > "$STATE_DIR/tmux-theme.conf"
     command -v tmux >/dev/null 2>&1 && tmux source-file "$STATE_DIR/tmux-theme.conf" 2>/dev/null || true
     printf 'vim.o.background = "%s"\n' "$mode" > "$STATE_DIR/nvim-theme.lua"

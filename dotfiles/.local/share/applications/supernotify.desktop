@@ -2,7 +2,7 @@
 Name=SuperNotify Studio
 GenericName=Notification & Cast Comms Center
 Comment=SuperFedora Notification History, Do Not Disturb & Cast Comms TUI
-Exec=kitty --class superfiles -e supernotify tui
+Exec=xdg-terminal-exec --class superfiles -e supernotify tui
 Icon=preferences-desktop-notifications
 Terminal=false
 Type=Application

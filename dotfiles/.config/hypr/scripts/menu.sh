@@ -5,7 +5,7 @@ set -u
 
 H="$HOME/.config/hypr"
 S="$H/scripts"
-TERM_CMD="kitty"
+TERM_CMD="xdg-terminal-exec"
 
 pick() { # pick <prompt> <lines...>
     local prompt="$1"; shift
