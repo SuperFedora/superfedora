@@ -203,7 +203,7 @@ print_status() {
     printf '  COMPONENT   STATE           BINARY\n'
     printf '  ---------   -------------   ------\n'
     local c
-    for c in superfedora supertheme superforge supershell superagent wlctl bluetui wiremix tuigreet fuzzel btop; do
+    for c in superfedora supertheme superforge supershell supernotify superagent wlctl bluetui wiremix tuigreet fuzzel btop; do
         local st="binary/pkg" b="$c"; [[ "$c" == "supershell" ]] && b="superdock"
         is_source_built "$c" "$b" && st="source-native"
         printf '  %-12s [%-13s] %s\n' "$c" "$st" "$(command -v "$b" 2>/dev/null || echo missing)"

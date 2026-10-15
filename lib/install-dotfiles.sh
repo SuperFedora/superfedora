@@ -169,7 +169,7 @@ if [[ $RELOAD -eq 1 && $changed -gt 0 && -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]
     fi
     echo "Hyprland reloaded (no config errors)"
     target_rt="${XDG_RUNTIME_DIR:-/run/user/$(id -u "$TARGET_USER")}"
-    if [[ $shell_changed -eq 1 ]] && [ ! -f "$target_rt/superfedora.locked" ] && [ ! -f "/tmp/superfedora.locked" ] && { pgrep -x quickshell >/dev/null || pgrep -x qs >/dev/null; }; then
+    if [[ $shell_changed -eq 1 ]] && [ ! -f "$target_rt/superfedora.locked" ] && { pgrep -x quickshell >/dev/null || pgrep -x qs >/dev/null; }; then
         pkill -x quickshell || true
         pkill -x qs || true
         sleep 0.5

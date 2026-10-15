@@ -78,6 +78,6 @@ module_run() {
         command -v supernotify >/dev/null 2>&1 &&
         command -v superlock >/dev/null 2>&1
     }
-    _ss_i() { command -v superforge >/dev/null 2>&1 && superforge build supershell; }
+    _ss_i() { command -v superforge >/dev/null 2>&1 && superforge build supershell && superforge build supernotify; }
     need "SuperShell Suite (superdock/bar/settings/notify/lock)" _ss_t _ss_i
 }
