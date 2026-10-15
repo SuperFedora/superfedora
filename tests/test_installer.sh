@@ -219,6 +219,17 @@ else
   fail "need_copr Rawhide fallback failed: $copr_out"
 fi
 
+# 14. Verify Waves 1-6 declarative configs (PackageKit 30s, DNF5 Snapper hook, Hyprland VFR + direct_scanout)
+if [[ -f "$SCRIPT_DIR/system/etc/systemd/system/packagekit.service.d/superfedora-timeout.conf" ]] &&
+   grep -q "ShutdownTimeout=30" "$SCRIPT_DIR/system/etc/systemd/system/packagekit.service.d/superfedora-timeout.conf" &&
+   [[ -f "$SCRIPT_DIR/system/etc/dnf/libdnf5-plugins/actions.d/superfedora-snapper.actions" ]] &&
+   grep -q "vfr = true" "$SCRIPT_DIR/dotfiles/.config/hypr/conf/looknfeel.conf" &&
+   grep -q "direct_scanout = true" "$SCRIPT_DIR/dotfiles/.config/hypr/conf/looknfeel.conf"; then
+  pass "Waves 1-6 configs present (PackageKit 30s, DNF5 Snapper hook, Hyprland VFR + direct_scanout)"
+else
+  fail "Missing Waves 1-6 declarative configs"
+fi
+
 echo "Test summary: $FAILURES failure(s)."
 if [[ "$FAILURES" -gt 0 ]]; then
   exit 1

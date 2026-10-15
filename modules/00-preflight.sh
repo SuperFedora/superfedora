@@ -34,12 +34,15 @@ module_run() {
         r_ok "sudo"
     fi
 
-    # Declarative systemd OS drop-ins (ZRAM, bounded journald, sysctl inotify/swappiness)
+    # Declarative systemd OS drop-ins (ZRAM, bounded journald, sysctl, PackageKit idle timeout)
     need_root_file system/etc/systemd/zram-generator.conf.d/superfedora.conf /etc/systemd/zram-generator.conf.d/superfedora.conf
     need_root_file system/etc/systemd/journald.conf.d/superfedora.conf /etc/systemd/journald.conf.d/superfedora.conf
     need_root_file system/etc/sysctl.d/90-superfedora.conf /etc/sysctl.d/90-superfedora.conf
+    need_root_file system/etc/systemd/system/packagekit.service.d/superfedora-timeout.conf /etc/systemd/system/packagekit.service.d/superfedora-timeout.conf
     need_service fstrim.timer
     need_service systemd-oomd.service
+    systemctl list-unit-files cups.socket --no-legend 2>/dev/null | grep -q cups.socket && need_service cups.socket || true
+    systemctl list-unit-files sssd-kcm.socket --no-legend 2>/dev/null | grep -q sssd-kcm.socket && need_service sssd-kcm.socket || true
 
     # Safety snapshot before the first change (Btrfs root + snapper)
     local fstype; fstype="$(stat -f -c %T / 2>/dev/null)"
@@ -54,6 +57,7 @@ module_run() {
     }
     _snapper_i() { as_root bash "$SF_ROOT/lib/setup-btrfs-snapper.sh"; }
     need "Snapper on Btrfs root" _snapper_t _snapper_i
+    need_root_file system/etc/dnf/libdnf5-plugins/actions.d/superfedora-snapper.actions /etc/dnf/libdnf5-plugins/actions.d/superfedora-snapper.actions
     need_root_file system/etc/systemd/system/btrfs-scrub@.service /etc/systemd/system/btrfs-scrub@.service
     need_root_file system/etc/systemd/system/btrfs-scrub@.timer /etc/systemd/system/btrfs-scrub@.timer
     need_root_file system/etc/systemd/system/superfedora-boot-guard.service /etc/systemd/system/superfedora-boot-guard.service

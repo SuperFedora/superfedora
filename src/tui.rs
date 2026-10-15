@@ -184,8 +184,12 @@ fn handle_tab_key(
         3 => match code {
             KeyCode::Char('r') => st.load_snapshots(),
             KeyCode::Char('c') => {
-                run_fullscreen_cmd(terminal, st.sf_root.join("lib/tui.sh").to_str().unwrap_or("sf"), &["rollback", "--create", "SuperFedora TUI Checkpoint"]);
+                let _ = crate::ops::snapshot::run_snapshot_cmd(st, &["create".into(), "SuperFedora TUI Checkpoint".into()]);
                 st.load_snapshots();
+            }
+            KeyCode::Char('d') => {
+                let exe = std::env::current_exe().unwrap_or_else(|_| st.sf_root.join("bin/superfedora"));
+                run_fullscreen_cmd(terminal, exe.to_str().unwrap_or("sf"), &["snapshot", "diff"]);
             }
             KeyCode::Char('b') => run_fullscreen_cmd(terminal, st.sf_root.join("lib/tui.sh").to_str().unwrap_or("sf"), &["rollback", "--baseline"]),
             _ => {}

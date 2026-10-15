@@ -1,0 +1,6 @@
+# Managed by SuperFedora — Automatic Btrfs Time-Machine Checkpoints & Cast Comms
+# Seals numbered pre/post Snapper checkpoints around every DNF5 transaction
+# and triggers ARCHIVIST (SNAPPER // VAULT) 16-bit Cast Comms notification.
+pre_transaction::::/usr/bin/sh -c 'echo "tmp.cmd=$(ps -o command --no-headers -p ${pid})"'
+pre_transaction::::/usr/bin/sh -c 'echo "tmp.snapper_pre_number=$(snapper -c root create -t pre -p -d \"${tmp.cmd}\")"'
+post_transaction::::/usr/bin/sh -c '[ -n "${tmp.snapper_pre_number}" ] && snapper -c root create -t post --pre-number "${tmp.snapper_pre_number}" -d "${tmp.cmd}" && { [ -x /etc/grub.d/41_snapshots-btrfs ] && grub2-mkconfig -o /boot/grub2/grub.cfg >/dev/null 2>&1 || true; } && { command -v supernotify >/dev/null 2>&1 && supernotify --cast archivist "ARCHIVIST: Btrfs Transaction Sealed" "DNF5 checkpoint #${tmp.snapper_pre_number} archived" >/dev/null 2>&1 || true; }'

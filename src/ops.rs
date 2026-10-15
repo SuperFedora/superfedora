@@ -1,6 +1,11 @@
 // Copyright 2026 SuperFedora Contributors
 // SPDX-License-Identifier: Apache-2.0
 
+pub mod hardware;
+pub mod mode;
+pub mod snapshot;
+pub mod workstation;
+
 use crate::state::WorkstationState;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -14,6 +19,10 @@ pub const SYSTEM_UNITS: &[(&str, &str)] = &[
     ("btrfs-scrub@-.timer", "Monthly Btrfs root scrub timer"),
     ("snapper-timeline.timer", "Hourly Btrfs snapshot timeline timer"),
     ("snapper-cleanup.timer", "Daily Btrfs snapshot retention cleanup"),
+    ("cups.socket", "CUPS printing socket activation (0 MB idle)"),
+    ("sssd-kcm.socket", "Kerberos credentials socket activation"),
+    ("packagekit.service", "PackageKit D-Bus service (ShutdownTimeout=30s)"),
+    ("ModemManager.service", "Cellular modem manager (udev hardware-triggered)"),
 ];
 
 pub const USER_UNITS: &[(&str, &str)] = &[
@@ -37,59 +46,57 @@ pub const ORG_REPOS: &[&str] = &[
     ".github",
 ];
 
-fn unit_state(user: bool, unit: &str) -> (String, String) {
+fn unit_state(user: bool, unit: &str) -> (String, String, &'static str) {
     let mut cmd = Command::new("systemctl");
-    if user {
-        cmd.arg("--user");
-    }
-    let active = cmd
-        .args(["is-active", unit])
-        .output()
-        .ok()
+    if user { cmd.arg("--user"); }
+    let active = cmd.args(["is-active", unit]).output().ok()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "inactive".into());
+        .filter(|s| !s.is_empty()).unwrap_or_else(|| "inactive".into());
     let mut cmd2 = Command::new("systemctl");
-    if user {
-        cmd2.arg("--user");
-    }
-    let enabled = cmd2
-        .args(["is-enabled", unit])
-        .output()
-        .ok()
+    if user { cmd2.arg("--user"); }
+    let enabled = cmd2.args(["is-enabled", unit]).output().ok()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "disabled".into());
-    (active, enabled)
+        .filter(|s| !s.is_empty()).unwrap_or_else(|| "disabled".into());
+    let mode_lbl = if unit.ends_with(".socket") || unit == "packagekit.service" || unit == "ModemManager.service" {
+        if active == "active" { "Active" } else { "On-Demand (Socket)" }
+    } else if active == "active" {
+        "Active"
+    } else {
+        "Stopped"
+    };
+    (active, enabled, mode_lbl)
 }
 
 pub fn run_service_cmd(_st: &WorkstationState, args: &[String]) -> i32 {
     let sub = args.first().map(|s| s.as_str()).unwrap_or("status");
     match sub {
         "status" | "list" => {
-            println!("\x1b[1;38;5;141m[::] SUPERFEDORA SYSTEMD SERVICE & TIMER TELEMETRY\x1b[0m");
-            println!("\n  \x1b[1;36mSYSTEM UNITS (systemd)\x1b[0m");
+            println!("\x1b[1;38;5;141m[::] SUPERFEDORA COMPATIBILITY-FIRST SYSTEMD SERVICE TELEMETRY\x1b[0m");
+            println!("\n  \x1b[1;36mSYSTEM & ON-DEMAND SOCKET UNITS (systemd)\x1b[0m");
             for (u, desc) in SYSTEM_UNITS {
-                let (act, en) = unit_state(false, u);
-                let badge = if act == "active" || en == "enabled" || en == "static" { "\x1b[1;32m[OK]\x1b[0m" } else { "\x1b[1;33m[--]\x1b[0m" };
-                println!("  {badge} {:<32} {:<10} {:<10} {}", u, act, en, desc);
+                let (act, en, mode_lbl) = unit_state(false, u);
+                let ok = act == "active" || en == "enabled" || en == "static" || mode_lbl == "On-Demand (Socket)";
+                let badge = if ok { "\x1b[1;32m[OK]\x1b[0m" } else { "\x1b[1;33m[--]\x1b[0m" };
+                println!("  {badge} {:<30} {:<18} {:<10} {}", u, mode_lbl, en, desc);
             }
             println!("\n  \x1b[1;36mUSER SESSION UNITS (systemd --user)\x1b[0m");
             for (u, desc) in USER_UNITS {
-                let (act, en) = unit_state(true, u);
+                let (act, en, mode_lbl) = unit_state(true, u);
                 let badge = if act == "active" || en == "enabled" || en == "static" { "\x1b[1;32m[OK]\x1b[0m" } else { "\x1b[1;33m[--]\x1b[0m" };
-                println!("  {badge} {:<32} {:<10} {:<10} {}", u, act, en, desc);
+                println!("  {badge} {:<30} {:<18} {:<10} {}", u, mode_lbl, en, desc);
             }
-            println!("\n  \x1b[1;36mDECLARATIVE OS TUNING\x1b[0m");
+            println!("\n  \x1b[1;36mDECLARATIVE OS TUNING & HOOKS\x1b[0m");
             for (label, path) in [
                 ("zram-generator", "/etc/systemd/zram-generator.conf.d/superfedora.conf"),
                 ("journald-bound", "/etc/systemd/journald.conf.d/superfedora.conf"),
+                ("packagekit-30s", "/etc/systemd/system/packagekit.service.d/superfedora-timeout.conf"),
+                ("dnf5-snapper", "/etc/dnf/libdnf5-plugins/actions.d/superfedora-snapper.actions"),
                 ("sysctl-tuning", "/etc/sysctl.d/90-superfedora.conf"),
                 ("polkit-rules", "/etc/polkit-1/rules.d/50-superfedora.rules"),
             ] {
                 let present = Path::new(path).exists();
                 let badge = if present { "\x1b[1;32m[OK]\x1b[0m" } else { "\x1b[1;33m[--]\x1b[0m" };
-                println!("  {badge} {:<32} {}", label, path);
+                println!("  {badge} {:<30} {}", label, path);
             }
             0
         }

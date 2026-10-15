@@ -118,6 +118,21 @@ pub fn print_probe() {
     let night_on = pgrep_exact("wlsunset");
     let tpad_on = fs::read_to_string(cfg.join("touchpad-enabled")).map(|s| s.trim() != "0" && s.trim() != "off").unwrap_or(true);
     let mono_on = fs::read_to_string(cfg.join("mono-audio")).map(|s| s.trim() == "1" || s.trim() == "on").unwrap_or(false);
+    let ws_mode = crate::ops::mode::active_mode();
+    let gpu = crate::ops::hardware::detect_gpu_profile();
+    let pk_idle = if Path::new("/etc/systemd/system/packagekit.service.d/superfedora-timeout.conf").exists() {
+        "On-Demand (30s ShutdownTimeout)"
+    } else {
+        "On-Demand (Socket)"
+    };
+    println!(
+        "GPU|{}|{}|{}|{}",
+        gpu.vendor_arch,
+        gpu.va_driver_name,
+        if gpu.ffmpeg_full { "Full FFmpeg + VA-API" } else { "ffmpeg-free" },
+        if gpu.firefox_vaapi { "Zero-Copy DMABUF Active" } else { "Standard" }
+    );
+    println!("MODE|{}|{}", ws_mode, pk_idle);
     println!(
         "A11Y|{}|{}|{}|{}|{}|{}",
         ui_scale,
@@ -135,6 +150,14 @@ pub fn apply_setting(args: &[String]) -> i32 {
     let cfg = cfg_dir();
 
     match act {
+        "mode" | "profile" => {
+            let mut st = crate::state::WorkstationState::load();
+            crate::ops::mode::run_mode_cmd(&mut st, &[val.to_string()])
+        }
+        "hardware" | "vaapi" => {
+            let st = crate::state::WorkstationState::load();
+            crate::ops::hardware::run_hardware_cmd(&st, &["optimize".into()])
+        }
         "ui-scale" => {
             let sz: u32 = match val {
                 "compact" | "small" | "13" => 13,

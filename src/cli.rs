@@ -29,91 +29,61 @@ pub fn print_usage(st: &WorkstationState) {
     println!("  {b}status | doctor{r}      Audit workstation modules & print readiness bar chart");
     println!("  {b}update{r}               Fetch the latest SuperFedora release, then run install");
     println!("  {b}system-upgrade [ver]{r} Upgrade Fedora release (Snapper + dnf5 + superforge)");
+    println!("  {b}hardware [action]{r}    GPU auto-detection, VA-API codecs & Firefox DMABUF tuning");
+    println!("  {b}snapshot [action]{r}    Time-Machine Btrfs snapshot browser (list, diff, create, restore)");
+    println!("  {b}mode [profile]{r}       16-Bit Workstation Mode (stealth, balanced, forge, arcade)");
+    println!("  {b}export | import{r}      Declarative workstation.toml backup, export & clone");
     println!("  {b}service [action]{r}     Inspect/control systemd OS & user session units/timers");
     println!("  {b}repo [status|test]{r}   Multi-repo orchestration across @SuperFedora repos");
     println!("  {b}build [action]{r}       Compile & tune core stack from source (-march=native)");
     println!("  {b}dotfiles [--check]{r}   Deploy desktop configs (or list drift from this release)");
-    println!("  {b}dock [action]{r}        SuperDock position, autohide, pin & workspace layout");
-    println!("  {b}notify [action]{r}      Notification Center, DND, banners & cast comms");
-    println!("  {b}session [action]{r}     Select or switch Desktop Environment (DE) session");
-    println!("  {b}sfx [action]{r}         16-bit sound effects engine (status, on, off, toggle, play)");
-    println!("  {b}ai [action]{r}          Quake AI console, Ollama ip:port & custom agents");
-    println!("  {b}modules{r}              List installer modules in execution order");
-    println!("  {b}rollback [action]{r}    Btrfs snapshot manager, grub-btrfs & Boot-Guard rollback");
+    println!("  {b}dock | notify | ai{r}   Control SuperDock, SuperNotify Cast Comms & SuperAgent");
+    println!("  {b}session | sfx{r}        Switch Desktop Environment session or 16-bit SFX engine");
+    println!("  {b}modules | rollback{r}   List installer modules or run Btrfs Boot-Guard rollback");
     println!("  {b}version{r}              Print the SuperFedora Rust engine version\n");
     println!("{s}{b}Install / Audit Options:{r}");
     println!("  --quick              Use prebuilt binary packages (default)");
     println!("  --build-from-source  Compile & tune for localhost hardware (-march=native)");
     println!("  --dry-run            Show what would be installed without changes");
-    println!("  --only a,b           Run only these modules (e.g. 40,desktop)");
-    println!("  --skip a,b           Skip these modules");
+    println!("  --only / --skip a,b  Filter installer modules (e.g. 40,desktop)");
     println!("  -v, --verbose        Show verbose command output");
     println!("  -h, --help           Show this help");
 }
 
 pub fn dispatch(cmd: &str, args: &[String], st: &mut WorkstationState) -> i32 {
     match cmd {
-        "" => {
-            if io::stdin().is_terminal() && io::stdout().is_terminal() {
-                run_tui(0)
-            } else {
-                print_usage(st);
-                0
-            }
-        }
-        "-h" | "--help" | "help" => {
-            print_usage(st);
-            0
-        }
+        "" => if io::stdin().is_terminal() && io::stdout().is_terminal() { run_tui(0) } else { print_usage(st); 0 },
+        "-h" | "--help" | "help" => { print_usage(st); 0 }
         "version" | "--version" | "-V" => {
             println!("SuperFedora {} (SuperFedora/superfedora — Rust 1.99 Native Engine)", st.version);
             0
         }
-        "vitals" | "charts" | "top" | "telemetry" => {
-            let mut tel = Telemetry::new();
-            print_vitals_charts(st, &mut tel);
-            0
-        }
+        "vitals" | "charts" | "top" | "telemetry" => { print_vitals_charts(st, &mut Telemetry::new()); 0 }
         "tui" | "welcome" | "deck" => match args.first().map(|s| s.as_str()) {
-            Some("status" | "banner") => {
-                let mut tel = Telemetry::new();
-                print_vitals_charts(st, &mut tel);
-                0
-            }
+            Some("status" | "banner") => { print_vitals_charts(st, &mut Telemetry::new()); 0 }
             Some("forge") => run_tui(1),
             Some("theme" | "themes") => run_tui(2),
+            Some("snapshot" | "time-machine") => run_tui(3),
             Some("rollback" | "snapshots") => exec_script(st, "lib/tui.sh", &prepend("rollback", &args[1..])),
             Some("-h" | "--help" | "help") => exec_script(st, "lib/tui.sh", args),
-            _ => {
-                if io::stdin().is_terminal() && io::stdout().is_terminal() {
-                    run_tui(0)
-                } else {
-                    print_cartridge_banner(st, &Telemetry::new());
-                    0
-                }
-            }
+            _ => if io::stdin().is_terminal() && io::stdout().is_terminal() { run_tui(0) } else { print_cartridge_banner(st, &Telemetry::new()); 0 },
         },
         "forge" | "superforge" => match args.first().map(|s| s.as_str()) {
-            None | Some("status" | "list") => {
-                print_forge_charts(st);
-                0
-            }
+            None | Some("status" | "list") => { print_forge_charts(st); 0 }
             Some("tui") => run_tui(1),
             Some("update" | "upgrade") if args.len() == 1 => run_forge_update_graphical(st),
-            _ => {
-                let code = exec_bin_or_script(st, "superforge", "lib/forge.sh", args);
-                st.refresh();
-                code
-            }
+            _ => { let code = exec_bin_or_script(st, "superforge", "lib/forge.sh", args); st.refresh(); code }
         },
         "theme" | "themes" | "supertheme" => match args.first().map(|s| s.as_str()) {
-            None | Some("list" | "swatches") => {
-                print_theme_swatches(st);
-                0
-            }
+            None | Some("list" | "swatches") => { print_theme_swatches(st); 0 }
             Some("tui") => run_tui(2),
             _ => exec_bin_or_script(st, "supertheme", "lib/apply-theme.sh", args),
         },
+        "hardware" | "gpu" | "codecs" | "vaapi" => crate::ops::hardware::run_hardware_cmd(st, args),
+        "snapshot" | "time-machine" => crate::ops::snapshot::run_snapshot_cmd(st, args),
+        "mode" | "profile" | "power-mode" => crate::ops::mode::run_mode_cmd(st, args),
+        "export" | "backup" => crate::ops::workstation::run_export_cmd(st, args),
+        "import" | "clone" => crate::ops::workstation::run_import_cmd(st, args),
         "system-upgrade" | "dist-upgrade" | "release-upgrade" => crate::ops::run_system_upgrade(st, args),
         "service" | "services" | "systemd" => crate::ops::run_service_cmd(st, args),
         "repo" | "repos" => crate::ops::run_repo_cmd(st, args),
@@ -124,11 +94,15 @@ pub fn dispatch(cmd: &str, args: &[String], st: &mut WorkstationState) -> i32 {
         "build" | "source" => exec_bin_or_script(st, "superforge", "lib/build-source.sh", args),
         "sfx" | "sound" => exec_bin_or_script(st, "supertheme", "lib/sfx.sh", &prepend("sfx", args)),
         "dotfiles" => exec_script(st, "lib/install-dotfiles.sh", args),
-        "rollback" | "snapshots" => exec_script(st, "lib/tui.sh", &prepend("rollback", args)),
-        "agent" | "superagent" | "ai" | "quake" => exec_bin_or_script(st, "superagent", "dotfiles/.config/hypr/scripts/quake-ai.sh", args),
-        "webcam" | "camera" | "mic" | "speaker" => {
-            exec_script(st, "dotfiles/.config/hypr/scripts/toggle-touchpad.sh", &prepend(cmd, args))
+        "rollback" | "snapshots" => {
+            if matches!(args.first().map(|s| s.as_str()), Some("list" | "diff" | "create" | "restore")) {
+                crate::ops::snapshot::run_snapshot_cmd(st, args)
+            } else {
+                exec_script(st, "lib/tui.sh", &prepend("rollback", args))
+            }
         }
+        "agent" | "superagent" | "ai" | "quake" => exec_bin_or_script(st, "superagent", "dotfiles/.config/hypr/scripts/quake-ai.sh", args),
+        "webcam" | "camera" | "mic" | "speaker" => exec_script(st, "dotfiles/.config/hypr/scripts/toggle-touchpad.sh", &prepend(cmd, args)),
         "io" => exec_script(st, "dotfiles/.config/hypr/scripts/toggle-touchpad.sh", args),
         "settings-probe" => { crate::settings_engine::print_probe(); 0 }
         "settings-apply" => crate::settings_engine::apply_setting(args),

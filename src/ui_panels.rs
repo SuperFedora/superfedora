@@ -112,7 +112,7 @@ pub fn render_snapshots(f: &mut Frame, area: Rect, st: &WorkstationState, tel: &
                 .border_style(Style::default().fg(pri))
                 .title(Span::styled(
                     format!(
-                        " BTRFS ROOT FILESYSTEM & BOOT-GUARD (Baseline Snapshot: #{}) ",
+                        " BTRFS TIME-MACHINE & DNF5 VAULT (Baseline: #{} | Hook: superfedora-snapper.actions) ",
                         st.baseline_snap
                     ),
                     Style::default().fg(pri).add_modifier(Modifier::BOLD),
@@ -135,7 +135,7 @@ pub fn render_snapshots(f: &mut Frame, area: Rect, st: &WorkstationState, tel: &
         .borders(Borders::ALL)
         .border_style(Style::default().fg(sec))
         .title(Span::styled(
-            " SNAPPER BTRFS CHECKPOINTS ([c] Create Checkpoint   [b] Rollback to Baseline   [r] Reload) ",
+            " SNAPPER TIME-MACHINE ([c] Create Checkpoint   [d] Diff Snapshots   [b] Restore Baseline   [r] Reload) ",
             Style::default().fg(sec).add_modifier(Modifier::BOLD),
         ));
     f.render_widget(Paragraph::new(lines).block(snap_block), rows[1]);

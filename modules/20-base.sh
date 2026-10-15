@@ -4,9 +4,14 @@
 module_run() {
     need_pkgs "$SF_ROOT/packages/base.txt"
 
-    # Full codecs from RPM Fusion instead of Fedora's patent-free builds
+    # Full codecs & VA-API hardware video acceleration (Wave 2)
     rpm -q --quiet ffmpeg-free && need_swap ffmpeg-free ffmpeg
-    rpm -q --quiet ffmpeg-free || need_pkgs <(echo ffmpeg)
+    rpm -q --quiet ffmpeg-free || need_pkgs <(printf 'ffmpeg\nlibva-utils\nvulkan-tools\n')
+    if [[ -x "$SF_ROOT/bin/superfedora" ]]; then
+        _hw_t() { [[ -f "$HOME/.config/superfedora/firefox-vaapi.js" ]]; }
+        _hw_i() { "$SF_ROOT/bin/superfedora" hardware optimize; }
+        need "GPU VA-API & Firefox DMABUF hardware acceleration" _hw_t _hw_i
+    fi
 
     # SuperFedora workstation identity markers & multi-user /usr/share/superfedora + /etc/skel seeding
     if is_install; then

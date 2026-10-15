@@ -1,7 +1,9 @@
-# Managed by SuperFedora — Weekly Native Binary & Toolchain Audit Service
+# Managed by SuperFedora — Weekly Native Binary & Toolchain Audit + Tier-2 Re-Forge
 [Unit]
-Description=SuperFedora Weekly Native Binary & Toolchain Audit
+Description=SuperFedora Weekly Native Binary Audit & Background -march=native Re-Forge
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/sh -c 'for b in "$HOME/.local/bin/superfedora" /usr/local/bin/superfedora; do [ -x "$b" ] && exec "$b" forge status; done'
+Nice=19
+IOSchedulingClass=idle
+ExecStart=/usr/bin/sh -c 'for b in "$HOME/.local/bin/superforge" /usr/local/bin/superforge; do [ -x "$b" ] && exec "$b" background-reforge; done'

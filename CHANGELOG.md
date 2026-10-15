@@ -5,6 +5,16 @@ All notable changes to SuperFedora. Every change ships as a tagged release
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-10-15
+
+### Added
+- **Wave 1 — Zero-Fork Telemetry, Hyprland VFR & Compatibility-First `systemd` Tuning:** Added `PackageKit` `ShutdownTimeout=30` drop-in (`system/etc/systemd/system/packagekit.service.d/superfedora-timeout.conf`), on-demand socket activation telemetry (`Active`, `On-Demand (Socket)`, `Stopped`) in `superfedora service` and `supersettings`, Hyprland `vfr = true` + `direct_scanout = true`, and `superbar --stream-json` / `--telemetry-json`.
+- **Wave 2 — Zero-Friction Codecs, VA-API Hardware Video & GPU Auto-Tuning (`superfedora hardware`):** Added `superfedora hardware [probe|optimize]` (`src/ops/hardware.rs`, `modules/20-base.sh`) auto-detecting AMD RDNA, Intel Arc/Xe, and NVIDIA RTX GPUs, swapping `ffmpeg-free` -> `ffmpeg`, configuring Firefox zero-copy DMABUF + VA-API, and triggering `SYS ENG (SUPERFEDORA)` Cast Comms.
+- **Wave 3 — Instant "Time-Machine" Btrfs Rollback UI & DNF5 Hooks (`superfedora snapshot`):** Added `superfedora snapshot [list|diff|create|restore]` (`src/ops/snapshot.rs`), TUI Time-Machine diffing, and `system/etc/dnf/libdnf5-plugins/actions.d/superfedora-snapper.actions` with `ARCHIVIST (SNAPPER // VAULT)` Cast Comms.
+- **Wave 4 — Two-Tier Hybrid Binary Cache & Background Native Re-Forge (`superforge`):** Added `superforge fetch-bin <target>` (`--quick`) for static musl release downloads and `superforge background-reforge` (`superforge-check.service`) for AC-power `-O3 -march=native` atomic binary swaps with `BUILDER (SF FORGE)` Cast Comms.
+- **Wave 5 — Local-First Workstation Watchdog & 16-Bit Power/Arcade Modes (`superfedora mode`, `superagent watchdog`):** Added `superfedora mode [stealth|balanced|forge|arcade|status]` (`src/ops/mode.rs`) and `superagent watchdog` routing alerts to the 10 Cast Specialists (`medic`, `security`, `navigator`, `commander`, `ai`).
+- **Wave 6 — Declarative Workstation Clone (`workstation.toml`) & Native Wayland Layer-Shell Overlay:** Added `superfedora export [path]` and `superfedora import <path> [--dry-run]` (`src/ops/workstation.rs`) plus `superbar hud` and `supernotify overlay` native `<15MB` Layer-Shell fallback renderers.
+
 ## [0.8.0] — 2026-10-15
 
 ### Added

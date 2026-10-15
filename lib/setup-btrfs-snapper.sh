@@ -11,11 +11,12 @@ if [[ "${1:-}" == "--status" || "${1:-}" == "status" ]]; then
     printf '  Root Filesystem : %s\n' "$(stat -f -c %T / 2>/dev/null || echo unknown)"
     printf '  SELinux Mode    : %s\n' "$(command -v getenforce >/dev/null 2>&1 && getenforce 2>/dev/null || echo Enforcing)"
     printf '  Snapper Config  : %s\n' "$([[ -f /etc/snapper/configs/root ]] && echo present || echo missing)"
-    printf '  DNF5 Auto-Snap  : %s\n' "$([[ -f /etc/dnf/libdnf5-plugins/actions.d/snapper.actions ]] && echo active || echo missing)"
+    printf '  DNF5 Auto-Snap  : %s\n' "$([[ -f /etc/dnf/libdnf5-plugins/actions.d/superfedora-snapper.actions || -f /etc/dnf/libdnf5-plugins/actions.d/snapper.actions ]] && echo active || echo missing)"
     printf '  GRUB Snapshots  : %s\n' "$([[ -x /etc/grub.d/41_snapshots-btrfs ]] && echo enabled || echo not-configured)"
     printf '  Boot-Guard Unit : %s\n' "$(systemctl is-enabled superfedora-boot-guard.service 2>/dev/null || echo disabled)"
     printf '  ZRAM Drop-In    : %s\n' "$([[ -f /etc/systemd/zram-generator.conf.d/superfedora.conf ]] && echo active || echo default)"
     printf '  Journald Bound  : %s\n' "$([[ -f /etc/systemd/journald.conf.d/superfedora.conf ]] && echo 500M-zstd || echo default)"
+    printf '  PackageKit Idle : %s\n' "$([[ -f /etc/systemd/system/packagekit.service.d/superfedora-timeout.conf ]] && echo 30s-timeout || echo default)"
     printf '  Sysctl Tuning   : %s\n' "$([[ -f /etc/sysctl.d/90-superfedora.conf ]] && echo active || echo default)"
     exit 0
 fi
@@ -33,9 +34,9 @@ echo "==> Configuring Snapper, grub-btrfs, Boot-Guard, and systemd OS tuning for
 echo "==> 1. Installing snapper, btrfs-assistant, zram-generator, systemd-oomd-defaults, and libdnf5-plugin-actions..."
 dnf install -y snapper btrfs-assistant libdnf5-plugin-actions zram-generator systemd-oomd-defaults
 
-# 2. Configure declarative systemd OS drop-ins (zram, journald, sysctl)
-echo "==> 2. Writing declarative systemd OS drop-ins (zram-generator, journald, sysctl)..."
-mkdir -p /etc/systemd/zram-generator.conf.d /etc/systemd/journald.conf.d /etc/sysctl.d
+# 2. Configure declarative systemd OS drop-ins (zram, journald, sysctl, packagekit timeout)
+echo "==> 2. Writing declarative systemd OS drop-ins (zram-generator, journald, sysctl, packagekit)..."
+mkdir -p /etc/systemd/zram-generator.conf.d /etc/systemd/journald.conf.d /etc/sysctl.d /etc/systemd/system/packagekit.service.d
 cat << 'EOF' > /etc/systemd/zram-generator.conf.d/superfedora.conf
 # Managed by SuperFedora — Compressed ZRAM swap tuning
 [zram0]
@@ -49,6 +50,15 @@ cat << 'EOF' > /etc/systemd/journald.conf.d/superfedora.conf
 SystemMaxUse=500M
 RuntimeMaxUse=100M
 Compress=yes
+EOF
+
+cat << 'EOF' > /etc/systemd/system/packagekit.service.d/superfedora-timeout.conf
+# Managed by SuperFedora — Compatibility-First PackageKit Idle Timeout
+# Keeps PackageKit available on-demand while releasing RAM after 30s idle.
+[Service]
+ShutdownTimeout=30
+Environment="PACKAGEKIT_IDLE_TIMEOUT=30"
+TimeoutStopSec=15
 EOF
 
 cat << 'EOF' > /etc/sysctl.d/90-superfedora.conf
@@ -91,16 +101,19 @@ sed -i 's/^QGROUP=.*/QGROUP=""/' "$CONFIG_FILE"
 chmod 750 /.snapshots
 chown :wheel /.snapshots
 
-# 5. Set up DNF5 automatic pre/post transaction snapshots + GRUB refresh
-echo "==> 5. Setting up DNF5 transaction snapshot actions..."
+# 5. Set up DNF5 automatic pre/post transaction snapshots + ARCHIVIST Cast Comms
+echo "==> 5. Setting up DNF5 transaction snapshot actions (superfedora-snapper.actions)..."
 mkdir -p /etc/dnf/libdnf5-plugins/actions.d
 
-cat << 'EOF' > /etc/dnf/libdnf5-plugins/actions.d/snapper.actions
-# Snapshots before and after DNF5 package transactions
+cat << 'EOF' > /etc/dnf/libdnf5-plugins/actions.d/superfedora-snapper.actions
+# Managed by SuperFedora — Automatic Btrfs Time-Machine Checkpoints & Cast Comms
+# Seals numbered pre/post Snapper checkpoints around every DNF5 transaction
+# and triggers ARCHIVIST (SNAPPER // VAULT) 16-bit Cast Comms notification.
 pre_transaction::::/usr/bin/sh -c 'echo "tmp.cmd=$(ps -o command --no-headers -p ${pid})"'
 pre_transaction::::/usr/bin/sh -c 'echo "tmp.snapper_pre_number=$(snapper -c root create -t pre -p -d \"${tmp.cmd}\")"'
-post_transaction::::/usr/bin/sh -c '[ -n "${tmp.snapper_pre_number}" ] && snapper -c root create -t post --pre-number "${tmp.snapper_pre_number}" -d "${tmp.cmd}" && [ -x /etc/grub.d/41_snapshots-btrfs ] && grub2-mkconfig -o /boot/grub2/grub.cfg >/dev/null 2>&1 || true'
+post_transaction::::/usr/bin/sh -c '[ -n "${tmp.snapper_pre_number}" ] && snapper -c root create -t post --pre-number "${tmp.snapper_pre_number}" -d "${tmp.cmd}" && { [ -x /etc/grub.d/41_snapshots-btrfs ] && grub2-mkconfig -o /boot/grub2/grub.cfg >/dev/null 2>&1 || true; } && { command -v supernotify >/dev/null 2>&1 && supernotify --cast archivist "ARCHIVIST: Btrfs Transaction Sealed" "DNF5 checkpoint #${tmp.snapper_pre_number} archived" >/dev/null 2>&1 || true; }'
 EOF
+ln -sf superfedora-snapper.actions /etc/dnf/libdnf5-plugins/actions.d/snapper.actions
 
 # 6. Install grub-btrfs generator so Btrfs snapshots appear in GRUB menu
 echo "==> 6. Installing /etc/grub.d/41_snapshots-btrfs generator..."
