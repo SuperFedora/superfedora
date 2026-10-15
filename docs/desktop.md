@@ -22,7 +22,7 @@ The full keybinding reference is generated from the config: **[keybindings.md](k
 | **xdg-terminal-exec** | Default-terminal shim (`$terminal`) | SuperFedora | `.local/bin/xdg-terminal-exec` |
 | **JetBrainsMono Nerd Font** | Bar icons, fuzzel, hyprlock | nerd-fonts release | `~/.local/share/fonts/JetBrainsMonoNerd` |
 
-Helpers used by bindings and the bar: `grim`, `slurp`, `wl-clipboard`, `hyprpicker`, `libnotify`, `playerctl`, `wireplumber` (`wpctl`), `brightnessctl`, `jq`, `NetworkManager` (`nmcli`), `orca`, `nautilus`, `gnome-calculator`, `gnome-control-center`, `firefox`, `wiremix`, `wlctl`, `bluetui`.
+Helpers used by bindings and the bar: `grim`, `slurp`, `satty`, `wl-screenrec`, `wl-clipboard`, `cliphist`, `hyprpicker`, `libnotify`, `playerctl`, `wireplumber` (`wpctl`), `brightnessctl`, `jq`, `NetworkManager` (`nmcli`), `orca`, `yazi`, `fend`, `zathura`, `imv`, `oculante`, `mpv`, `firefox`, `wiremix`, `wlctl`, `bluetui`.
 
 ---
 

@@ -34,7 +34,7 @@ write_default() {
     "kitty",
     "org.mozilla.firefox",
     "com.google.Chrome",
-    "org.gnome.Nautilus",
+    "yazi",
     "nvim",
     "btop"
   ]
