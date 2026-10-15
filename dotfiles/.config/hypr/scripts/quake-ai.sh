@@ -93,19 +93,21 @@ remove_custom_agent() {
 }
 
 compute_geometry() {
-    local mon_json full_h hdr_h="${1:-40}"; [[ "$hdr_h" =~ ^[0-9]+$ ]] || hdr_h=40
+    local mon_json full_w full_h hdr_h="${1:-40}"; [[ "$hdr_h" =~ ^[0-9]+$ ]] || hdr_h=40
     mon_json="$(hyprctl monitors -j 2>/dev/null || echo '[]')"
     read -r MON_NAME MON_X MON_Y MON_W MON_H SPEC_OPEN < <(jq -r '(.[] | select(.focused == true)) // .[0] // {name:"default", x:0, y:0, width:1920, height:1080, scale:1} | "\(.name // "default") \(.x) \(.y) \((.width / (.scale // 1)) | round) \((.height / (.scale // 1)) | round) \(if .specialWorkspace.name == "special:ai" then 1 else 0 end)"' <<<"$mon_json")
     MON_NAME="${MON_NAME:-default}"; MON_X="${MON_X:-0}"; MON_Y="${MON_Y:-0}"; MON_W="${MON_W:-1920}"; MON_H="${MON_H:-1080}"; SPEC_OPEN="${SPEC_OPEN:-0}"
-    Q_W=$(( (MON_W * 62 + 50) / 100 )); full_h=$(( (MON_H * 43 + 50) / 100 ))
-    (( Q_W > 1080 )) && Q_W=1080; (( Q_W < 960 )) && Q_W=960; (( Q_W > MON_W - 40 )) && Q_W=$(( MON_W - 40 ))
+    full_w=$(( (MON_W * 62 + 50) / 100 )); full_h=$(( (MON_H * 43 + 50) / 100 ))
+    (( full_w > 1080 )) && full_w=1080; (( full_w < 960 )) && full_w=960; (( full_w > MON_W - 40 )) && full_w=$(( MON_W - 40 ))
     (( full_h > 460 )) && full_h=460; (( full_h < 410 )) && full_h=410; (( full_h > MON_H - 64 )) && full_h=$(( MON_H - 64 ))
-    Q_FULL_H="$full_h"; Q_BASE_Y=$(( MON_Y + 42 )); Q_H=$(( full_h - hdr_h )); Q_X=$(( MON_X + (MON_W - Q_W) / 2 )); Q_Y=$(( Q_BASE_Y + hdr_h ))
+    Q_FULL_H="$full_h"; Q_BASE_Y=$(( MON_Y + 42 ))
+    Q_X=$(( MON_X + (MON_W - full_w) / 2 + 12 )); Q_Y=$(( Q_BASE_Y + hdr_h + 6 ))
+    Q_W=$(( full_w - 24 )); Q_H=$(( full_h - hdr_h - 20 ))
 }
 
 has_quake_client() { hyprctl clients -j 2>/dev/null | grep -q '"class": "quake-ai"'; }
 is_special_ai_open() { hyprctl monitors -j 2>/dev/null | grep -q '"special:ai"'; }
-save_fast() { printf 'Q_PID=%q\nQ_X=%q\nQ_BASE_Y=%q\nQ_W=%q\nQ_FULL_H=%q\nQ_HDR_H=%q\nQ_OPEN=%q\n' "${Q_PID:-}" "${Q_X:-420}" "${Q_BASE_Y:-42}" "${Q_W:-1080}" "${Q_FULL_H:-460}" "${Q_HDR_H:-40}" "${1:-0}" > "$FAST_FILE"; }
+save_fast() { printf 'Q_PID=%q\nQ_X=%q\nQ_BASE_Y=%q\nQ_W=%q\nQ_FULL_H=%q\nQ_HDR_H=%q\nQ_OPEN=%q\n' "${Q_PID:-}" "${Q_X:-432}" "${Q_BASE_Y:-42}" "${Q_W:-1056}" "${Q_FULL_H:-460}" "${Q_HDR_H:-40}" "${1:-0}" > "$FAST_FILE"; }
 
 spawn_quake() {
     [[ "$AI_AGENT" == "ollama" ]] && { OLLAMA_MODEL="$(detect_ollama_model "$OLLAMA_HOST" "$OLLAMA_MODEL")"; sync_pi_ollama "$OLLAMA_HOST" "$OLLAMA_MODEL"; }
@@ -136,10 +138,11 @@ show_quake() {
     exec 9>"$STATE_DIR/quake-ai.lock"; flock -w 2 9 || true
     # shellcheck disable=SC1090
     [[ -f "$FAST_FILE" ]] && source "$FAST_FILE"
-    if [[ -n "${Q_PID:-}" && -d "/proc/$Q_PID" && -n "${Q_W:-}" ]] && tr '\0' ' ' < "/proc/$Q_PID/cmdline" 2>/dev/null | grep -q 'alt+1'; then
-        [[ "$hdr_h" == "${Q_HDR_H:-40}" ]] || { Q_H=$(( Q_FULL_H - hdr_h )); Q_Y=$(( Q_BASE_Y + hdr_h )); Q_HDR_H="$hdr_h"; batch="dispatch movewindowpixel exact $Q_X $Q_Y,class:^(quake-ai)$; dispatch resizewindowpixel exact $Q_W $Q_H,class:^(quake-ai)$; "; }
-        is_special_ai_open || batch="dispatch togglespecialworkspace ai; ${batch}"
-        [[ -n "$batch" ]] && hyprctl --batch "${batch}dispatch focuswindow class:^(quake-ai)$" >/dev/null || hyprctl dispatch focuswindow "class:^(quake-ai)$" >/dev/null
+    compute_geometry "$hdr_h"
+    if [[ -n "${Q_PID:-}" && -d "/proc/$Q_PID" ]] && tr '\0' ' ' < "/proc/$Q_PID/cmdline" 2>/dev/null | grep -q 'alt+1'; then
+        Q_HDR_H="$hdr_h"
+        (( SPEC_OPEN == 1 )) || batch="dispatch togglespecialworkspace ai; "
+        hyprctl --batch "${batch}dispatch resizewindowpixel exact $Q_W $Q_H,class:^(quake-ai)$; dispatch movewindowpixel exact $Q_X $Q_Y,class:^(quake-ai)$; dispatch focuswindow class:^(quake-ai)$" >/dev/null
         save_fast 1; return 0
     fi
     if has_quake_client; then
@@ -149,10 +152,10 @@ show_quake() {
             for _ in {1..20}; do has_quake_client || break; sleep 0.04; done
         fi
     fi
-    compute_geometry "$hdr_h"; has_quake_client || spawn_quake
+    has_quake_client || spawn_quake
     Q_PID="$(hyprctl clients -j 2>/dev/null | jq -r '.[] | select(.class=="quake-ai") | .pid' | head -n1)"; Q_HDR_H="$hdr_h"
     is_special_ai_open || batch="dispatch togglespecialworkspace ai; "
-    hyprctl --batch "${batch}dispatch movewindowpixel exact $Q_X $Q_Y,class:^(quake-ai)$; dispatch resizewindowpixel exact $Q_W $Q_H,class:^(quake-ai)$; dispatch focuswindow class:^(quake-ai)$" >/dev/null
+    hyprctl --batch "${batch}dispatch resizewindowpixel exact $Q_W $Q_H,class:^(quake-ai)$; dispatch movewindowpixel exact $Q_X $Q_Y,class:^(quake-ai)$; dispatch focuswindow class:^(quake-ai)$" >/dev/null
     save_fast 1
 }
 

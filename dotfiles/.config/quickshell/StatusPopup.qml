@@ -53,16 +53,25 @@ PanelWindow {
     onActiveTabChanged: if (pop.visible) { pop.confirmCmd = ""; pop.wifiPassSsid = ""; pop.focusActiveTab(); }
 
     MouseArea { id: bgArea; anchors.fill: parent; acceptedButtons: Qt.AllButtons; onClicked: Status.superDeckOpen = false }
-    Item { id: aiHole; x: box.x; y: box.y + 40; width: pop.fullW; height: pop.fullH - 40 }
+    Item { id: aiHole; x: box.x + 12; y: box.y + 46; width: pop.fullW - 24; height: pop.fullH - 60 }
 
     Rectangle {
         id: box
-        width: pop.fullW; height: pop.activeTab === "ai" ? 40 : pop.fullH
+        width: pop.fullW; height: pop.fullH
         anchors { top: parent.top; topMargin: 6; horizontalCenter: parent.horizontalCenter }
-        color: Theme.bg; radius: Theme.radius; border.width: 2; focus: true
+        color: pop.activeTab === "ai" ? "transparent" : Theme.bg; radius: Theme.radius; border.width: 2; focus: true
         border.color: pop.activeTab === "power" ? Theme.red : Theme.blue
         MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons }
-        Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
+        Rectangle { z: 10; anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
+        Rectangle { visible: pop.activeTab === "ai"; x: 2; y: 2; width: parent.width - 4; height: 40; color: Theme.bg }
+        Rectangle { visible: pop.activeTab === "ai"; x: 2; y: 42; width: 6; height: parent.height - 44; color: Theme.bg }
+        Rectangle { visible: pop.activeTab === "ai"; x: parent.width - 8; y: 42; width: 6; height: parent.height - 44; color: Theme.bg }
+        Rectangle { visible: pop.activeTab === "ai"; x: 2; y: parent.height - 10; width: parent.width - 4; height: 8; color: Theme.bg }
+        Rectangle {
+            visible: pop.activeTab === "ai"; z: 10; x: 8; y: 42; width: parent.width - 16; height: parent.height - 52
+            color: "transparent"; radius: Theme.radius; border.width: 2; border.color: Theme.blue
+            Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
+        }
         Keys.onPressed: event => {
             if (event.key === Qt.Key_Escape) {
                 if (pop.wifiPassSsid !== "") { pop.wifiPassSsid = ""; box.forceActiveFocus(); } else Status.superDeckOpen = false;
@@ -91,7 +100,7 @@ PanelWindow {
         }
 
         ColumnLayout {
-            anchors { fill: parent; leftMargin: 8; rightMargin: 8; topMargin: 4; bottomMargin: pop.activeTab === "ai" ? 4 : 10 }
+            anchors { fill: parent; leftMargin: 8; rightMargin: 8; topMargin: 4; bottomMargin: 10 }
             spacing: 6
 
             // ---------------- 16-Bit Top Tab Bar (` 1 2 3 4 5 6 7 8 9 0  |  SETTINGS + ESC) ----------------
@@ -238,6 +247,7 @@ PanelWindow {
                 onCycleTabRequested: back => pop.stepTab(back)
                 onCloseRequested: Status.superDeckOpen = false
             }
+            Item { visible: pop.activeTab === "ai"; Layout.fillHeight: true }
         }
     }
 }

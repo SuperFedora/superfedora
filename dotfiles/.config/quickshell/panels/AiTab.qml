@@ -9,7 +9,7 @@ ColumnLayout {
     id: audioDeck
     property string activeTab: "audio"
     signal executeCommand(string cmd, bool closeAfter)
-    Layout.fillWidth: true; Layout.fillHeight: true; spacing: 6
+    Layout.fillWidth: true; Layout.fillHeight: true; spacing: 8
 
     readonly property var sink: Pipewire.defaultAudioSink; readonly property bool audioReady: sink !== null && sink.audio !== null
     readonly property real vol: audioReady ? sink.audio.volume : Status.spkVol; readonly property bool muted: audioReady ? sink.audio.muted : Status.spkMuted
@@ -45,7 +45,7 @@ ColumnLayout {
                     anchors { fill: parent; margins: 10 } spacing: 4
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: "▸ FASTFETCH // WORKSTATION"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true; Layout.fillWidth: true }
+                        Text { text: "▸ FASTFETCH // WORKSTATION"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true; Layout.fillWidth: true }
                         Rectangle { implicitWidth: 146; implicitHeight: 24; radius: Theme.radiusSm; color: ffM.containsMouse ? Theme.blue : Theme.bg; border.width: 1; border.color: Theme.cyan; Text { anchors.centerIn: parent; text: "[ 󰣛 OPEN FASTFETCH ]"; color: ffM.containsMouse ? Theme.bg : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: ffM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: audioDeck.executeCommand("kitty --class floating-term -e bash -c 'fastfetch; echo; read -n1 -rsp \"Press any key to close...\"'", false) } }
                     }
                     Repeater {
@@ -66,7 +66,7 @@ ColumnLayout {
                     anchors { fill: parent; margins: 10 } spacing: 4
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: "▸ BTOP // TOP PROCESSES"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true; Layout.fillWidth: true }
+                        Text { text: "▸ BTOP // TOP PROCESSES"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true; Layout.fillWidth: true }
                         Rectangle { implicitWidth: 124; implicitHeight: 24; radius: Theme.radiusSm; color: btM2.containsMouse ? Theme.blue : Theme.bg; border.width: 1; border.color: Theme.cyan; Text { anchors.centerIn: parent; text: "[ 󰍛 OPEN BTOP ]"; color: btM2.containsMouse ? Theme.bg : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: btM2; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: audioDeck.executeCommand("kitty --class floating-term -e btop", false) } }
                     }
                     Repeater {
@@ -93,7 +93,7 @@ ColumnLayout {
     ColumnLayout {
         visible: audioDeck.activeTab === "audio"; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 8
         RowLayout {
-            Layout.fillWidth: true; implicitHeight: 58; spacing: 10
+            Layout.fillWidth: true; implicitHeight: 58; spacing: 8
             Repeater {
                 model: [
                     { id: "cam", label: Status.webcamEnabled ? "[ 󰄀 CAMERA: ON ]" : "[ 󰗟 CAMERA: OFF ]", col: Status.webcamEnabled ? Theme.green : Theme.red },
@@ -132,7 +132,8 @@ ColumnLayout {
             Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: Theme.blue
             Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
             ColumnLayout {
-                anchors { fill: parent; margins: 10 } spacing: 8
+                anchors { fill: parent; margins: 10 } spacing: 6
+                Text { text: "▸ PIPEWIRE AUDIO ROUTING"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true }
                 RowLayout {
                     Layout.fillWidth: true; Layout.fillHeight: true; spacing: 6
                     Text { text: "OUTPUT DEVICE:"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true; Layout.preferredWidth: 124 }
@@ -154,8 +155,8 @@ ColumnLayout {
             Layout.fillWidth: true; implicitHeight: 88; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: Theme.blue
             Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
             ColumnLayout {
-                anchors { fill: parent; margins: 12 } spacing: 8
-                RowLayout { Layout.fillWidth: true; Text { text: "▸ 󰃠  DISPLAY BACKLIGHT BRIGHTNESS"; color: Theme.yellow; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true; Layout.fillWidth: true } Text { text: Math.round(Status.brightness * 100) + "%"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize + 1; font.bold: true } }
+                anchors { fill: parent; margins: 10 } spacing: 8
+                RowLayout { Layout.fillWidth: true; Text { text: "▸ 󰃠  DISPLAY BACKLIGHT BRIGHTNESS"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true; Layout.fillWidth: true } Text { text: Math.round(Status.brightness * 100) + "%"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true } }
                 Item {
                     Layout.fillWidth: true; height: 24
                     RowLayout { anchors.fill: parent; spacing: 4; Repeater { model: 16; Rectangle { required property int index; readonly property bool lit: (index + 1) / 16.0 <= Status.brightness + 0.02; Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; border.width: 1; border.color: lit ? Theme.yellow : Theme.border; color: lit ? Theme.yellow : Theme.bg } } }
@@ -167,16 +168,16 @@ ColumnLayout {
             Layout.fillWidth: true; implicitHeight: 96; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: Theme.blue
             Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
             ColumnLayout {
-                anchors { fill: parent; margins: 12 } spacing: 8
+                anchors { fill: parent; margins: 10 } spacing: 8
                 RowLayout { Layout.fillWidth: true; Text { text: "▸ 󰌌  KEYBOARD BACKLIGHT"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true; Layout.fillWidth: true } Text { text: "AUTO-OFF WITH SCREEN: ENABLED"; color: Theme.green; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } }
                 RowLayout {
-                    Layout.fillWidth: true; Layout.fillHeight: true; spacing: 10
+                    Layout.fillWidth: true; Layout.fillHeight: true; spacing: 8
                     Repeater { model: [ { lvl: 0, label: "[ OFF (0%) ]" }, { lvl: 1, label: "[ LOW (50%) ]" }, { lvl: 2, label: "[ HIGH (100%) ]" } ]; Rectangle { id: kbBtn; required property var modelData; readonly property bool isCur: Status.kbdBacklight === modelData.lvl; Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; color: kbBM.containsMouse ? Theme.bgHover : (isCur ? Theme.blue : Theme.bg); border.width: isCur ? 2 : 1; border.color: isCur ? Theme.cyan : Theme.border; Text { anchors.centerIn: parent; text: (kbBtn.isCur ? "▸ " : "") + kbBtn.modelData.label; color: kbBtn.isCur ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true } MouseArea { id: kbBM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.setKbdBacklight(kbBtn.modelData.lvl) } } }
                 }
             }
         }
         RowLayout {
-            Layout.fillWidth: true; Layout.fillHeight: true; spacing: 10
+            Layout.fillWidth: true; Layout.fillHeight: true; spacing: 8
             Repeater {
                 model: [
                     { label: Status.idleMode === "lock" ? "[ 󰅶 󰌾 COFFEE: LOCK ONLY ]" : (Status.idleMode === "screensaver" ? "[ 󰅶 COFFEE: SCREENSAVER ]" : "[ 󰒲 AUTO-IDLE: POWER OFF ]"), sub: Status.idleMode === "lock" ? "2m Screensaver → 5m Lock (No Screen Off)" : (Status.idleMode === "screensaver" ? "2m Screensaver · Never Locks or Off" : "2m Screensaver → 5m Lock → 10m Off"), cmd: "idle", close: false, col: Status.idleMode === "lock" ? Theme.cyan : (Status.idleMode === "screensaver" ? Theme.yellow : Theme.blue) },

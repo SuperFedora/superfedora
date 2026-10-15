@@ -26,7 +26,7 @@ ColumnLayout {
     readonly property var barIconLabels: ({ wifi: "󰤨 WIFI", bluetooth: "󰂯 BT", speaker: "󰕾 SPK", mic: "󰍬 MIC", camera: "󰄀 CAM", battery: "󰁹 BAT", power: "󰐥 PWR" })
 
     function asciiBar(pct) { const f = Math.max(0, Math.min(16, Math.round((pct / 100.0) * 16))); return "[" + "█".repeat(f) + "░".repeat(16 - f) + "]"; }
-    function runForge(target) { const q = String(target || forgeInput.text || "").trim().replace(/['"]/g, ""); if (!q) return; Status.runForge(q); }
+    function runForge(target) { const q = String(target || forgeInput.text || "").trim().replace(/['"]/g, ""); if (!q) return; forgeInput.text = ""; Status.runForge(q); }
     function nextDockEdge() { const order = ["bottom", "left", "right", "top"], cur = String((Status.dockConfig && Status.dockConfig.position) || "bottom").toLowerCase(); Status.runDockCmd("position " + order[(order.indexOf(cur) + 1) % order.length]); }
 
     // ---------------- TAB 6: [6] THEME (16 Rainbow 16-Bit Themes, OpenRGB Hardware Lighting, Mode, Corners & SFX) ----------------
@@ -39,7 +39,7 @@ ColumnLayout {
                 anchors { fill: parent; margins: 10 } spacing: 6
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: "▸ 16-BIT RAINBOW PALETTES  —  ACTIVE: " + Theme.themeName.toUpperCase(); color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true; Layout.fillWidth: true }
+                    Text { text: "▸ 16-BIT RAINBOW PALETTES  —  ACTIVE: " + Theme.themeName.toUpperCase(); color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true; Layout.fillWidth: true }
                     Rectangle { implicitWidth: 148; implicitHeight: 24; radius: Theme.radiusSm; color: wpM.containsMouse ? Theme.blue : Theme.bg; border.width: 1; border.color: Theme.cyan; Text { anchors.centerIn: parent; text: "[ 󰸉 NEXT THEME ]"; color: wpM.containsMouse ? Theme.bg : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: wpM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: deckBody.executeCommand("~/.config/hypr/scripts/wallpaper.sh next", false) } }
                 }
                 GridLayout {
@@ -61,10 +61,10 @@ ColumnLayout {
             opacity: Status.rgbSupported ? 1.0 : 0.42; enabled: Status.rgbSupported
             Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
             ColumnLayout {
-                anchors { fill: parent; margins: 8 } spacing: 4
+                anchors { fill: parent; margins: 10 } spacing: 4
                 RowLayout {
                     Layout.fillWidth: true; spacing: 8
-                    Text { text: "▸ OPENRGB HARDWARE LIGHTING"; color: Status.rgbSupported ? Theme.cyan : Theme.muted; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true; Layout.fillWidth: true }
+                    Text { text: "▸ OPENRGB HARDWARE LIGHTING"; color: Status.rgbSupported ? Theme.cyan : Theme.muted; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true; Layout.fillWidth: true }
                     Text { text: Status.rgbSupported ? ("[ " + Status.rgbCount + " RGB CONTROLLER(S) ONLINE ]") : "[ NO RGB HARDWARE DETECTED — DISABLED ]"; color: Status.rgbSupported ? Theme.green : Theme.muted; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true }
                 }
                 RowLayout {
@@ -101,12 +101,12 @@ ColumnLayout {
 
     // ---------------- TAB 7: [7] DOCK (Quick Top Bar & SuperDock Controls) ----------------
     ColumnLayout {
-        visible: deckBody.activeSection === "shell"; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 10
+        visible: deckBody.activeSection === "shell"; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 8
         Rectangle {
             Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: Theme.blue
             Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
             ColumnLayout {
-                anchors { fill: parent; margins: 12 } spacing: 8
+                anchors { fill: parent; margins: 10 } spacing: 8
                 RowLayout { Layout.fillWidth: true; Text { text: "▸ QUICK BAR ICON ORGANIZER"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true; Layout.fillWidth: true } Text { text: "LEFT-CLICK TO SELECT  ·  RIGHT-CLICK TO HIDE"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } }
                 RowLayout {
                     Layout.fillWidth: true; Layout.fillHeight: true; spacing: 8
@@ -134,7 +134,7 @@ ColumnLayout {
             }
         }
         RowLayout {
-            Layout.fillWidth: true; implicitHeight: 82; spacing: 10
+            Layout.fillWidth: true; implicitHeight: 82; spacing: 8
             Repeater {
                 model: [{ act: "edge", label: "[ DOCK EDGE: " + String((Status.dockConfig && Status.dockConfig.position) || "bottom").toUpperCase() + " ]", sub: "Cycle Bottom / Left / Right / Top", col: Theme.yellow }, { act: "vis", label: "[ DOCK: " + ((Status.dockConfig && Status.dockConfig.showAlways === false) ? "AUTO-HIDE" : "ALWAYS ON") + " ]", sub: "Toggle Dock Visibility", col: Theme.cyan }, { act: "tiling", label: "[ WORKSPACE LAYOUT ]", sub: "Super + Y  ·  Tiling / Floating", col: Theme.green }, { act: "gaps", label: "[ TOGGLE WINDOW GAPS ]", sub: "Super + Backspace  ·  Zero / 10px", col: Theme.blue }]
                 Rectangle {
@@ -154,17 +154,13 @@ ColumnLayout {
             Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: Status.forgeBusy ? Theme.yellow : Theme.blue
             Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
             ColumnLayout {
-                anchors { fill: parent; margins: 16 } spacing: 10
-                RowLayout {
-                    Layout.fillWidth: true
-                    Text { text: "▸ SOURCE & CHROMELESS FIREFOX WEBAPP FORGE"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize + 1; font.bold: true; Layout.fillWidth: true }
-                    Rectangle { implicitWidth: 274; implicitHeight: 28; radius: Theme.radiusSm; color: profM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: Status.forgeIsolated ? Theme.orange : Theme.green; Text { anchors.centerIn: parent; text: Status.forgeIsolated ? "[ PROFILE: ISOLATED SANDBOX ]" : "[ PROFILE: SHARED (MAIN FIREFOX) ]"; color: Status.forgeIsolated ? Theme.orange : Theme.green; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: profM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Status.forgeIsolated = !Status.forgeIsolated; Status.playSfx("toggle"); } } }
-                }
-                Text { text: "Enter a GitHub repo (compiles with -O3 -march=native) or any Website URL (installs chromeless Firefox WebApp + hicolor icons)"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true }
+                anchors { fill: parent; margins: 10 } spacing: 8
+                RowLayout { Layout.fillWidth: true; Text { text: "▸ SOURCE & CHROMELESS FIREFOX WEBAPP FORGE"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true; Layout.fillWidth: true } Rectangle { implicitWidth: 274; implicitHeight: 28; radius: Theme.radiusSm; color: profM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: Status.forgeIsolated ? Theme.orange : Theme.green; Text { anchors.centerIn: parent; text: Status.forgeIsolated ? "[ PROFILE: ISOLATED SANDBOX ]" : "[ PROFILE: SHARED (MAIN FIREFOX) ]"; color: Status.forgeIsolated ? Theme.orange : Theme.green; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: profM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Status.forgeIsolated = !Status.forgeIsolated; Status.playSfx("toggle"); } } } }
+                Text { text: "Enter a Website URL (or URL|Custom Name) for a chromeless Firefox WebApp, or a GitHub repo/preset to compile with -O3 -march=native"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 8
                     Rectangle {
-                        Layout.fillWidth: true; implicitHeight: 42; radius: Theme.radiusSm; color: Theme.bg; border.width: 2; border.color: forgeInput.activeFocus ? Theme.cyan : Theme.border
+                        Layout.fillWidth: true; implicitHeight: 40; radius: Theme.radiusSm; color: Theme.bg; border.width: 2; border.color: forgeInput.activeFocus ? Theme.cyan : Theme.border
                         TextInput {
                             id: forgeInput; anchors { fill: parent; leftMargin: 12; rightMargin: 12 } verticalAlignment: TextInput.AlignVCenter; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; clip: true; Keys.onReturnPressed: deckBody.runForge(forgeInput.text)
                             Keys.onPressed: event => {
@@ -173,33 +169,31 @@ ColumnLayout {
                                 else if ((event.modifiers & (Qt.MetaModifier | Qt.AltModifier | Qt.ControlModifier)) && ((event.key >= Qt.Key_1 && event.key <= Qt.Key_9) || event.key === Qt.Key_0)) { deckBody.switchTabRequested(event.key === Qt.Key_0 ? 10 : (event.key - Qt.Key_1 + 1)); event.accepted = true; }
                                 else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { deckBody.cycleTabRequested(event.key === Qt.Key_Backtab || Boolean(event.modifiers & Qt.ShiftModifier)); event.accepted = true; }
                             }
-                            Text { visible: forgeInput.text === ""; anchors.verticalCenter: parent.verticalCenter; text: "https://claude.ai  or  https://github.com/owner/repo  or  btop"; color: Theme.muted; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1 }
+                            Text { visible: forgeInput.text === ""; anchors.verticalCenter: parent.verticalCenter; text: "https://claude.ai  or  https://site.io|App Name  or  owner/repo"; color: Theme.muted; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1 }
                         }
                     }
-                    Rectangle { implicitWidth: 168; implicitHeight: 42; radius: Theme.radiusSm; color: Status.forgeBusy ? Theme.yellow : (fgGo.containsMouse ? Theme.cyan : Theme.blue); Text { anchors.centerIn: parent; text: Status.forgeBusy ? ("[ FORGING " + Status.forgePct + "% ]") : "[ FORGE & INSTALL ]"; color: Theme.bg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true } MouseArea { id: fgGo; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: deckBody.runForge(forgeInput.text) } }
-                    Rectangle { implicitWidth: 148; implicitHeight: 42; radius: Theme.radiusSm; color: fgUpd.containsMouse ? Theme.green : Theme.bg; border.width: 2; border.color: Theme.green; Text { anchors.centerIn: parent; text: "[ 󰚰 UPDATE ALL ]"; color: fgUpd.containsMouse ? Theme.bg : Theme.green; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true } MouseArea { id: fgUpd; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: deckBody.runForge("update") } }
+                    Rectangle { implicitWidth: 168; implicitHeight: 40; radius: Theme.radiusSm; color: Status.forgeBusy ? Theme.red : (fgGo.containsMouse ? Theme.cyan : Theme.blue); Text { anchors.centerIn: parent; text: Status.forgeBusy ? ("[ 󰅖 STOP (" + Status.forgePct + "%) ]") : "[ FORGE & INSTALL ]"; color: Theme.bg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true } MouseArea { id: fgGo; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { if (Status.forgeBusy) Status.stopForge(); else deckBody.runForge(forgeInput.text); } } }
+                    Rectangle { implicitWidth: 148; implicitHeight: 40; radius: Theme.radiusSm; color: fgUpd.containsMouse ? Theme.green : Theme.bg; border.width: 2; border.color: Theme.green; Text { anchors.centerIn: parent; text: "[ 󰚰 UPDATE ALL ]"; color: fgUpd.containsMouse ? Theme.bg : Theme.green; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true } MouseArea { id: fgUpd; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: deckBody.runForge("update") } }
                 }
                 Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 48; radius: Theme.radiusSm; color: Theme.bg; border.width: 1; border.color: Status.forgeBusy ? Theme.yellow : Theme.border
+                    Layout.fillWidth: true; implicitHeight: 46; radius: Theme.radiusSm; color: Theme.bg; border.width: 1; border.color: Status.forgeBusy ? Theme.yellow : (Status.forgeState === "error" ? Theme.red : Theme.border)
                     ColumnLayout {
-                        anchors { fill: parent; margins: 8 } spacing: 3
+                        anchors { fill: parent; margins: 8 } spacing: 2
                         RowLayout { Layout.fillWidth: true; Text { text: (Status.forgeBusy || Status.forgeRecent) ? ("󰙪 " + Status.forgeTarget + " — " + Status.forgeStep) : deckBody.forgeStatus; color: Status.forgeState === "error" ? Theme.red : (Status.forgeBusy ? Theme.yellow : Theme.green); font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight } Text { text: deckBody.asciiBar(Status.forgePct) + " " + Status.forgePct + "%"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true } }
-                        Text { text: Status.forgeLogLine || "WebApps share main Firefox cookies & logins by default unless switched to ISOLATED above."; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; elide: Text.ElideRight; Layout.fillWidth: true }
+                        Text { text: Status.forgeLogLine || "WebApps are pinned to SuperDock and added to App Grid automatically."; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; elide: Text.ElideRight; Layout.fillWidth: true }
                     }
                 }
-                RowLayout {
-                    Layout.fillWidth: true; implicitHeight: 32; spacing: 6
-                    Repeater { model: ["https://claude.ai", "https://chatgpt.com", "https://github.com", "https://youtube.com", "btop", "fastfetch"]; Rectangle { id: qfBtn; required property string modelData; Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; color: qfM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: Theme.cyan; Text { anchors.centerIn: parent; text: "+ " + qfBtn.modelData.replace(/^https:\/\//, ""); color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: qfM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { forgeInput.text = qfBtn.modelData; deckBody.runForge(qfBtn.modelData); } } } }
-                }
+                RowLayout { Layout.fillWidth: true; implicitHeight: 28; spacing: 6; Repeater { model: ["https://claude.ai", "https://chatgpt.com", "https://github.com", "https://youtube.com", "btop", "fastfetch"]; Rectangle { id: qfBtn; required property string modelData; Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; color: qfM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: Theme.cyan; Text { anchors.centerIn: parent; text: "+ " + qfBtn.modelData.replace(/^https:\/\//, ""); color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } MouseArea { id: qfM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: deckBody.runForge(qfBtn.modelData) } } } }
+                RowLayout { Layout.fillWidth: true; Layout.fillHeight: true; spacing: 6; Text { text: "WEBAPPS:"; color: Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true } Text { visible: Status.forgedWebApps.length === 0; text: "No forged WebApps installed yet."; color: Theme.muted; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; Layout.fillWidth: true } Repeater { model: Status.forgedWebApps; Rectangle { id: fwCard; required property var modelData; Layout.fillWidth: true; implicitHeight: 32; radius: Theme.radiusSm; color: Theme.bg; border.width: 1; border.color: Theme.blue; RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 6 } spacing: 6; Text { text: "▸ " + fwCard.modelData.name + " [" + (fwCard.modelData.mode || "shared").toUpperCase() + "]"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight } Rectangle { implicitWidth: 54; implicitHeight: 22; radius: Theme.radiusSm; color: Theme.blue; Text { anchors.centerIn: parent; text: "[OPEN]"; color: Theme.bg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 4; font.bold: true } MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: deckBody.executeCommand("'" + fwCard.modelData.bin + "'", true) } } Rectangle { implicitWidth: 26; implicitHeight: 22; radius: Theme.radiusSm; color: Theme.bgAlt; border.width: 1; border.color: Theme.red; Text { anchors.centerIn: parent; text: "×"; color: Theme.red; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true } MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.removeForge(fwCard.modelData.slug) } } } } } }
             }
         }
     }
 
     // ---------------- TAB 9: [9] STATE (Quick Btrfs Checkpoint & Rollback) ----------------
     ColumnLayout {
-        visible: deckBody.activeSection === "state"; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 10
+        visible: deckBody.activeSection === "state"; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 8
         RowLayout {
-            Layout.fillWidth: true; implicitHeight: 102; spacing: 10
+            Layout.fillWidth: true; implicitHeight: 102; spacing: 8
             Repeater {
                 model: [{ title: "CPU UTILIZATION", val: Status.cpu, unit: "%", col: Status.cpu > 80 ? Theme.red : Theme.cyan }, { title: "MEMORY ALLOCATED", val: Status.mem, unit: "%", col: Status.mem > 85 ? Theme.yellow : Theme.blue }, { title: "THERMAL SENSOR", val: Status.tempC, unit: "°C", col: Status.tempC > 80 ? Theme.red : Theme.green }]
                 Rectangle {
@@ -210,7 +204,7 @@ ColumnLayout {
             }
         }
         RowLayout {
-            Layout.fillWidth: true; Layout.fillHeight: true; spacing: 12
+            Layout.fillWidth: true; Layout.fillHeight: true; spacing: 8
             Rectangle {
                 Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radius; color: ckM.containsMouse ? Theme.green : Theme.bgAlt; border.width: 2; border.color: Theme.green
                 Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
@@ -228,12 +222,12 @@ ColumnLayout {
 
     // ---------------- TAB 0: [0] POWER (Quick Battery & Session Power Actions) ----------------
     ColumnLayout {
-        visible: deckBody.activeSection === "power"; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 10
+        visible: deckBody.activeSection === "power"; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 8
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 108; radius: Theme.radius; color: Theme.bgAlt; border.width: 2; border.color: deckBody.batCharging ? Theme.green : Theme.blue
             Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius }
             ColumnLayout {
-                anchors { fill: parent; margins: 12 } spacing: 6
+                anchors { fill: parent; margins: 10 } spacing: 6
                 RowLayout { Layout.fillWidth: true; Text { text: "▸ " + (deckBody.batCharging ? "󰂄" : "󰁹") + "  BATTERY HEALTH & ENERGY TANK"; color: deckBody.batCharging ? Theme.green : Theme.cyan; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true; Layout.fillWidth: true } Text { text: deckBody.asciiBar(deckBody.batPresent ? deckBody.batPct : 100) + " " + (deckBody.batPresent ? deckBody.batPct : 100) + "% — " + (deckBody.batPresent ? (deckBody.batCharging ? "AC CHARGING" : "DISCHARGING") : "AC LINE POWER"); color: deckBody.batCharging ? Theme.green : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.bold: true } }
                 RowLayout { Layout.fillWidth: true; height: 22; spacing: 4; Repeater { model: 16; Rectangle { required property int index; readonly property int pct: deckBody.batPresent ? deckBody.batPct : 100; readonly property bool lit: (index + 1) * 6.25 <= pct + 2; Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radiusSm; color: !lit ? Theme.bg : (deckBody.batCharging ? Theme.green : (pct <= 20 ? Theme.red : Theme.cyan)); border.width: 1; border.color: lit ? Theme.cyan : Theme.border } } }
                 RowLayout {
@@ -245,7 +239,7 @@ ColumnLayout {
             }
         }
         GridLayout {
-            Layout.fillWidth: true; Layout.fillHeight: true; columns: 2; rowSpacing: 10; columnSpacing: 10
+            Layout.fillWidth: true; Layout.fillHeight: true; columns: 2; rowSpacing: 8; columnSpacing: 8
             Repeater { model: [{ label: "[ 󰌾 LOCK SCREEN ]", sub: "SUPER + Esc  ·  Instant Session Lock", cmd: "qs ipc --any-display call lock activate >/dev/null 2>&1 || loginctl lock-session", confirm: false, col: Theme.cyan }, { label: "[ 󰤄 SLEEP / SUSPEND ]", sub: "Low-Power S3 / s2idle Suspend", cmd: "systemctl suspend", confirm: true, col: Theme.yellow }, { label: "[ 󰜉 REBOOT SYSTEM ]", sub: "Warm Hardware Restart", cmd: "systemctl reboot", confirm: true, col: Theme.orange }, { label: "[ 󰐥 POWER OFF ]", sub: "Full System Shutdown", cmd: "systemctl poweroff", confirm: true, col: Theme.red }]; Rectangle { id: pwCard; required property var modelData; Layout.fillWidth: true; Layout.fillHeight: true; radius: Theme.radius; color: pwM.containsMouse ? Theme.bgHover : Theme.bgAlt; border.width: 2; border.color: pwM.containsMouse ? Theme.cyan : modelData.col; Rectangle { anchors { fill: parent; margins: 3 } color: "transparent"; border.width: 1; border.color: Theme.border; radius: Theme.radius } ColumnLayout { anchors.centerIn: parent; spacing: 6; Text { Layout.alignment: Qt.AlignHCenter; text: (pwM.containsMouse ? "▸ " : "") + pwCard.modelData.label; color: pwCard.modelData.col; font.family: Theme.font; font.pixelSize: Theme.fontSize + 2; font.bold: true } Text { Layout.alignment: Qt.AlignHCenter; text: pwCard.modelData.sub; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.bold: true } } MouseArea { id: pwM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { const d = pwCard.modelData; if (d.confirm) deckBody.requestConfirm(d.label, d.cmd); else deckBody.executeCommand(d.cmd, true); } } } }
         }
     }
