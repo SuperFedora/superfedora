@@ -33,7 +33,7 @@ fn trigger_archivist_cast(st: &WorkstationState, title: &str, body: &str) {
         .status();
 }
 
-fn query_snapper_rows() -> Vec<(String, String, String, String)> {
+pub fn query_snapper_rows() -> Vec<(String, String, String, String)> {
     let out = Command::new("snapper")
         .args(["-c", "root", "--csvout", "list", "--columns", "number,type,date,description"])
         .output()
@@ -64,16 +64,53 @@ fn query_snapper_rows() -> Vec<(String, String, String, String)> {
     if rows.is_empty() {
         rows.push(("0".into(), "current".into(), "live".into(), "Active Btrfs Root Subvolume (/)".into()));
         rows.push(("1".into(), "single".into(), "baseline".into(), "superfedora-preinstall-baseline".into()));
-        if let Ok(txt) = fs::read_to_string(snap_log_path()) {
-            for line in txt.lines() {
-                let cols: Vec<&str> = line.splitn(4, '|').collect();
-                if cols.len() == 4 {
-                    rows.push((cols[0].into(), cols[1].into(), cols[2].into(), cols[3].into()));
-                }
+    }
+    if let Ok(txt) = fs::read_to_string(snap_log_path()) {
+        for line in txt.lines() {
+            let cols: Vec<&str> = line.splitn(4, '|').collect();
+            if cols.len() == 4 && !rows.iter().any(|(id, _, _, _)| id == cols[0]) {
+                rows.push((cols[0].into(), cols[1].into(), cols[2].into(), cols[3].into()));
             }
         }
     }
     rows
+}
+
+pub fn create_checkpoint(st: &WorkstationState, desc: &str) -> String {
+    let clean_desc = desc.replace(['|', '\n'], " ");
+    let rows = query_snapper_rows();
+    let next_id = (rows.iter().filter_map(|(id, _, _, _)| id.parse::<u64>().ok()).max().unwrap_or(1) + 1).to_string();
+    let snapper_num = Command::new("snapper")
+        .args(["-c", "root", "create", "-t", "single", "-p", "-d", &clean_desc])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .or_else(|| {
+            Command::new("sudo")
+                .args(["-n", "snapper", "-c", "root", "create", "-t", "single", "-p", "-d", &clean_desc])
+                .output()
+                .ok()
+                .filter(|o| o.status.success())
+        })
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|s| !s.is_empty());
+    let num = if let Some(n) = snapper_num {
+        n
+    } else {
+        let ts = Command::new("date")
+            .arg("+%Y-%m-%d %H:%M:%S")
+            .output()
+            .ok()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "checkpoint".into());
+        let mut log = fs::read_to_string(snap_log_path()).unwrap_or_default();
+        log.push_str(&format!("{next_id}|single|{ts}|{clean_desc}\n"));
+        let _ = fs::write(snap_log_path(), log);
+        next_id
+    };
+    trigger_archivist_cast(st, "ARCHIVIST: Checkpoint Sealed", &format!("Snapshot #{num}: {clean_desc}"));
+    num
 }
 
 pub fn run_snapshot_cmd(st: &WorkstationState, args: &[String]) -> i32 {
@@ -136,20 +173,7 @@ pub fn run_snapshot_cmd(st: &WorkstationState, args: &[String]) -> i32 {
                 println!("  [DRY-RUN] supernotify --cast archivist \"ARCHIVIST: Checkpoint Sealed\" \"{desc}\"");
                 return 0;
             }
-            let rows = query_snapper_rows();
-            let next_id = rows.len().to_string();
-            let num = Command::new("sudo")
-                .args(["-n", "snapper", "-c", "root", "create", "-t", "single", "-p", "-d", &desc])
-                .output()
-                .ok()
-                .filter(|o| o.status.success())
-                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-                .filter(|s| !s.is_empty())
-                .unwrap_or(next_id);
-            let mut log = fs::read_to_string(snap_log_path()).unwrap_or_default();
-            log.push_str(&format!("{num}|single|now|{desc}\n"));
-            let _ = fs::write(snap_log_path(), log);
-            trigger_archivist_cast(st, "ARCHIVIST: Checkpoint Sealed", &format!("Snapshot #{num}: {desc}"));
+            let num = create_checkpoint(st, &desc);
             println!("  [OK] Sealed Btrfs Time-Machine checkpoint #{num}: {desc}");
             0
         }

@@ -7,7 +7,7 @@
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 fn run_out(program: &str, args: &[&str]) -> String {
     Command::new(program)
@@ -152,11 +152,22 @@ pub fn apply_setting(args: &[String]) -> i32 {
     match act {
         "mode" | "profile" => {
             let mut st = crate::state::WorkstationState::load();
-            crate::ops::mode::run_mode_cmd(&mut st, &[val.to_string()])
+            let sub = if val.is_empty() { "cycle" } else { val };
+            crate::ops::mode::run_mode_cmd(&mut st, &[sub.to_string()])
         }
         "hardware" | "vaapi" => {
             let st = crate::state::WorkstationState::load();
             crate::ops::hardware::run_hardware_cmd(&st, &["optimize".into()])
+        }
+        "theme" | "palette" => {
+            let sub = if val.is_empty() { "toggle" } else { val };
+            let _ = Command::new("supertheme").arg(sub).stdout(Stdio::null()).stderr(Stdio::null()).status();
+            0
+        }
+        "corners" => {
+            let sub = if val.is_empty() { "toggle" } else { val };
+            let _ = Command::new("supertheme").args(["corners", sub]).stdout(Stdio::null()).stderr(Stdio::null()).status();
+            0
         }
         "ui-scale" => {
             let sz: u32 = match val {
@@ -166,41 +177,41 @@ pub fn apply_setting(args: &[String]) -> i32 {
                 _ => 15,
             };
             let _ = fs::write(cfg.join("ui-scale"), format!("{sz}\n"));
-            let _ = Command::new("qs").args(["ipc", "call", "status", "refresh"]).status();
+            let _ = Command::new("qs").args(["ipc", "call", "status", "refresh"]).stdout(Stdio::null()).stderr(Stdio::null()).status();
             0
         }
         "animations" => {
             let cur_off = fs::read_to_string(cfg.join("animations")).map(|s| s.trim() == "0" || s.trim() == "off").unwrap_or(false);
             let enable = match val { "on" | "1" => true, "off" | "0" => false, _ => cur_off };
             let _ = fs::write(cfg.join("animations"), if enable { "1\n" } else { "0\n" });
-            let _ = Command::new("hyprctl").args(["keyword", "animations:enabled", if enable { "true" } else { "false" }]).status();
-            let _ = Command::new("qs").args(["ipc", "call", "status", "refresh"]).status();
+            let _ = Command::new("hyprctl").args(["keyword", "animations:enabled", if enable { "true" } else { "false" }]).stdout(Stdio::null()).stderr(Stdio::null()).status();
+            let _ = Command::new("qs").args(["ipc", "call", "status", "refresh"]).stdout(Stdio::null()).stderr(Stdio::null()).status();
             0
         }
         "nightlight" => {
             let running = pgrep_exact("wlsunset");
-            let _ = Command::new("pkill").args(["-x", "wlsunset"]).status();
+            let _ = Command::new("pkill").args(["-x", "wlsunset"]).stdout(Stdio::null()).stderr(Stdio::null()).status();
             if val == "on" || (val == "toggle" && !running) || val == "4000" || val == "3400" {
                 let temp = if val == "3400" { "3400" } else { "4000" };
                 let _ = Command::new("sh").args(["-c", &format!("nohup wlsunset -T {temp} -t 3000 >/dev/null 2>&1 &")]).status();
             }
-            let _ = Command::new("qs").args(["ipc", "call", "status", "refresh"]).status();
+            let _ = Command::new("qs").args(["ipc", "call", "status", "refresh"]).stdout(Stdio::null()).stderr(Stdio::null()).status();
             0
         }
         "orca" => {
             if pgrep_exact("orca") && val != "on" {
-                let _ = Command::new("pkill").args(["-x", "orca"]).status();
+                let _ = Command::new("pkill").args(["-x", "orca"]).stdout(Stdio::null()).stderr(Stdio::null()).status();
             } else {
                 let _ = Command::new("sh").args(["-c", "nohup orca >/dev/null 2>&1 &"]).status();
             }
-            let _ = Command::new("qs").args(["ipc", "call", "status", "refresh"]).status();
+            let _ = Command::new("qs").args(["ipc", "call", "status", "refresh"]).stdout(Stdio::null()).stderr(Stdio::null()).status();
             0
         }
         "mono-audio" => {
             let cur = fs::read_to_string(cfg.join("mono-audio")).map(|s| s.trim() == "1").unwrap_or(false);
             let next = match val { "on" | "1" => true, "off" | "0" => false, _ => !cur };
             let _ = fs::write(cfg.join("mono-audio"), if next { "1\n" } else { "0\n" });
-            let _ = Command::new("qs").args(["ipc", "call", "status", "refresh"]).status();
+            let _ = Command::new("qs").args(["ipc", "call", "status", "refresh"]).stdout(Stdio::null()).stderr(Stdio::null()).status();
             0
         }
         _ => {

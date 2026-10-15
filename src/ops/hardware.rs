@@ -162,9 +162,10 @@ pub fn run_hardware_cmd(st: &WorkstationState, args: &[String]) -> i32 {
             println!("\x1b[1;38;5;141m[::] SUPERFEDORA GPU & VA-API AUTO-TUNING ENGINE ({})\x1b[0m", prof.vendor_arch);
             if dry {
                 println!("  [DRY-RUN] 1. Codec Swap     : sudo dnf swap -y ffmpeg-free ffmpeg --allowerasing");
-                println!("  [DRY-RUN] 2. VA-API Driver  : sudo dnf install -y {} libva-utils vulkan-tools", prof.va_driver_pkg);
-                println!("  [DRY-RUN] 3. Firefox DMABUF : ~/.config/superfedora/firefox-vaapi.js (media.ffmpeg.vaapi.enabled=true)");
-                println!("  [DRY-RUN] 4. Cast Comms     : supernotify --cast engineer \"SYS ENG: Hardware VA-API Tuned\"");
+                println!("  [DRY-RUN] 2. Mesa VA Swap   : sudo dnf swap -y mesa-va-drivers mesa-va-drivers-freeworld --allowerasing");
+                println!("  [DRY-RUN] 3. VA-API Driver  : sudo dnf install -y {} libva-utils vulkan-tools", prof.va_driver_pkg);
+                println!("  [DRY-RUN] 4. Firefox DMABUF : ~/.config/superfedora/firefox-vaapi.js (media.ffmpeg.vaapi.enabled=true)");
+                println!("  [DRY-RUN] 5. Cast Comms     : supernotify --cast engineer \"SYS ENG: Hardware VA-API Tuned\"");
                 return 0;
             }
             let cfg_path = write_firefox_vaapi_cfg();
@@ -172,6 +173,10 @@ pub fn run_hardware_cmd(st: &WorkstationState, args: &[String]) -> i32 {
             if rpm_has("ffmpeg-free") {
                 println!("  [+] Swapping ffmpeg-free -> full ffmpeg...");
                 let _ = Command::new("sudo").args(["-n", "dnf", "swap", "-y", "ffmpeg-free", "ffmpeg", "--allowerasing"]).status();
+            }
+            if rpm_has("mesa-va-drivers") && !rpm_has("mesa-va-drivers-freeworld") {
+                println!("  [+] Swapping mesa-va-drivers -> mesa-va-drivers-freeworld...");
+                let _ = Command::new("sudo").args(["-n", "dnf", "swap", "-y", "mesa-va-drivers", "mesa-va-drivers-freeworld", "--allowerasing"]).status();
             }
             if !rpm_has(prof.va_driver_pkg) || !rpm_has("libva-utils") {
                 println!("  [+] Ensuring VA-API driver package ({}) & libva-utils...", prof.va_driver_pkg);

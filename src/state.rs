@@ -7,7 +7,6 @@ use std::collections::BTreeMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 pub const PALETTES: &[(&str, &str, (u8, u8, u8), (u8, u8, u8))] = &[
     ("01-crimson", "Crimson", (247, 118, 142), (255, 158, 100)),
@@ -233,10 +232,9 @@ impl WorkstationState {
     }
 
     pub fn load_snapshots(&mut self) {
-        if let Ok(out) = Command::new("snapper").args(["-c", "root", "list"]).output() && out.status.success() {
-            self.snapshots = String::from_utf8_lossy(&out.stdout).lines().map(|s| s.to_string()).collect();
-        } else {
-            self.snapshots = vec![format!("Baseline Snapshot: #{} (run 'sf rollback --list' with sudo for full table)", self.baseline_snap)];
-        }
+        self.snapshots = crate::ops::snapshot::query_snapper_rows()
+            .into_iter()
+            .map(|(id, kind, ts, desc)| format!("#{id:<4}  {kind:<8}  {ts:<20}  {desc}"))
+            .collect();
     }
 }

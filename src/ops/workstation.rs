@@ -33,6 +33,11 @@ pub fn generate_manifest(st: &WorkstationState) -> String {
     let forged: Vec<String> = st.forge_items.iter().filter(|i| i.installed).map(|i| format!("\"{}\"", i.name)).collect();
     let webapps: Vec<String> = st.webapps.iter().map(|(slug, _, url)| format!("\"{slug}|{url}\"")).collect();
 
+    let dnd = fs::read_to_string(cfg.join("notifications.json"))
+        .ok()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+        .and_then(|v| v.get("dnd").and_then(|b| b.as_bool()))
+        .unwrap_or(false);
     let agent_id = fs::read_to_string(cfg.join("active-agent")).unwrap_or_else(|_| "agy".into()).trim().to_string();
     let ollama_host = fs::read_to_string(cfg.join("ollama-host")).unwrap_or_else(|_| "127.0.0.1:11434".into()).trim().to_string();
     let ollama_model = fs::read_to_string(cfg.join("ollama-model")).unwrap_or_else(|_| "qwen2.5-coder:7b".into()).trim().to_string();
@@ -60,7 +65,7 @@ pub fn generate_manifest(st: &WorkstationState) -> String {
          dock_autohide = \"{}\"\n\
          tiling_layout = \"{}\"\n\n\
          [supernotify]\n\
-         dnd = false\n\
+         dnd = {}\n\
          animations = {}\n\n\
          [superagent]\n\
          active_agent = \"{}\"\n\
@@ -70,7 +75,7 @@ pub fn generate_manifest(st: &WorkstationState) -> String {
         st.theme_color, st.theme_mode, st.theme_corners, nl, wall, st.sfx_on,
         build_mode, forged.join(", "), webapps.join(", "),
         st.dock_pos, st.dock_autohide, st.tiling_layout,
-        anim, agent_id, ollama_host, ollama_model
+        dnd, anim, agent_id, ollama_host, ollama_model
     )
 }
 
@@ -96,6 +101,21 @@ pub fn run_export_cmd(st: &WorkstationState, args: &[String]) -> i32 {
     0
 }
 
+fn clean_toml_val(raw_val: &str) -> String {
+    let v = raw_val.trim();
+    if let Some(rest) = v.strip_prefix('"')
+        && let Some(end) = rest.find('"')
+    {
+        return rest[..end].to_string();
+    }
+    if let Some(rest) = v.strip_prefix('\'')
+        && let Some(end) = rest.find('\'')
+    {
+        return rest[..end].to_string();
+    }
+    v.split('#').next().unwrap_or(v).trim().trim_matches('"').to_string()
+}
+
 fn parse_kv(txt: &str, section: &str, key: &str) -> Option<String> {
     let mut cur_sec = "";
     for raw in txt.lines() {
@@ -103,12 +123,12 @@ fn parse_kv(txt: &str, section: &str, key: &str) -> Option<String> {
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        if line.starts_with('[') && line.ends_with(']') {
-            cur_sec = &line[1..line.len() - 1];
+        if line.starts_with('[') && let Some(end) = line.find(']') {
+            cur_sec = line[1..end].trim();
             continue;
         }
         if cur_sec == section && let Some((k, v)) = line.split_once('=') && k.trim() == key {
-            return Some(v.trim().trim_matches('"').to_string());
+            return Some(clean_toml_val(v));
         }
     }
     None
@@ -136,20 +156,33 @@ pub fn run_import_cmd(st: &mut WorkstationState, args: &[String]) -> i32 {
         eprintln!("error: unable to read {}", in_path.display());
         return 1;
     };
+    let has_sec = ["[workstation]", "[supertheme]", "[superforge]", "[supershell]", "[supernotify]", "[superagent]"]
+        .iter()
+        .any(|s| txt.contains(s));
+    if !has_sec {
+        eprintln!("error: invalid or empty workstation manifest: {}", in_path.display());
+        return 1;
+    }
 
     let ws_mode = parse_kv(&txt, "workstation", "mode").unwrap_or_else(|| "balanced".into());
+    let ui_scale = parse_kv(&txt, "workstation", "ui_scale").unwrap_or_else(|| "15".into());
     let palette = parse_kv(&txt, "supertheme", "palette").unwrap_or_else(|| st.theme_color.clone());
     let th_mode = parse_kv(&txt, "supertheme", "mode").unwrap_or_else(|| st.theme_mode.clone());
     let corners = parse_kv(&txt, "supertheme", "corners").unwrap_or_else(|| st.theme_corners.clone());
+    let nightlight = parse_kv(&txt, "supertheme", "nightlight").unwrap_or_else(|| "off".into());
+    let build_mode = parse_kv(&txt, "superforge", "build_mode").unwrap_or_else(|| "quick".into());
     let dock_pos = parse_kv(&txt, "supershell", "dock_position").unwrap_or_else(|| st.dock_pos.clone());
+    let dock_hide = parse_kv(&txt, "supershell", "dock_autohide").unwrap_or_else(|| st.dock_autohide.clone());
+    let tiling = parse_kv(&txt, "supershell", "tiling_layout").unwrap_or_else(|| st.tiling_layout.clone());
+    let dnd = parse_kv(&txt, "supernotify", "dnd").unwrap_or_else(|| "false".into());
     let agent = parse_kv(&txt, "superagent", "active_agent").unwrap_or_else(|| "agy".into());
     let ol_host = parse_kv(&txt, "superagent", "ollama_host").unwrap_or_else(|| "127.0.0.1:11434".into());
     let ol_model = parse_kv(&txt, "superagent", "ollama_model").unwrap_or_else(|| "qwen2.5-coder:7b".into());
 
     println!("\x1b[1;38;5;141m[::] SUPERFEDORA DECLARATIVE WORKSTATION IMPORT ({})\x1b[0m", in_path.display());
-    println!("  Workstation Mode : {ws_mode}");
-    println!("  SuperTheme       : {palette} ({th_mode}, {corners} corners)");
-    println!("  SuperShell Dock  : {dock_pos}");
+    println!("  Workstation Mode : {ws_mode} (UI scale: {ui_scale}px)");
+    println!("  SuperTheme       : {palette} ({th_mode}, {corners} corners, nightlight: {nightlight})");
+    println!("  SuperShell Dock  : {dock_pos} (autohide: {dock_hide}, layout: {tiling})");
     println!("  SuperAgent       : {agent} (Ollama: {ol_host} // {ol_model})");
 
     if dry {
@@ -160,15 +193,25 @@ pub fn run_import_cmd(st: &mut WorkstationState, args: &[String]) -> i32 {
     let home = env::var("HOME").unwrap_or_else(|_| "/home/jeryd".into());
     let cfg = PathBuf::from(&home).join(".config/superfedora");
     let _ = fs::create_dir_all(&cfg);
-    let _ = fs::write(cfg.join("workstation-mode"), format!("{ws_mode}\n"));
-    let _ = fs::write(cfg.join("active-agent"), format!("{agent}\n"));
-    let _ = fs::write(cfg.join("ollama-host"), format!("{ol_host}\n"));
-    let _ = fs::write(cfg.join("ollama-model"), format!("{ol_model}\n"));
+    for (f, val) in [
+        ("workstation-mode", &ws_mode),
+        ("ui-scale", &ui_scale),
+        ("build-mode", &build_mode),
+        ("dock-position", &dock_pos),
+        ("dock-autohide", &dock_hide),
+        ("tiling-layout", &tiling),
+        ("active-agent", &agent),
+        ("ollama-host", &ol_host),
+        ("ollama-model", &ol_model),
+    ] {
+        let _ = fs::write(cfg.join(f), format!("{val}\n"));
+    }
     let _ = fs::write(
         cfg.join("theme.env"),
-        format!("THEME_COLOR=\"{palette}\"\nTHEME_MODE=\"{th_mode}\"\nTHEME_CORNERS=\"{corners}\"\nTHEME_NIGHTLIGHT=\"off\"\n"),
+        format!("THEME_COLOR=\"{palette}\"\nTHEME_MODE=\"{th_mode}\"\nTHEME_CORNERS=\"{corners}\"\nTHEME_NIGHTLIGHT=\"{nightlight}\"\n"),
     );
     let _ = Command::new("supertheme").args(["set", &palette, &th_mode, &corners]).stdout(Stdio::null()).stderr(Stdio::null()).status();
+    let _ = Command::new("supernotify").args(["dnd", if dnd == "true" { "on" } else { "off" }]).stdout(Stdio::null()).stderr(Stdio::null()).status();
     let _ = crate::ops::mode::run_mode_cmd(st, &[ws_mode]);
     st.refresh();
     println!("  [OK] Imported declarative workstation configuration from {}", in_path.display());

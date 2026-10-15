@@ -182,10 +182,11 @@ fn handle_tab_key(
             _ => {}
         },
         3 => match code {
-            KeyCode::Char('r') => st.load_snapshots(),
+            KeyCode::Char('r') => { st.load_snapshots(); *status_msg = "Refreshed Btrfs Time-Machine vault".into(); }
             KeyCode::Char('c') => {
-                let _ = crate::ops::snapshot::run_snapshot_cmd(st, &["create".into(), "SuperFedora TUI Checkpoint".into()]);
+                let num = crate::ops::snapshot::create_checkpoint(st, "SuperFedora TUI Checkpoint");
                 st.load_snapshots();
+                *status_msg = format!("Sealed Btrfs Time-Machine checkpoint #{num}");
             }
             KeyCode::Char('d') => {
                 let exe = std::env::current_exe().unwrap_or_else(|_| st.sf_root.join("bin/superfedora"));
