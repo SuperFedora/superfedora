@@ -1,6 +1,6 @@
 # SuperFedora Keybindings
 
-> Generated from [`bindings.conf`](../dotfiles/.config/hypr/conf/bindings.conf) for **SuperFedora v0.9.0** by `scripts/gen-keybindings-doc.py`. Do not edit by hand.
+> Generated from [`bindings.conf`](../dotfiles/.config/hypr/conf/bindings.conf) for **SuperFedora v0.10.0** by `scripts/gen-keybindings-doc.py`. Do not edit by hand.
 >
 > Bindings mirror Pop!_OS COSMIC defaults. Press **Super + F1** on the desktop for a searchable list.
 
@@ -136,7 +136,8 @@
 | Keys | Action |
 | :--- | :--- |
 | Super + B | Web browser |
-| Super + F | Home folder |
+| Super + E | File manager (Yazi) |
+| Super + F | Home folder (Yazi) |
 | Super + Space | Switch keyboard layout |
 | Super + T | Terminal |
 | Super + A | App library |
@@ -200,14 +201,15 @@
 | Super + Ctrl + ` | Toggle scratchpad |
 | Super + Alt + Tab | Next tab in stack |
 | Super + Alt + Shift + Tab | Previous tab in stack |
-| Super + V | Toggle notification center |
+| Super + V | Clipboard history (cliphist + fuzzel) |
+| Super + Shift + V | Toggle notification center |
 | Super + N | Dismiss notification |
 | Super + Shift + N | Dismiss all notifications |
 | Super + Ctrl + N | Toggle do-not-disturb |
 | Shift + Print | Screenshot window |
 | Ctrl + Print | Screenshot screen |
-| Super + Shift + S | Screenshot region |
-| Super + Print | Color picker |
+| Super + Shift + S | Screenshot & annotate (satty) |
+| Super + Print | Color picker (hyprpicker) |
 | Super + Ctrl + Space | Next 16-bit theme |
 | Super + Ctrl + Shift + Space | Pick 16-bit theme |
 | Super + Ctrl + Alt + Space | Toggle dark/light theme |
@@ -219,7 +221,7 @@
 | Super + Alt + R | Reload Hyprland + bar |
 | Super + Shift + I | Start IdleScreen now |
 | Super + Ctrl + I | Toggle idle (stay awake) |
-| Calculator | Calculator |
+| Calculator | Calculator (fend) |
 | Super + Scroll down | Next workspace |
 | Super + Scroll up | Previous workspace |
 | Super + Mouse forward | Next workspace (mouse forward) |

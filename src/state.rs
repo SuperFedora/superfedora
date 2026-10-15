@@ -9,22 +9,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 pub const PALETTES: &[(&str, &str, (u8, u8, u8), (u8, u8, u8))] = &[
-    ("01-crimson", "Crimson", (247, 118, 142), (255, 158, 100)),
-    ("02-scarlet", "Scarlet", (255, 95, 110), (247, 118, 142)),
-    ("03-ember", "Ember", (255, 122, 89), (224, 175, 104)),
-    ("04-amber", "Amber", (255, 158, 100), (224, 175, 104)),
-    ("05-topaz", "Topaz", (224, 175, 104), (158, 206, 106)),
-    ("06-citrine", "Citrine", (240, 208, 104), (115, 218, 202)),
-    ("07-peridot", "Peridot", (180, 224, 108), (115, 218, 202)),
-    ("08-emerald", "Emerald", (158, 206, 106), (115, 218, 202)),
-    ("09-verdant", "Verdant", (115, 218, 202), (125, 207, 255)),
-    ("10-lagoon", "Lagoon", (42, 195, 222), (122, 162, 247)),
-    ("11-glacier", "Glacier", (125, 207, 255), (187, 154, 247)),
-    ("12-cobalt", "Cobalt", (122, 162, 247), (187, 154, 247)),
-    ("13-indigo", "Indigo", (130, 140, 255), (125, 207, 255)),
-    ("14-violet", "Violet", (187, 154, 247), (122, 162, 247)),
-    ("15-orchid", "Orchid", (211, 134, 247), (247, 118, 142)),
-    ("16-fuchsia", "Fuchsia", (255, 117, 195), (125, 207, 255)),
+    ("01-crimson", "Crimson", (247, 118, 142), (255, 158, 100)), ("02-scarlet", "Scarlet", (255, 95, 110), (247, 118, 142)),
+    ("03-ember", "Ember", (255, 122, 89), (224, 175, 104)), ("04-amber", "Amber", (255, 158, 100), (224, 175, 104)),
+    ("05-topaz", "Topaz", (224, 175, 104), (158, 206, 106)), ("06-citrine", "Citrine", (240, 208, 104), (115, 218, 202)),
+    ("07-peridot", "Peridot", (180, 224, 108), (115, 218, 202)), ("08-emerald", "Emerald", (158, 206, 106), (115, 218, 202)),
+    ("09-verdant", "Verdant", (115, 218, 202), (125, 207, 255)), ("10-lagoon", "Lagoon", (42, 195, 222), (122, 162, 247)),
+    ("11-glacier", "Glacier", (125, 207, 255), (187, 154, 247)), ("12-cobalt", "Cobalt", (122, 162, 247), (187, 154, 247)),
+    ("13-indigo", "Indigo", (130, 140, 255), (125, 207, 255)), ("14-violet", "Violet", (187, 154, 247), (122, 162, 247)),
+    ("15-orchid", "Orchid", (211, 134, 247), (247, 118, 142)), ("16-fuchsia", "Fuchsia", (255, 117, 195), (125, 207, 255)),
 ];
 
 pub const FORGE_CATALOG: &[(&str, &str, &str, &str)] = &[
@@ -47,18 +39,32 @@ pub const FORGE_CATALOG: &[(&str, &str, &str, &str)] = &[
     ("openrgb", "openrgb", "qmake", "Open source RGB lighting control"),
     ("hyprland", "Hyprland", "cmake", "Dynamic tiling Wayland compositor"),
     ("quickshell", "quickshell", "cmake", "Qt6 Wayland shell toolkit"),
+    ("yazi", "yazi", "rust", "Async terminal file manager with Kitty image previews"),
+    ("dua-cli", "dua", "rust", "Interactive disk usage analyzer & cleaner"),
+    ("ouch", "ouch", "rust", "Unified archive compressor/decompressor"),
+    ("oculante", "oculante", "rust", "Fast minimal Rust GPU image viewer & editor"),
+    ("imv", "imv", "meson", "Wayland-native image viewer"),
+    ("satty", "satty", "rust", "Modern Wayland screenshot annotation tool"),
+    ("hyprpicker", "hyprpicker", "cmake", "wlroots/Hyprland pixel color picker"),
+    ("wl-screenrec", "wl-screenrec", "rust", "VA-API hardware-accelerated Wayland screen recorder"),
+    ("zathura", "zathura", "meson", "Keyboard-driven PDF/EPUB/DjVu viewer"),
+    ("typst", "typst", "rust", "Modern typesetter & PDF compiler"),
+    ("csvlens", "csvlens", "rust", "Interactive TUI CSV/TSV spreadsheet viewer"),
+    ("helix", "hx", "rust", "Post-modern modal text editor"),
+    ("fend", "fend", "rust", "Arbitrary-precision unit-aware calculator"),
+    ("termusic", "termusic", "rust", "Terminal music & podcast player"),
+    ("cava", "cava", "cmake", " real-time PipeWire audio spectrum visualizer"),
+    ("mpv", "mpv", "meson", "GPU-accelerated media player"),
+    ("cliphist", "cliphist", "go", "Wayland clipboard history manager"),
+    ("bazarr", "bazarr", "python", "Companion subtitle manager for Sonarr & Radarr"),
 ];
 
 #[derive(Clone, Default, Deserialize)]
 pub struct ForgeLive {
-    #[serde(default)]
-    pub active: bool,
-    #[serde(default)]
-    pub target: String,
-    #[serde(default)]
-    pub pct: u16,
-    #[serde(default)]
-    pub step: String,
+    #[serde(default)] pub active: bool,
+    #[serde(default)] pub target: String,
+    #[serde(default)] pub pct: u16,
+    #[serde(default)] pub step: String,
 }
 
 #[derive(Clone)]
@@ -147,10 +153,7 @@ impl WorkstationState {
     pub fn secondary_color(&self) -> Color { Color::Rgb(self.secondary_rgb.0, self.secondary_rgb.1, self.secondary_rgb.2) }
 
     pub fn refresh_fast(&mut self) {
-        self.forge_live = fs::read_to_string(self.state_dir.join("forge-live.json"))
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default();
+        self.forge_live = fs::read_to_string(self.state_dir.join("forge-live.json")).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
     }
 
     pub fn refresh(&mut self) {
@@ -185,12 +188,13 @@ impl WorkstationState {
         let home = env::var("HOME").unwrap_or_else(|_| "/home/jeryd".into());
         let bin_dir = Path::new(&home).join(".local/bin");
         let sys_bin = Path::new("/usr/local/bin");
-        let stamp_dir = self.state_dir.join("source-built");
+        let stamp_dir = env::var("XDG_DATA_HOME").map(PathBuf::from).unwrap_or_else(|_| PathBuf::from(&home).join(".local/share")).join("superfedora/forge/stamps");
+        let legacy_stamp_dir = self.state_dir.join("source-built");
         self.forge_items = FORGE_CATALOG
             .iter()
             .map(|&(name, bin_name, sys, desc)| {
                 let bin_path = if bin_dir.join(bin_name).exists() { bin_dir.join(bin_name) } else { sys_bin.join(bin_name) };
-                let installed = stamp_dir.join(format!("{name}.stamp")).exists() || bin_path.exists();
+                let installed = stamp_dir.join(format!("{name}.stamp")).exists() || legacy_stamp_dir.join(format!("{name}.stamp")).exists() || bin_path.exists();
                 let size_kb = fs::metadata(&bin_path).map(|m| m.len() / 1024).unwrap_or(0);
                 ForgeItem { name: name.into(), kind: sys.into(), desc: desc.into(), installed, size_kb }
             })

@@ -31,9 +31,30 @@ module_run() {
     }
     command -v xdg-mime >/dev/null && need "default browser: Firefox" _browser_t _browser_i
 
-    _fm_t() { [[ "$(xdg-mime query default inode/directory 2>/dev/null)" == org.gnome.Nautilus.desktop ]]; }
-    _fm_i() { xdg-mime default org.gnome.Nautilus.desktop inode/directory; }
-    command -v xdg-mime >/dev/null && need "default file manager: Files" _fm_t _fm_i
+    _ensure_yazi_desktop() {
+        mkdir -p "$HOME/.local/share/applications"
+        cat > "$HOME/.local/share/applications/yazi.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Yazi File Manager
+Comment=Blazing fast terminal file manager written in Rust
+Exec=kitty --title="Yazi File Manager" -e yazi %u
+Icon=system-file-manager
+Terminal=false
+Categories=System;FileTools;FileManager;
+MimeType=inode/directory;
+EOF
+    }
+    _fm_t() {
+        [[ -f "$HOME/.local/share/applications/yazi.desktop" || -f /usr/share/applications/yazi.desktop ]] &&
+        [[ "$(xdg-mime query default inode/directory 2>/dev/null)" == yazi.desktop ]]
+    }
+    _fm_i() {
+        _ensure_yazi_desktop
+        grep -q '^inode/directory=yazi.desktop' "$HOME/.config/mimeapps.list" 2>/dev/null || \
+            xdg-mime default yazi.desktop inode/directory
+    }
+    command -v xdg-mime >/dev/null && need "default file manager: Yazi" _fm_t _fm_i
 
     _dirs_t() { [[ -f "$HOME/.config/user-dirs.dirs" ]]; }
     _dirs_i() { xdg-user-dirs-update; }

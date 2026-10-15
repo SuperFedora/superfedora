@@ -41,7 +41,10 @@ _pkg_forged() {
         hyprland)   [[ -x "$HOME/.local/bin/Hyprland" || -x /usr/local/bin/Hyprland ]] ;;
         quickshell) [[ -x "$HOME/.local/bin/quickshell" || -x /usr/local/bin/quickshell ]] ;;
         fuzzel)     [[ -x "$HOME/.local/bin/fuzzel" || -x /usr/local/bin/fuzzel ]] ;;
-        *) return 1 ;;
+        helix)      [[ -x "$HOME/.local/bin/hx" || -x /usr/local/bin/hx ]] ;;
+        neovim)     [[ -x "$HOME/.local/bin/nvim" || -x /usr/local/bin/nvim ]] ;;
+        zathura-pdf-mupdf) [[ -x "$HOME/.local/bin/zathura" || -x /usr/local/bin/zathura ]] ;;
+        *) [[ -x "$HOME/.local/bin/$1" || -x "/usr/local/bin/$1" || -f "$HOME/.local/share/superfedora/forge/stamps/$1.stamp" ]] ;;
     esac
 }
 

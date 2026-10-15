@@ -1,12 +1,23 @@
-# Applications
+# DE-Independent Workstation Applications (Zero GNOME/KDE Bloat)
 kitty
 foot
 firefox
-nautilus
-gnome-calculator
-gnome-control-center
+libreoffice-core
+libreoffice-writer
+libreoffice-calc
+libreoffice-impress
+zathura
+zathura-pdf-mupdf
+imv
+mpv
+cava
+neovim
+helix
+udiskie
+cliphist
 btop
 fastfetch
+flatpak
 google-chrome-stable
 microsoft-edge-stable
 tailscale
