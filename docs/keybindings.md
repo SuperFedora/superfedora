@@ -1,6 +1,6 @@
 # SuperFedora Keybindings
 
-> Generated from [`bindings.conf`](../dotfiles/.config/hypr/conf/bindings.conf) for **SuperFedora v0.10.2** by `scripts/gen-keybindings-doc.py`. Do not edit by hand.
+> Generated from [`bindings.conf`](../dotfiles/.config/hypr/conf/bindings.conf) for **SuperFedora v0.10.3** by `scripts/gen-keybindings-doc.py`. Do not edit by hand.
 >
 > Bindings mirror Pop!_OS COSMIC defaults. Press **Super + F1** on the desktop for a searchable list.
 
@@ -43,20 +43,20 @@
 | Super + Shift + K | Move window up |
 | Super + Shift + L | Move window right |
 
-## COSMIC: workspaces (switches SuperDesk [`]/[1]..[0] tabs when SuperDesk is open)
+## COSMIC: workspaces (1..9 and 0 = empty workspace)
 
 | Keys | Action |
 | :--- | :--- |
-| Super + 1 | Workspace 1 / SuperDesk [1] System (Fastfetch & btop) |
-| Super + 2 | Workspace 2 / SuperDesk [2] Wi-Fi |
-| Super + 3 | Workspace 3 / SuperDesk [3] Bluetooth |
-| Super + 4 | Workspace 4 / SuperDesk [4] Audio & Cam |
-| Super + 5 | Workspace 5 / SuperDesk [5] Display & Kbd |
-| Super + 6 | Workspace 6 / SuperDesk [6] Theme & SFX |
-| Super + 7 | Workspace 7 / SuperDesk [7] Bar & Dock |
-| Super + 8 | Workspace 8 / SuperDesk [8] Source Forge |
-| Super + 9 | Workspace 9 / SuperDesk [9] Btrfs State |
-| Super + 0 | Last Workspace / SuperDesk [0] Power |
+| Super + 1 | Workspace 1 |
+| Super + 2 | Workspace 2 |
+| Super + 3 | Workspace 3 |
+| Super + 4 | Workspace 4 |
+| Super + 5 | Workspace 5 |
+| Super + 6 | Workspace 6 |
+| Super + 7 | Workspace 7 |
+| Super + 8 | Workspace 8 |
+| Super + 9 | Workspace 9 |
+| Super + 0 | Last (empty) workspace |
 | Super + Shift + 1 | Move window to workspace 1 |
 | Super + Shift + 2 | Move window to workspace 2 |
 | Super + Shift + 3 | Move window to workspace 3 |
@@ -129,7 +129,7 @@
 | Super + = | Zoom in |
 | Super + - | Zoom out |
 | Super + . | Zoom in |
-| Super + , | Zoom out |
+| Super + , | SuperFedora Settings App |
 
 ## COSMIC: system actions
 
@@ -161,20 +161,20 @@
 | AudioMicMute | Mute microphone (Fn+F4) |
 | MonBrightnessDown | Brightness down (Fn+F5) |
 | MonBrightnessUp | Brightness up (Fn+F6) |
-| Display | Display & keyboard settings (Fn+F7) |
-| WLAN | Wi-Fi deck (Fn+F8) |
-| RFKill | Wireless / RFKill deck (Fn+F8) |
-| Tools | Theme & system settings deck (Fn+F9) |
-| Bluetooth | Bluetooth deck (Fn+F10) |
-| Search | Bluetooth / search deck (Fn+F10) |
+| Display | Display & system settings (Fn+F7) |
+| WLAN | Wi-Fi & network settings (Fn+F8) |
+| RFKill | Wireless / network settings (Fn+F8) |
+| Tools | Personalization & settings (Fn+F9) |
+| Bluetooth | Bluetooth & devices settings (Fn+F10) |
+| Search | Bluetooth & devices settings (Fn+F10) |
 | Keyboard | ThinkPad keyboard backlight (Fn+F11) |
 | KbdBrightnessUp | Keyboard backlight up (Fn+Space) |
 | KbdBrightnessDown | Keyboard backlight down |
-| Favorites | SuperDesk [`] AI Agent (Fn+F12) |
+| Favorites | Quick AI Console (Fn+F12) |
 | WebCam | Toggle web camera kill-switch |
-| PowerOff | Power deck |
-| Sleep | Power / sleep deck |
-| Suspend | Power / suspend deck |
+| PowerOff | Power & battery settings |
+| Sleep | Power & sleep settings |
+| Suspend | Power & suspend settings |
 | AudioPlay | Play / pause |
 | AudioPrev | Previous track |
 | AudioNext | Next track |
@@ -188,15 +188,15 @@
 | :--- | :--- |
 | Super + F1 | Show all keybindings |
 | Super + Enter | Terminal |
-| Super + Alt + Space | Unified SuperDesk (Quick Actions) |
-| Super + Shift + , | SuperFedora Settings App |
+| Super + Alt + Space | SuperSettings Home |
+| Super + Shift + , | SuperSettings AI & LLM servers |
 | Super + Alt + Home | Save workspace window layout |
 | Super + Home | Restore workspace window layout |
-| Ctrl + Alt + Delete | Power menu |
+| Ctrl + Alt + Delete | Power & recovery settings |
 | Super + Shift + T | Activity monitor (btop) |
 | Super + Shift + B | Private browser window |
 | Super + P | Pin floating window |
-| Super + ` | SuperDesk [`] AI Agent console |
+| Super + ` | Quick AI Console |
 | Super + Shift + ` | Quake AI TTY terminal console |
 | Super + Ctrl + ` | Toggle scratchpad |
 | Super + Alt + Tab | Next tab in stack |
@@ -213,9 +213,9 @@
 | Super + Ctrl + Space | Next 16-bit theme |
 | Super + Ctrl + Shift + Space | Pick 16-bit theme |
 | Super + Ctrl + Alt + Space | Toggle dark/light theme |
-| Super + Ctrl + A | Audio & sensors deck |
-| Super + Ctrl + W | Wi-Fi perimeter deck |
-| Super + Ctrl + B | Bluetooth perimeter deck |
+| Super + Ctrl + A | System & audio settings |
+| Super + Ctrl + W | Network & Wi-Fi settings |
+| Super + Ctrl + B | Bluetooth & devices settings |
 | Super + Backspace | Toggle gaps |
 | Super + Shift + Space | Toggle top bar |
 | Super + Alt + R | Reload Hyprland + bar |
