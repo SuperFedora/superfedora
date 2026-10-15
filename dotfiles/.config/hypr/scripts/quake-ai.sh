@@ -20,9 +20,7 @@ STATE_FILE="$STATE_DIR/quake-ai.env"; AGENTS_FILE="$STATE_DIR/ai-agents.conf"
 
 AI_AGENT="agy"; OLLAMA_HOST="127.0.0.1:11434"; OLLAMA_MODEL=""; DEFAULT_TERMINAL="kitty"
 # shellcheck disable=SC1090
-[[ -f "$STATE_FILE" ]] && source "$STATE_FILE"
-# shellcheck disable=SC1090
-[[ -f "$STATE_DIR/defaults.env" ]] && source "$STATE_DIR/defaults.env"
+[[ -f "$STATE_FILE" ]] && source "$STATE_FILE"; [[ -f "$STATE_DIR/defaults.env" ]] && source "$STATE_DIR/defaults.env"; [[ -f "$STATE_DIR/profile.env" ]] && source "$STATE_DIR/profile.env"
 AI_AGENT="${AI_AGENT:-agy}"; OLLAMA_HOST="${OLLAMA_HOST:-127.0.0.1:11434}"; DEFAULT_TERMINAL="${DEFAULT_TERMINAL:-kitty}"
 
 detect_ollama_model() { local h="${1:-$OLLAMA_HOST}" pref="${2:-}" m=""; [[ -x "$SF_OLLAMA" ]] && m="$("$SF_OLLAMA" best-model "$h" "$pref" 2>/dev/null || true)"; printf '%s' "${m:-${pref:-llama3.2}}"; }
@@ -119,7 +117,8 @@ spawn_quake() {
         printf '#!/usr/bin/env bash\nexport PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.minimax-code/bin:$HOME/.minimax/bin:$HOME/.grok/bin:$HOME/.npm-global/bin:/usr/local/bin:/usr/bin:/bin:$PATH"\n'
         printf 'export AI_AGENT=%q AI_LABEL=%q AI_BIN=%q AI_CMD=%q OLLAMA_HOST=%q OLLAMA_MODEL=%q SF_OLLAMA=%q SELF=%q\n' "$AI_AGENT" "$AI_LABEL" "$AI_BIN" "$AI_CMD" "$OLLAMA_HOST" "$OLLAMA_MODEL" "$SF_OLLAMA" "$SELF"
         cat <<'EOF'
-clear
+[[ -f "$HOME/.config/superfedora/profile.env" ]] && source "$HOME/.config/superfedora/profile.env" && export USER_FULLNAME USER_EMAIL USER_DEVICE_NAME USER_GITHUB USER_WORKSPACE USER_AI_ROLE
+[[ -n "${USER_WORKSPACE:-}" && -d "${USER_WORKSPACE/#\~/$HOME}" ]] && cd "${USER_WORKSPACE/#\~/$HOME}" || true; clear
 if [[ "$AI_AGENT" == "ollama" ]]; then
     if command -v pi >/dev/null 2>&1; then pi --provider ollama --model "$OLLAMA_MODEL"
     elif command -v ollama >/dev/null 2>&1; then OLLAMA_HOST="$OLLAMA_HOST" ollama run "$OLLAMA_MODEL"

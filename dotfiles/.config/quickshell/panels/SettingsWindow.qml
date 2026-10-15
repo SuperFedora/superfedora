@@ -26,7 +26,9 @@ FloatingWindow {
         return win.categories[0] || { id: "home", icon: "󰋜", title: "Home", sub: "" };
     }
     readonly property string userShort: String(Status.userAccount || "user").split("@")[0]
-    readonly property string hostShort: String(Status.userAccount || "user@fedora").split("@")[1] || "workstation"
+    readonly property string displayUser: Status.userFullName || win.userShort
+    readonly property string displaySub: Status.userEmail || Status.userAccount
+    readonly property string hostShort: Status.userDeviceName || String(Status.userAccount || "user@fedora").split("@")[1] || "workstation"
 
     NumberAnimation { id: openAnim; target: rootBox; property: "opacity"; from: 0.88; to: 1.0; duration: 90; easing.type: Easing.OutCubic }
     function toggleRail() { win.navMode = win.railCollapsed ? 1 : 2; }
@@ -73,23 +75,28 @@ FloatingWindow {
                 Behavior on Layout.preferredWidth { NumberAnimation { duration: 110; easing.type: Easing.OutCubic } }
                 ColumnLayout {
                     anchors { fill: parent; leftMargin: win.railCollapsed ? 6 : 12; rightMargin: win.railCollapsed ? 6 : 10; topMargin: 12; bottomMargin: 12 } spacing: 6
-                    RowLayout {
-                        Layout.fillWidth: true; spacing: 6
+                    GridLayout {
+                        Layout.fillWidth: true; columns: win.railCollapsed ? 1 : 4; columnSpacing: 6; rowSpacing: 4
                         Rectangle { implicitWidth: win.railCollapsed ? 40 : 28; implicitHeight: 28; radius: 5; color: railMenuM.containsMouse ? Theme.bgHover : "transparent"; Text { anchors.centerIn: parent; text: "󰍜"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize + 1 } MouseArea { id: railMenuM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.toggleRail() } }
-                        Rectangle { visible: !win.railCollapsed; readonly property bool canB: Status.canNavBack || win.searchQuery !== ""; implicitWidth: 28; implicitHeight: 28; radius: 5; opacity: canB ? 1.0 : 0.38; color: railBackM.containsMouse && canB ? Theme.bgHover : "transparent"; Text { anchors.centerIn: parent; text: "󰁍"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize } MouseArea { id: railBackM; anchors.fill: parent; hoverEnabled: true; enabled: parent.canB; cursorShape: Qt.PointingHandCursor; onClicked: win.navBackAction() } }
+                        Rectangle { readonly property bool canB: Status.canNavBack || win.searchQuery !== ""; implicitWidth: win.railCollapsed ? 40 : 28; implicitHeight: 28; radius: 5; opacity: canB ? 1.0 : 0.38; color: railBackM.containsMouse && canB ? Theme.bgHover : "transparent"; Text { anchors.centerIn: parent; text: "󰁍"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize } MouseArea { id: railBackM; anchors.fill: parent; hoverEnabled: true; enabled: parent.canB; cursorShape: Qt.PointingHandCursor; onClicked: win.navBackAction() } }
                         Text { visible: !win.railCollapsed; text: "󰣛"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize + 1 }
                         Text { visible: !win.railCollapsed; text: "Settings"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.weight: Font.Medium; Layout.fillWidth: true; elide: Text.ElideRight }
                     }
 
-                    // User Profile Header Card (Click -> Accounts)
+                    // User Profile Header Card (Click -> Accounts -> Your info / acc-profile)
                     Rectangle {
-                        Layout.fillWidth: true; implicitHeight: win.railCollapsed ? 40 : 48; radius: 6; color: usrM.containsMouse ? Theme.bgHover : "transparent"
+                        readonly property bool isPrfActive: win.searchQuery === "" && win.activePage === "accounts" && Status.expandedSettingId === "acc-profile"
+                        Layout.fillWidth: true; implicitHeight: win.railCollapsed ? 40 : 48; radius: 6; color: isPrfActive ? Theme.bgAlt : (usrM.containsMouse ? Theme.bgHover : "transparent"); border.width: isPrfActive ? 1 : 0; border.color: Theme.blue
                         RowLayout {
                             anchors { fill: parent; leftMargin: win.railCollapsed ? 4 : 8; rightMargin: win.railCollapsed ? 4 : 8 } spacing: 10
-                            Rectangle { Layout.alignment: Qt.AlignCenter; implicitWidth: 32; implicitHeight: 32; radius: 16; color: Theme.bgAlt; border.width: 1; border.color: Theme.border; Text { anchors.centerIn: parent; text: win.userShort.slice(0, 1).toUpperCase(); color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize + 1; font.bold: true } }
-                            ColumnLayout { visible: !win.railCollapsed; Layout.fillWidth: true; spacing: 1; Text { text: win.userShort; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true } Text { text: Status.userAccount; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; elide: Text.ElideRight; Layout.fillWidth: true } }
+                            Rectangle {
+                                Layout.alignment: Qt.AlignCenter; implicitWidth: 32; implicitHeight: 32; radius: 16; color: Theme.bgAlt; border.width: 1; border.color: usrM.containsMouse ? Theme.blue : Theme.border; clip: true
+                                Image { id: railAvImg; anchors { fill: parent; margins: 1 } source: Status.userAvatar ? ("file://" + Status.userAvatar) : ""; fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: false; visible: status === Image.Ready }
+                                Text { visible: railAvImg.status !== Image.Ready; anchors.centerIn: parent; text: win.displayUser.slice(0, 1).toUpperCase(); color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize + 1; font.bold: true }
+                            }
+                            ColumnLayout { visible: !win.railCollapsed; Layout.fillWidth: true; spacing: 1; Text { text: win.displayUser; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true } Text { text: win.displaySub; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; elide: Text.ElideRight; Layout.fillWidth: true } }
                         }
-                        MouseArea { id: usrM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.selectCategory("accounts") }
+                        MouseArea { id: usrM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { win.clearSearch(); Status.openSettingsItem("accounts", "acc-profile"); } }
                     }
 
                     // Compact Search Icon Button (when railCollapsed)
@@ -117,28 +124,30 @@ FloatingWindow {
                     }
 
                     // 12 Clean Navigation Items (Home + 11 Categories) with Left Vertical Accent Indicator
-                    ColumnLayout {
-                        Layout.fillWidth: true; Layout.fillHeight: true; spacing: 2
-                        Repeater {
-                            model: win.categories
-                            Rectangle {
-                                id: catRow; required property var modelData
-                                readonly property bool isCur: win.searchQuery === "" && win.activePage === modelData.id
-                                readonly property int matchCount: pagesView.matchCountFor(modelData.id, win.searchQuery)
-                                Layout.fillWidth: true; implicitHeight: 32; radius: 6
-                                opacity: (win.searchQuery !== "" && modelData.id !== "home" && matchCount === 0) ? 0.42 : 1.0
-                                color: isCur ? Theme.bgAlt : (catM.containsMouse ? Theme.bgHover : "transparent")
-                                Rectangle { visible: catRow.isCur; width: 3; height: 16; radius: 1.5; anchors { left: parent.left; leftMargin: 2; verticalCenter: parent.verticalCenter } color: Theme.blue }
-                                RowLayout {
-                                    anchors { fill: parent; leftMargin: win.railCollapsed ? 0 : 12; rightMargin: win.railCollapsed ? 0 : 8 } spacing: 10
-                                    Text { Layout.alignment: win.railCollapsed ? Qt.AlignCenter : Qt.AlignVCenter; Layout.fillWidth: win.railCollapsed; horizontalAlignment: win.railCollapsed ? Text.AlignHCenter : Text.AlignLeft; text: catRow.modelData.icon; color: catRow.isCur ? Theme.blue : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize + 2 }
-                                    Text { visible: !win.railCollapsed; text: catRow.modelData.title; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.weight: catRow.isCur ? Font.DemiBold : Font.Normal; Layout.fillWidth: true; elide: Text.ElideRight }
-                                    Rectangle { visible: !win.railCollapsed && win.searchQuery !== "" && catRow.matchCount > 0; implicitWidth: 22; implicitHeight: 18; radius: 9; color: Theme.bgHover; border.width: 1; border.color: Theme.border; Text { anchors.centerIn: parent; text: String(catRow.matchCount); color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.weight: Font.DemiBold } }
+                    Flickable {
+                        Layout.fillWidth: true; Layout.fillHeight: true; contentWidth: width; contentHeight: catCol.implicitHeight; clip: true; boundsBehavior: Flickable.StopAtBounds
+                        ColumnLayout {
+                            id: catCol; width: parent.width; spacing: 2
+                            Repeater {
+                                model: win.categories
+                                Rectangle {
+                                    id: catRow; required property var modelData
+                                    readonly property bool isCur: win.searchQuery === "" && win.activePage === modelData.id
+                                    readonly property int matchCount: pagesView.matchCountFor(modelData.id, win.searchQuery)
+                                    Layout.fillWidth: true; implicitHeight: 32; radius: 6
+                                    opacity: (win.searchQuery !== "" && modelData.id !== "home" && matchCount === 0) ? 0.42 : 1.0
+                                    color: isCur ? Theme.bgAlt : (catM.containsMouse ? Theme.bgHover : "transparent")
+                                    Rectangle { visible: catRow.isCur; width: 3; height: 16; radius: 1.5; anchors { left: parent.left; leftMargin: 2; verticalCenter: parent.verticalCenter } color: Theme.blue }
+                                    RowLayout {
+                                        anchors { fill: parent; leftMargin: win.railCollapsed ? 0 : 12; rightMargin: win.railCollapsed ? 0 : 8 } spacing: 10
+                                        Text { Layout.alignment: win.railCollapsed ? Qt.AlignCenter : Qt.AlignVCenter; Layout.fillWidth: win.railCollapsed; horizontalAlignment: win.railCollapsed ? Text.AlignHCenter : Text.AlignLeft; text: catRow.modelData.icon; color: catRow.isCur ? Theme.blue : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize + 2 }
+                                        Text { visible: !win.railCollapsed; text: catRow.modelData.title; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.weight: catRow.isCur ? Font.DemiBold : Font.Normal; Layout.fillWidth: true; elide: Text.ElideRight }
+                                        Rectangle { visible: !win.railCollapsed && win.searchQuery !== "" && catRow.matchCount > 0; implicitWidth: 22; implicitHeight: 18; radius: 9; color: Theme.bgHover; border.width: 1; border.color: Theme.border; Text { anchors.centerIn: parent; text: String(catRow.matchCount); color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.weight: Font.DemiBold } }
+                                    }
+                                    MouseArea { id: catM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.selectCategory(catRow.modelData.id) }
                                 }
-                                MouseArea { id: catM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.selectCategory(catRow.modelData.id) }
                             }
                         }
-                        Item { Layout.fillHeight: true }
                     }
                 }
                 Rectangle { anchors { right: parent.right; top: parent.top; bottom: parent.bottom } width: 1; color: Theme.border; opacity: 0.45 }

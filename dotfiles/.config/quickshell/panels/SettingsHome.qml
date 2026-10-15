@@ -18,7 +18,7 @@ Item {
     readonly property bool isWide: home.width >= 820
     readonly property bool isMedium: home.width >= 640
     readonly property bool isCompact: home.width < 560
-    readonly property int visibleHeroPills: home.width >= 920 ? 3 : (home.width >= 760 ? 2 : (home.width >= 620 ? 1 : 0))
+    readonly property int visibleHeroPills: home.width >= 920 ? 3 : (home.width >= 820 ? 2 : 0)
 
     readonly property var themeSwatches: [
         { id: "01-crimson", l: "Crimson", hex: "#f7768e" }, { id: "02-scarlet", l: "Scarlet", hex: "#ff5a5f" },
@@ -27,7 +27,7 @@ Item {
         { id: "07-peridot", l: "Peridot", hex: "#a6e3a1" }, { id: "08-emerald", l: "Emerald", hex: "#9ece6a" },
         { id: "09-verdant", l: "Verdant", hex: "#73daca" }, { id: "10-lagoon",  l: "Lagoon",  hex: "#2ac3de" },
         { id: "11-glacier", l: "Glacier", hex: "#7dcfff" }, { id: "12-cobalt",  l: "Cobalt",  hex: "#7aa2f7" },
-        { id: "13-indigo",  l: "Indigo",  hex: "#6c71c4" }, { id: "14-violet",  l: "Violet",  hex: "#bb9af7" },
+        { id: "13-indigo",  label: "Indigo", l: "Indigo", hex: "#6c71c4" }, { id: "14-violet", l: "Violet", hex: "#bb9af7" },
         { id: "15-orchid",  l: "Orchid",  hex: "#cba6f7" }, { id: "16-fuchsia", l: "Fuchsia", hex: "#f43f5e" }
     ]
     readonly property var powerModes: [
@@ -51,22 +51,22 @@ Item {
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: home.isCompact ? 92 : 112; radius: 8; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
                 RowLayout {
-                    anchors { fill: parent; leftMargin: 16; rightMargin: 16; topMargin: 10; bottomMargin: 10 } spacing: 16
+                    anchors { fill: parent; leftMargin: 16; rightMargin: 16; topMargin: 10; bottomMargin: 10 } spacing: home.isCompact ? 12 : 16
                     ColumnLayout {
-                        visible: !home.isCompact; spacing: 3
+                        visible: home.width >= 380; spacing: 3
                         Rectangle {
-                            implicitWidth: home.isWide ? 132 : 104; implicitHeight: home.isWide ? 76 : 60; radius: 6; color: Theme.bg; border.width: 2; border.color: wpMonM.containsMouse ? Theme.cyan : Theme.blue; clip: true
+                            implicitWidth: home.isCompact ? 76 : (home.isWide ? 132 : 104); implicitHeight: home.isCompact ? 46 : (home.isWide ? 76 : 60); radius: 6; color: Theme.bg; border.width: 2; border.color: wpMonM.containsMouse ? Theme.cyan : Theme.blue; clip: true
                             Image { id: wpImg; anchors { fill: parent; margins: 2 } source: home.wpPath; fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: false }
                             Text { visible: wpImg.status !== Image.Ready; anchors.centerIn: parent; text: "󰍹"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize + 10 }
                             MouseArea { id: wpMonM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("personalization", "ui-saver") }
                         }
-                        Rectangle { Layout.alignment: Qt.AlignHCenter; width: 42; height: 4; radius: 2; color: wpMonM.containsMouse ? Theme.blue : Theme.border }
+                        Rectangle { Layout.alignment: Qt.AlignHCenter; width: home.isCompact ? 28 : 42; height: 4; radius: 2; color: wpMonM.containsMouse ? Theme.blue : Theme.border }
                     }
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 3
-                        Text { text: home.hostShort; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize + 5; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("system", "sys-storage") } }
-                        Text { text: "Fedora Linux  ·  " + Status.gpuArch + "  ·  " + Theme.themeName; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; elide: Text.ElideRight; Layout.fillWidth: true; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("system", "sys-gpu") } }
-                        Text { text: "System specifications & display 󰅂"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("system", "disp-scale") } }
+                        Text { text: Status.userDeviceName || home.hostShort; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize + 5; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("accounts", "acc-profile") } }
+                        Text { text: (Status.userFullName || "Fedora Linux") + "  ·  " + Status.gpuArch + "  ·  " + Theme.themeName; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; elide: Text.ElideRight; Layout.fillWidth: true; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("system", "sys-gpu") } }
+                        Text { text: "Edit profile & system specifications 󰅂"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("accounts", "acc-profile") } }
                     }
                     Repeater {
                         model: [

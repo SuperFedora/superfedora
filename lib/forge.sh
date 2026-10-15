@@ -22,8 +22,7 @@ WEBAPP_DIR="$HOME/.local/share/superfedora/webapps"; SYSROOT="$HOME/.local/sysro
 TMP_BUILD="${XDG_CACHE_HOME:-$HOME/.cache}/superfedora/forge-build"; FORGE_LOG="$TMP_BUILD/forge.log"
 mkdir -p "$TMP_BUILD" "$STATE_DIR" "$STAMP_DIR" "$LEGACY_STAMP_DIR" "$BIN_DIR"; FORGE_ACTIVE_TARGET=""; CURRENT_TMP=""
 export TMPDIR="$TMP_BUILD" PATH="$BIN_DIR:$HOME/.cargo/bin:$SYSROOT/bin:$SYSROOT/lib/golang/bin:$SYSROOT/libexec/qt6:/usr/local/bin:/usr/bin:/bin:$PATH"
-export LD_LIBRARY_PATH="$SYSROOT/lib64:${LD_LIBRARY_PATH:-}" LIBRARY_PATH="$SYSROOT/lib64:$HOME/.local/usr/lib64:$HOME/.local/lib:/usr/lib64" CPATH="$SYSROOT/include:$SYSROOT/include/ffmpeg:$HOME/.local/usr/include" PKG_CONFIG_PATH="$SYSROOT/lib64/pkgconfig:$SYSROOT/share/pkgconfig:/usr/lib64/pkgconfig:/usr/share/pkgconfig" CMAKE_PREFIX_PATH="$SYSROOT;/usr" LIBCLANG_PATH="$SYSROOT/lib64" BINDGEN_EXTRA_CLANG_ARGS="-I$SYSROOT/include -I$SYSROOT/include/ffmpeg" PYTHONPATH="$SYSROOT/lib/python3.14/site-packages:$SYSROOT/lib64/python3.14/site-packages:${PYTHONPATH:-}"
-
+export LD_LIBRARY_PATH="$SYSROOT/lib64:${LD_LIBRARY_PATH:-}" LIBRARY_PATH="$SYSROOT/lib64:$HOME/.local/usr/lib64:$HOME/.local/lib:/usr/lib64" CPATH="$SYSROOT/include:$SYSROOT/include/ffmpeg:$HOME/.local/usr/include:/usr/include/ffmpeg" PKG_CONFIG_PATH="$SYSROOT/lib64/pkgconfig:$SYSROOT/share/pkgconfig:/usr/lib64/pkgconfig:/usr/share/pkgconfig" CMAKE_PREFIX_PATH="$SYSROOT;/usr" LIBCLANG_PATH="/usr/lib64" BINDGEN_EXTRA_CLANG_ARGS="-I$SYSROOT/include -I$SYSROOT/include/ffmpeg -I/usr/include/ffmpeg" PYTHONPATH="$SYSROOT/lib/python3.14/site-packages:$SYSROOT/lib64/python3.14/site-packages:${PYTHONPATH:-}"
 set_live() {
     [[ "${DRY:-0}" -eq 1 ]] && { echo "$5"; return 0; }; [[ "$1" == "1" ]] && FORGE_ACTIVE_TARGET="$3" || FORGE_ACTIVE_TARGET=""
     python3 -c 'import json,sys,time; p,a,st,t,pct,s=sys.argv[1:7]; json.dump({"active":a=="1","state":st,"target":t,"pct":int(pct),"step":s,"ts":int(time.time())},open(p,"w"))' "$LIVE_JSON" "$1" "$2" "$3" "$4" "$5" 2>/dev/null || true
@@ -31,7 +30,6 @@ set_live() {
     [[ "$1" == "0" && "$2" == "ok" && "${IN_UPDATE:-0}" -eq 0 && "$5" != *already* && "$5" != *Removed* && -x "$SF_ROOT/lib/notify-ctl.sh" ]] && "$SF_ROOT/lib/notify-ctl.sh" --banner update >/dev/null 2>&1 || true
 }
 trap '[[ -n "${CURRENT_TMP:-}" ]] && rm -rf "$CURRENT_TMP"; [[ -n "${FORGE_ACTIVE_TARGET:-}" ]] && set_live 0 error "$FORGE_ACTIVE_TARGET" 100 "[FAIL] Forge interrupted or failed (see forge.log)" || true' EXIT
-
 detect_hw() {
     CPU_ARCH="$(uname -m)"; CPU_MODEL="$(awk -F': ' '/^model name/{print $2; exit}' /proc/cpuinfo 2>/dev/null || echo "$CPU_ARCH")"; CPU_JOBS="$(nproc 2>/dev/null || echo 4)"; MARCH_TARGET=""
     command -v rustc >/dev/null 2>&1 && MARCH_TARGET="$(rustc --print target-cpus 2>/dev/null | sed -n 's/.*currently \([^)]*\)).*/\1/p' | head -1)"
@@ -45,14 +43,13 @@ detect_hw() {
     HOST_LDFLAGS="-Wl,-O1,--sort-common,--as-needed,-z,relro,-z,now,-rpath,$SYSROOT/lib64 -flto=auto ${LD_FLAG}"
     HOST_RUSTFLAGS="-C opt-level=3 -C target-cpu=native -C codegen-units=1 -C strip=symbols ${RUST_LD}"
 }
-
 ensure_pkgs() {
     local -a missing=(); local p l f
     for p in "$@"; do [[ "$p" == "ffmpeg-free-devel" ]] && rpm -q --quiet ffmpeg-libs 2>/dev/null && p="ffmpeg-devel"; [[ "$p" =~ ^(gcc|gcc-c\+\+|make|cmake|ninja-build)$ ]] && command -v "${p%-build}" >/dev/null 2>&1 && continue; rpm -q --quiet "$p" 2>/dev/null || [[ -f "$HOME/.local/pkg_cache/.ok-$p" ]] || missing+=("$p"); done
     [[ ${#missing[@]} -eq 0 ]] && return 0
     if [[ $EUID -eq 0 ]]; then dnf install -y "${missing[@]}"; elif [[ "${INSTALL_DEPS:-0}" -eq 1 ]] || sudo -n true 2>/dev/null; then sudo dnf install -y "${missing[@]}"
     else
-        echo "[+] Staging build headers into user sysroot: ${missing[*]}" | tee -a "$FORGE_LOG"; mkdir -p "$HOME/.local/pkg_cache" "$SYSROOT/lib64" "$SYSROOT/bin" "$SYSROOT/libexec/qt6"
+        echo "[+] Staging build headers into user sysroot: ${missing[*]}" | tee -a "$FORGE_LOG"; mkdir -p "$HOME/.local/pkg_cache" "$SYSROOT/lib64" "$SYSROOT/bin" "$SYSROOT/libexec/qt6"; export LIBCLANG_PATH="$SYSROOT/lib64"
         dnf download --resolve --arch="$(uname -m)" --arch=noarch --destdir="$HOME/.local/pkg_cache" "${missing[@]}" >/dev/null 2>&1 || dnf download --arch="$(uname -m)" --arch=noarch --destdir="$HOME/.local/pkg_cache" "${missing[@]}" >/dev/null 2>&1 || true
         for p in "$HOME/.local/pkg_cache"/*.rpm; do [[ -f "$p" && ! -f "$HOME/.local/pkg_cache/.extracted-$(basename "$p")" ]] && (cd "$HOME/.local/sysroot" && rpm2cpio "$p" 2>/dev/null | cpio -idmu --quiet 2>/dev/null || true) && touch "$HOME/.local/pkg_cache/.extracted-$(basename "$p")"; done
         for f in /usr/lib64/lib*.so* /usr/lib64/*.a /usr/lib64/*.o; do [[ -e "$SYSROOT/lib64/${f##*/}" ]] || ln -s "$f" "$SYSROOT/lib64/${f##*/}" 2>/dev/null || true; done
@@ -68,13 +65,12 @@ ensure_pkgs() {
         for p in "${missing[@]}"; do compgen -G "$HOME/.local/pkg_cache/${p}-[0-9]*.rpm" >/dev/null && touch "$HOME/.local/pkg_cache/.ok-$p" || true; done
     fi
 }
-
 preset_deps() {
     case "$1" in
         superfedora|supertheme|superforge|supershell|supernotify|superagent|tuigreet|ripgrep|rg|fd|zoxide|yazi|dua-cli|csvlens|fend) echo "gcc make" ;;
         ouch) echo "gcc make pkgconf-pkg-config bzip2-devel xz-devel libzstd-devel" ;; typst) echo "gcc make pkgconf-pkg-config openssl-devel" ;; helix|btop) echo "gcc gcc-c++ make" ;;
-        oculante) echo "gcc cmake make pkgconf-pkg-config gtk3-devel libX11-devel libxcb-devel" ;; satty) echo "gcc make pkgconf-pkg-config gtk4-devel libadwaita-devel libepoxy-devel fontconfig-devel" ;;
-        wl-screenrec) echo "gcc clang clang-devel make pkgconf-pkg-config ffmpeg-free-devel libdrm-devel wayland-devel" ;; termusic) echo "gcc clang clang-devel make pkgconf-pkg-config alsa-lib-devel dbus-devel protobuf-compiler gstreamer1-devel gstreamer1-plugins-base-devel" ;;
+        oculante) echo "gcc gcc-c++ cmake make nasm pkgconf-pkg-config gtk3-devel libX11-devel libxcb-devel fontconfig-devel freetype-devel" ;; satty) echo "gcc make pkgconf-pkg-config gtk4-devel libadwaita-devel libepoxy-devel fontconfig-devel" ;;
+        wl-screenrec) echo "gcc clang clang-devel make pkgconf-pkg-config ffmpeg-free-devel libdrm-devel libva-devel vulkan-headers wayland-devel" ;; termusic) echo "gcc clang clang-devel make pkgconf-pkg-config alsa-lib-devel dbus-devel protobuf-compiler gstreamer1-devel gstreamer1-plugins-base-devel" ;;
         imv) echo "gcc meson ninja-build pkgconf-pkg-config wayland-devel wayland-protocols-devel libxkbcommon-devel pango-devel cairo-devel librsvg2-devel libjpeg-turbo-devel libpng-devel libwebp-devel inih-devel libicu-devel imv" ;;
         hyprpicker) echo "gcc-c++ cmake ninja-build pkgconf-pkg-config wayland-devel wayland-protocols-devel cairo-devel pango-devel libxkbcommon-devel libjpeg-turbo-devel hyprutils-devel hyprwayland-scanner-devel hyprpicker" ;;
         zathura) echo "gcc meson ninja-build pkgconf-pkg-config gtk3-devel glib2-devel cairo-devel sqlite-devel girara-devel json-glib-devel libseccomp-devel zathura zathura-pdf-mupdf" ;;
@@ -194,6 +190,7 @@ forge_target() {
     fi
     if [[ "${SF_BUILD_MODE:-source}" == "quick" && "$repo" != *"SuperFedora/"* && "$force" -eq 0 ]]; then
         [[ -x "/usr/bin/$bin" ]] && { install_bin "/usr/bin/$bin" "$bin"; record_forge "$name" "$repo" "$bin" "system" "quick"; set_live 0 ok "$name" 100 "[OK] Installed $name ($BIN_DIR/$bin)"; return 0; }
+        if [[ "$name" == "oculante" ]] && curl -fsSL https://github.com/woelper/oculante/releases/latest/download/oculante_linux -o "$BIN_DIR/oculante" 2>/dev/null && chmod 755 "$BIN_DIR/oculante"; then record_forge "$name" "$repo" "$bin" "release" "quick"; set_live 0 ok "$name" 100 "[OK] Installed $name ($BIN_DIR/$bin)"; return 0; fi
         local bpkg="$name"; [[ "$cargo_args" == -p\ * ]] && bpkg="${cargo_args#-p }"; command -v cargo-binstall >/dev/null 2>&1 || curl -fsSL https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash >/dev/null 2>&1 || true
         if command -v cargo-binstall >/dev/null 2>&1 && cargo-binstall -y --force --install-path "$BIN_DIR" "$bpkg" >/dev/null 2>&1 && [[ -x "$BIN_DIR/$bin" ]]; then record_forge "$name" "$repo" "$bin" "binstall" "quick"; set_live 0 ok "$name" 100 "[OK] Installed $name ($BIN_DIR/$bin)"; return 0; fi
     fi

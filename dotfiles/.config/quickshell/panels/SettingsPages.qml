@@ -38,11 +38,31 @@ Item {
         else if (a.act === "clock24") Status.saveClockPrefs(!Status.clock24h, Status.clockSeconds); else if (a.act === "clockSec") Status.saveClockPrefs(Status.clock24h, !Status.clockSeconds);
     }
     function setSlider(kind, ratio) { const v = Math.max(0.0, Math.min(1.0, ratio)); if (kind === "bright") Status.setBrightness(Math.max(0.05, v)); else if (kind === "spk") Status.setSpeakerVolume(v); else if (kind === "mic") Status.setMicVolume(v); }
-    function openCardPanel(it) {
-        if (!it) return;
-        const targetCat = it.cats.indexOf(pg.activePage) >= 0 ? pg.activePage : (it.cats[0] || pg.activePage);
-        pg.clearSearchRequested();
-        Status.openSettingsItem(targetCat, it.id, "");
+    function openCardPanel(it) { if (!it) return; const targetCat = it.cats.indexOf(pg.activePage) >= 0 ? pg.activePage : (it.cats[0] || pg.activePage); pg.clearSearchRequested(); Status.openSettingsItem(targetCat, it.id, ""); }
+    function actionVerb(a, it) {
+        if (!a) return "Run";
+        const id = it ? (it.id || "") : "", l = (a.l || "").toLowerCase(), act = a.act || "";
+        if (id.indexOf("app-") === 0 && l.indexOf("test") < 0 && l.indexOf("open") < 0) return a.on ? "󰄬 Default" : "Set default";
+        if (a.on) return "󰄬 Selected";
+        if (act === "cmdClose" || l.indexOf("open ") === 0 || l.indexOf("launch") === 0 || l.indexOf(" browse") >= 0 || l.indexOf("tui") >= 0 || l.indexOf("folder") >= 0) return "Open";
+        if (l.indexOf("edit ") === 0 || l.indexOf(".conf") >= 0 || l.indexOf("bashrc") >= 0) return "Edit";
+        if (l.indexOf("play") >= 0 || l.indexOf("sound") >= 0 || l.indexOf("test ") === 0 || l.indexOf("banner") >= 0 || l.indexOf("toast") >= 0 || l.indexOf("preview") >= 0 || l.indexOf("start screensaver") >= 0) return "Preview";
+        if (l.indexOf("scan") >= 0 || l.indexOf("rescan") >= 0 || l.indexOf("check") >= 0) return "Scan"; if (l.indexOf("copy") >= 0) return "Copy"; if (l.indexOf("flush") >= 0) return "Flush";
+        if (l.indexOf("clear") >= 0 || l.indexOf("empty") >= 0 || l.indexOf("vacuum") >= 0) return "Clear"; if (l.indexOf("restart") >= 0 || l.indexOf("reload") >= 0 || l.indexOf("reset") >= 0) return "Reset";
+        if (l.indexOf("mute") >= 0 || l.indexOf("toggle") >= 0 || act.indexOf("Toggle") >= 0 || act.indexOf("Mute") >= 0 || act === "barOpacity" || act === "clock24" || act === "clockSec") return "Toggle";
+        if (l.indexOf("switch") >= 0 || l.indexOf("next ") === 0 || l.indexOf("prev ") === 0) return "Switch";
+        if (l.indexOf("status") >= 0 || l.indexOf("inspect") >= 0 || l.indexOf("table") >= 0 || l.indexOf("show ") === 0 || l.indexOf("list") >= 0 || l.indexOf("active ") === 0 || l.indexOf("verify") >= 0) return "Inspect";
+        if (id === "disp-bright" || id === "disp-scale" || id === "snd-spk" || id === "snd-mic" || id === "pwr-mode" || id === "pwr-screen" || id === "ui-theme" || id === "ui-Night" || id === "ui-bar" || id === "ui-saver" || id === "kb-layout" || id === "kb-rate" || id === "Language") return "Select";
+        return "Run";
+    }
+    function actionSub(a, it) {
+        if (!a) return "";
+        const v = pg.actionVerb(a, it), t = it ? it.title : "setting";
+        if (a.on) return (it && it.id.indexOf("app-") === 0) ? ("Active default handler for " + t) : ("Currently active selection for " + t);
+        if (v === "Set default") return "Set as your default handler for " + t; if (v === "Select") return "Switch " + t + " to " + a.l;
+        if (v === "Open") return "Open interactive tool or window"; if (v === "Edit") return "Open configuration file in editor";
+        if (v === "Inspect") return "Inspect live system state in floating terminal"; if (v === "Preview") return "Trigger immediate live preview";
+        return v === "Toggle" ? "Toggle setting state immediately" : ("Execute action for " + t);
     }
 
     NumberAnimation { id: panelAnim; target: contentCol; property: "opacity"; from: 0.78; to: 1.0; duration: 95; easing.type: Easing.OutCubic }
@@ -78,7 +98,7 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: 2
                             Text { text: sCard.modelData.title; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
-                            Text { text: sCard.modelData.sub; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; Layout.fillWidth: true; elide: Text.ElideRight }
+                            Text { text: sCard.modelData.sub; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; Layout.fillWidth: true; wrapMode: pg.isCompact ? Text.WordWrap : Text.NoWrap; maximumLineCount: pg.isCompact ? 2 : 1; elide: Text.ElideRight }
                         }
                         RowLayout {
                             visible: sCard.hasSlider; spacing: 8
@@ -182,66 +202,46 @@ Item {
                     model: pg.inItemPanel ? pg.curSubPanels : []
                     Rectangle {
                         id: subCard; required property var modelData
-                        Layout.fillWidth: true; implicitHeight: 64; radius: 6
-                        color: subCardM.containsMouse ? Theme.bgHover : Theme.bgAlt; border.width: 1; border.color: subCardM.containsMouse ? Theme.blue : Theme.border
+                        Layout.fillWidth: true; implicitHeight: Math.max(64, subCardRow.implicitHeight + 18); radius: 6; color: subCardM.containsMouse ? Theme.bgHover : Theme.bgAlt; border.width: 1; border.color: subCardM.containsMouse ? Theme.blue : Theme.border
                         MouseArea { id: subCardM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsSub(subCard.modelData.id) }
                         RowLayout {
-                            anchors { fill: parent; leftMargin: 18; rightMargin: 16 } spacing: 14
+                            id: subCardRow; anchors { fill: parent; leftMargin: 18; rightMargin: 16; topMargin: 9; bottomMargin: 9 } spacing: 14
                             Rectangle { implicitWidth: 36; implicitHeight: 36; radius: 6; color: Theme.bg; border.width: 1; border.color: Theme.border; Text { anchors.centerIn: parent; text: subCard.modelData.icon || "󰒓"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize + 3 } }
-                            ColumnLayout {
-                                Layout.fillWidth: true; spacing: 2
-                                Text { text: subCard.modelData.title; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
-                                Text { text: subCard.modelData.sub; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; Layout.fillWidth: true; elide: Text.ElideRight }
-                            }
-                            Rectangle {
-                                implicitWidth: 98; implicitHeight: 28; radius: 5; color: subCardM.containsMouse ? Theme.blue : Theme.bg; border.width: 1; border.color: subCardM.containsMouse ? Theme.blue : Theme.border
-                                Text { anchors.centerIn: parent; text: "Open panel  󰅂"; color: subCardM.containsMouse ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.weight: Font.DemiBold }
-                            }
+                            ColumnLayout { Layout.fillWidth: true; spacing: 2; Text { text: subCard.modelData.title; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight } Text { text: subCard.modelData.sub; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; Layout.fillWidth: true; wrapMode: pg.isCompact ? Text.WordWrap : Text.NoWrap; maximumLineCount: pg.isCompact ? 2 : 1; elide: Text.ElideRight } }
+                            Rectangle { implicitWidth: pg.isCompact ? 76 : 98; implicitHeight: 28; radius: 5; color: subCardM.containsMouse ? Theme.blue : Theme.bg; border.width: 1; border.color: subCardM.containsMouse ? Theme.blue : Theme.border; Text { anchors.centerIn: parent; text: pg.isCompact ? "Open 󰅂" : "Open panel  󰅂"; color: subCardM.containsMouse ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; font.weight: Font.DemiBold } }
                         }
                     }
                 }
 
-                // 2C. Individual Setting Options (Every option gets its own dedicated Windows 11 card row + Level 3 drill-down)
-                Text { visible: Boolean(pg.curItem && pg.curItem.acts && pg.curItem.acts.length > 0); text: "Individual options & presets"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.weight: Font.DemiBold; Layout.topMargin: 4 }
+                // 2C. Individual Setting Options (Direct selection / execution with contextual verbs)
+                Text { visible: Boolean(pg.curItem && pg.curItem.acts && pg.curItem.acts.length > 0); text: "Options & actions"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.weight: Font.DemiBold; Layout.topMargin: 4 }
                 Repeater {
                     model: (pg.inItemPanel && pg.curItem && pg.curItem.acts) ? pg.curItem.acts : []
                     Rectangle {
                         id: optCard; required property var modelData; required property int index
                         readonly property bool isOn: Boolean(modelData.on); readonly property bool isDanger: Boolean(modelData.danger)
-                        Layout.fillWidth: true; implicitHeight: 62; radius: 6
-                        color: optRowM.containsMouse ? Theme.bgHover : Theme.bgAlt; border.width: isOn ? 1.5 : 1; border.color: isDanger ? Theme.red : (isOn ? Theme.blue : (optRowM.containsMouse ? Theme.muted : Theme.border))
-                        MouseArea { id: optRowM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsSub("act-" + optCard.index) }
+                        readonly property string verb: pg.actionVerb(modelData, pg.curItem)
+                        Layout.fillWidth: true; implicitHeight: Math.max(60, optCardRow.implicitHeight + 16); radius: 6; color: optRowM.containsMouse ? Theme.bgHover : Theme.bgAlt; border.width: isOn ? 1.5 : 1; border.color: isDanger ? Theme.red : (isOn ? Theme.blue : (optRowM.containsMouse ? Theme.blue : Theme.border))
+                        MouseArea { id: optRowM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pg.triggerAction(optCard.modelData) }
                         RowLayout {
-                            anchors { fill: parent; leftMargin: 18; rightMargin: 16 } spacing: 14
+                            id: optCardRow; anchors { fill: parent; leftMargin: 18; rightMargin: 16; topMargin: 8; bottomMargin: 8 } spacing: 14
+                            Rectangle { implicitWidth: 34; implicitHeight: 34; radius: 6; color: optCard.isOn ? Theme.blue : Theme.bg; border.width: 1; border.color: optCard.isOn ? Theme.blue : Theme.border; Text { anchors.centerIn: parent; text: optCard.isOn ? "󰄬" : (optCard.isDanger ? "󰀨" : (pg.curItem ? pg.curItem.icon : "󰒓")); color: optCard.isOn ? Theme.bg : (optCard.isDanger ? Theme.red : Theme.fg); font.family: Theme.font; font.pixelSize: Theme.fontSize + 1 } }
+                            ColumnLayout { Layout.fillWidth: true; spacing: 2; Text { text: optCard.modelData.l; color: optCard.isDanger ? Theme.red : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight } Text { text: pg.actionSub(optCard.modelData, pg.curItem); color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; Layout.fillWidth: true; wrapMode: pg.isCompact ? Text.WordWrap : Text.NoWrap; maximumLineCount: pg.isCompact ? 2 : 1; elide: Text.ElideRight } }
                             Rectangle {
-                                implicitWidth: 34; implicitHeight: 34; radius: 6; color: optCard.isOn ? Theme.blue : Theme.bg; border.width: 1; border.color: optCard.isOn ? Theme.blue : Theme.border
-                                Text { anchors.centerIn: parent; text: optCard.isOn ? "󰄬" : (optCard.isDanger ? "󰀨" : (pg.curItem ? pg.curItem.icon : "󰒓")); color: optCard.isOn ? Theme.bg : (optCard.isDanger ? Theme.red : Theme.fg); font.family: Theme.font; font.pixelSize: Theme.fontSize + 1 }
-                            }
-                            ColumnLayout {
-                                Layout.fillWidth: true; spacing: 2
-                                Text { text: optCard.modelData.l; color: optCard.isDanger ? Theme.red : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
-                                Text { text: optCard.isOn ? "Currently active setting  ·  Click card to inspect or configure" : ("Dedicated option for " + (pg.curItem ? pg.curItem.title : "setting") + "  ·  Click card for details"); color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; Layout.fillWidth: true; elide: Text.ElideRight }
-                            }
-                            Rectangle {
-                                implicitWidth: Math.max(84, optBtnTxt.implicitWidth + 24); implicitHeight: 30; radius: 5
-                                color: optBtnM.containsMouse ? (optCard.isDanger ? Theme.red : Theme.blue) : (optCard.isOn ? Theme.blue : Theme.bg)
-                                border.width: 1; border.color: optCard.isDanger ? Theme.red : (optCard.isOn ? Theme.blue : Theme.border)
-                                Text { id: optBtnTxt; anchors.centerIn: parent; text: optCard.isOn ? "Active" : "Apply"; color: (optCard.isOn || optBtnM.containsMouse) ? Theme.bg : (optCard.isDanger ? Theme.red : Theme.fg); font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.weight: Font.DemiBold }
+                                implicitWidth: Math.max(88, optBtnTxt.implicitWidth + 24); implicitHeight: 30; radius: 5; color: (optRowM.containsMouse || optBtnM.containsMouse) ? (optCard.isDanger ? Theme.red : Theme.blue) : (optCard.isOn ? Theme.blue : Theme.bg); border.width: 1; border.color: optCard.isDanger ? Theme.red : (optCard.isOn ? Theme.blue : Theme.border)
+                                Text { id: optBtnTxt; anchors.centerIn: parent; text: optCard.verb; color: (optCard.isOn || optRowM.containsMouse || optBtnM.containsMouse) ? Theme.bg : (optCard.isDanger ? Theme.red : Theme.fg); font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.weight: Font.DemiBold }
                                 MouseArea { id: optBtnM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pg.triggerAction(optCard.modelData) }
                             }
-                            Text { text: "󰅂"; color: optRowM.containsMouse ? Theme.blue : Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize + 1 }
                         }
                     }
                 }
             }
 
-            // ================ VIEW 3: LEVEL-3 DEEP SUB-PANEL (Full Right Side) ================
+            // ================ VIEW 3: LEVEL-3 DEEP SUB-PANEL & INLINE PROFILE EDITOR ================
             LauncherMenu {
-                visible: pg.inSubPanel; Layout.fillWidth: true
-                activeSection: Status.settingsSubPanel; parentItem: pg.curItem; btList: pg.btList
-                onTriggerSettingAction: actObj => pg.triggerAction(actObj)
-                onExecuteCommand: (c, cl) => pg.executeCommand(c, cl)
-                onCloseRequested: Status.settingsOpen = false
+                visible: pg.inSubPanel || (pg.inItemPanel && pg.curItem && pg.curItem.id === "acc-profile"); Layout.fillWidth: true
+                activeSection: pg.inSubPanel ? Status.settingsSubPanel : (pg.curItem && pg.curItem.id === "acc-profile" ? "usr-edit" : ""); parentItem: pg.curItem; btList: pg.btList
+                onTriggerSettingAction: actObj => pg.triggerAction(actObj); onExecuteCommand: (c, cl) => pg.executeCommand(c, cl); onCloseRequested: Status.settingsOpen = false
             }
             Rectangle {
                 visible: pg.inSubPanel; Layout.fillWidth: true; implicitHeight: 46; radius: 6; color: retSubM.containsMouse ? Theme.bgHover : Theme.bgAlt; border.width: 1; border.color: Theme.border

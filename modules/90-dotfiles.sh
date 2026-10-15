@@ -38,7 +38,7 @@ module_run() {
 Type=Application
 Name=Yazi File Manager
 Comment=Blazing fast terminal file manager written in Rust
-Exec=kitty --class superfiles --title="Yazi File Manager" -e yazi %u
+Exec=xdg-terminal-exec --class superfiles --title="Yazi File Manager" -e yazi %u
 Icon=system-file-manager
 Terminal=false
 Categories=System;FileTools;FileManager;
