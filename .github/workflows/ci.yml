@@ -15,14 +15,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Bash syntax
         run: |
-          for f in install.sh bin/superfedora lib/*.sh modules/*.sh scripts/*.sh \
+          for f in install.sh lib/*.sh modules/*.sh scripts/*.sh \
                    $(grep -rl '^#!/usr/bin/env bash' dotfiles); do
             bash -n "$f" || exit 1
           done
       - name: ShellCheck
         run: |
           shellcheck --version
-          shellcheck -S warning -x install.sh bin/superfedora lib/*.sh modules/*.sh scripts/*.sh tests/*.sh dotfiles/.config/hypr/scripts/*.sh
+          shellcheck -S warning -x install.sh lib/*.sh modules/*.sh scripts/*.sh tests/*.sh dotfiles/.config/hypr/scripts/*.sh
       - name: Installer unit tests
         run: bash tests/test_installer.sh
       - name: Page Rules & Zero-Emoji Invariant
