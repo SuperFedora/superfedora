@@ -2,27 +2,21 @@
 # Copyright 2026 SuperFedora Contributors
 # SPDX-License-Identifier: Apache-2.0
 """scripts/forge-webapp.py — Forge chromeless Firefox WebApps (shared or isolated profile, hicolor icons, .desktop)."""
-import datetime
-import html.parser
-import io
-import json
-import os
-import re
-import shutil
-import subprocess
-import sys
-import time
-import urllib.parse
-import urllib.request
+import datetime, html.parser, io, json, os, re, shutil, ssl, subprocess, sys, time, urllib.parse, urllib.request
 from PIL import Image, ImageDraw
 
 LAUNCHER_TPL = '''#!/usr/bin/env python3
 # Copyright 2026 SuperFedora Contributors
 # SPDX-License-Identifier: Apache-2.0
-import configparser, os, shutil, sqlite3, sys, tempfile
+import configparser, os, shutil, sqlite3, subprocess, sys, tempfile
 
 pdir, url, mode, aid = {pdir!r}, {url!r}, {mode!r}, {aid!r}
+target_url = sys.argv[1] if len(sys.argv) > 1 else url
 os.makedirs(os.path.join(pdir, "chrome"), exist_ok=True)
+if subprocess.run(["pgrep", "-f", f"firefox.*--profile {{pdir}}"], stdout=subprocess.DEVNULL).returncode == 0:
+    subprocess.run(["hyprctl", "dispatch", "focuswindow", f"class:^({{aid}})$"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if len(sys.argv) <= 1:
+        sys.exit(0)
 if mode == "shared":
     for base in (os.path.expanduser("~/.config/mozilla/firefox"), os.path.expanduser("~/.mozilla/firefox")):
         ini = os.path.join(base, "profiles.ini")
@@ -61,7 +55,7 @@ if mode == "shared":
                             if os.path.isfile(os.path.join(main, f)):
                                 shutil.copy2(os.path.join(main, f), os.path.join(td, f))
                         try:
-                            c = sqlite3.connect(dc)
+                            c = sqlite3.connect(dc, timeout=1.5)
                             c.execute("ATTACH DATABASE ? AS m", (os.path.join(td, "cookies.sqlite"),))
                             c.execute("INSERT OR REPLACE INTO moz_cookies SELECT * FROM m.moz_cookies")
                             c.commit()
@@ -80,77 +74,110 @@ if mode == "shared":
                             pass
             break
 os.environ["MOZ_ENABLE_WAYLAND"] = "1"
-os.execvp("firefox", ["firefox", "--no-remote", "--new-instance", "--profile", pdir, "--name", aid, "--class", aid, sys.argv[1] if len(sys.argv) > 1 else url])
+os.execvp("firefox", ["firefox", "--no-remote", "--new-instance", "--profile", pdir, "--name", aid, "--class", aid, target_url])
 '''
 
 
 class MetaParser(html.parser.HTMLParser):
-    def __init__(self, base_url, fixed_title):
+    def __init__(self, base_url):
         super().__init__()
-        self.base_url = base_url
-        self.fixed_title = fixed_title
-        self.in_title = False
-        self.titles = []
-        self.icons = []
+        self.base_url, self.in_title, self.done_title = base_url, False, False
+        self.title_parts, self.meta_title, self.manifest_url, self.icons = [], "", "", []
 
     def handle_starttag(self, tag, attrs):
         d = {k.lower(): (v or "") for k, v in attrs}
-        if tag == "title":
+        if tag == "title" and not self.done_title:
             self.in_title = True
-        elif tag == "meta" and d.get("property") in ("og:site_name", "application-name") and d.get("content") and not self.fixed_title:
-            self.titles.insert(0, d["content"].strip())
-        elif tag == "link" and any(x in d.get("rel", "").lower() for x in ("apple-touch-icon", "icon", "fluid-icon")) and d.get("href"):
-            sz = sum(int(x) for x in re.findall(r"\d+", d.get("sizes", "0"))[:1])
-            self.icons.append((sz + (100 if "apple" in d.get("rel", "").lower() else 0), urllib.parse.urljoin(self.base_url, d["href"])))
+        elif tag == "meta":
+            k, v = (d.get("property") or d.get("name") or "").lower(), d.get("content", "").strip()
+            if k in ("application-name", "apple-mobile-web-app-title", "og:site_name", "og:title") and v and not self.meta_title:
+                self.meta_title = v
+        elif tag == "link" and d.get("href"):
+            rel, href = d.get("rel", "").lower(), urllib.parse.urljoin(self.base_url, d["href"])
+            if "manifest" in rel and not self.manifest_url:
+                self.manifest_url = href
+            elif any(x in rel for x in ("apple-touch-icon", "icon", "fluid-icon")):
+                sz = sum(int(x) for x in re.findall(r"\d+", d.get("sizes", "0"))[:1])
+                self.icons.append((sz + (100 if "apple" in rel else 0), href))
 
     def handle_data(self, data):
         if self.in_title:
-            self.titles.append(data)
+            self.title_parts.append(data)
 
     def handle_endtag(self, tag):
-        if tag == "title":
-            self.in_title = False
+        if tag == "title" and self.in_title:
+            self.in_title, self.done_title = False, True
+
+
+def fetch_url(u, hdrs, timeout=6):
+    try:
+        return urllib.request.urlopen(urllib.request.Request(u, headers=hdrs), timeout=timeout)
+    except Exception:
+        return urllib.request.urlopen(urllib.request.Request(u, headers=hdrs), timeout=timeout, context=ssl._create_unverified_context())
+
+
+def clean_title(raw, fallback):
+    t = re.split(r"\s+[-|—·:]\s+", (raw or "").strip())[0].strip()
+    words = t.split()
+    t = " ".join(w for i, w in enumerate(words) if i == 0 or w.lower() != words[i - 1].lower()).strip()
+    if not t or t.lower() in ("index", "home", "welcome", "loading", "login", "sign in", "web"):
+        t = fallback
+    return t.title() if t.islower() else t
 
 
 def set_live(ljson, active, state, target, pct, step):
     try:
         with open(ljson, "w", encoding="utf-8") as fh:
             json.dump({"active": active, "state": state, "target": target, "pct": pct, "step": step, "ts": int(time.time())}, fh)
-        subprocess.run(["qs", "ipc", "call", "status", "refresh"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["qs", "ipc", "call", "status", "reloadForge"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception:
         pass
 
 
 def main():
     url, cname, mode, wdir, bdir, fjson, ljson = sys.argv[1:8]
+    if "|" in url and not cname:
+        url, cname = [x.strip() for x in url.split("|", 1)]
     parsed = urllib.parse.urlparse(url)
     host = (parsed.hostname or "webapp").lower().removeprefix("www.")
+    host_label = host.split(".")[0].capitalize()
     slug = re.sub(r"[^a-z0-9]+", "-", cname.lower() if cname else (host.split(".")[0] if host.count(".") == 1 else host.replace(".", "-"))).strip("-") or "webapp"
     aid, title = f"sf-webapp-{slug}", cname.strip()
     hdrs = {"User-Agent": "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"}
-    mp = MetaParser(url, title)
+    mp = MetaParser(url)
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers=hdrs), timeout=6) as r:
+        with fetch_url(url, hdrs, 6) as r:
             url = r.geturl() or url
             mp.base_url = url
             mp.feed(r.read(262144).decode("utf-8", errors="ignore"))
-            if not title and mp.titles:
-                title = re.split(r"\s+[-|—·]\s+", " ".join(mp.titles).strip())[0].strip()
     except Exception:
         pass
-    title = title or host.split(".")[0].capitalize()
+    if mp.manifest_url:
+        try:
+            with fetch_url(mp.manifest_url, hdrs, 4) as mr:
+                mf = json.loads(mr.read(131072).decode("utf-8", errors="ignore"))
+                if not title and (mf.get("short_name") or mf.get("name")):
+                    mp.meta_title = (mf.get("short_name") or mf.get("name")).strip()
+                for ic in mf.get("icons") or []:
+                    if ic.get("src"):
+                        sz = sum(int(x) for x in re.findall(r"\d+", str(ic.get("sizes", "0")))[:1])
+                        mp.icons.append((sz + 150, urllib.parse.urljoin(mp.manifest_url, ic["src"])))
+        except Exception:
+            pass
+    title = clean_title(title or mp.meta_title or "".join(mp.title_parts), host_label)
     set_live(ljson, True, "running", title, 45, f"[2/4] Installing hicolor app icons (16px..512px) for {title}...")
     mp.icons.sort(key=lambda x: x[0], reverse=True)
-    img = None
-    cands = [u for _, u in mp.icons] + [
+    img, cands = None, [u for _, u in mp.icons] + [
+        urllib.parse.urljoin(url, "images/icon-512x512.png"),
+        urllib.parse.urljoin(url, "images/icon-192x192.png"),
         f"{parsed.scheme}://{parsed.netloc}/apple-touch-icon.png",
         f"https://www.google.com/s2/favicons?sz=256&domain={host}",
         f"https://icons.duckduckgo.com/ip3/{host}.ico",
         f"{parsed.scheme}://{parsed.netloc}/favicon.ico",
     ]
-    for iu in cands:
+    for iu in dict.fromkeys(cands):
         try:
-            with urllib.request.urlopen(urllib.request.Request(iu, headers=hdrs), timeout=5) as ir:
+            with fetch_url(iu, hdrs, 5) as ir:
                 im = Image.open(io.BytesIO(ir.read())).convert("RGBA")
                 if im.width >= 16:
                     img = im
@@ -161,7 +188,8 @@ def main():
         img = Image.new("RGBA", (256, 256), (26, 27, 38, 255))
         dr = ImageDraw.Draw(img)
         dr.rectangle([8, 8, 247, 247], outline=(122, 162, 247, 255), width=8)
-        dr.rectangle([20, 20, 235, 235], outline=(42, 195, 222, 255), width=4)
+        dr.rectangle([22, 22, 233, 233], outline=(42, 195, 222, 255), width=4)
+        dr.rectangle([64, 64, 191, 191], fill=(36, 40, 59, 255), outline=(122, 162, 247, 255), width=4)
     hicolor = os.path.expanduser("~/.local/share/icons/hicolor")
     for sz in (16, 32, 48, 64, 128, 256, 512):
         dd = os.path.join(hicolor, f"{sz}x{sz}", "apps")
@@ -174,7 +202,7 @@ def main():
     with open(os.path.join(pdir, "user.js"), "w", encoding="utf-8") as fh:
         fh.write(
             'user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);\n'
-            'user_pref("browser.tabs.inTitlebar", 0);\n'
+            'user_pref("browser.tabs.inTitlebar", 1);\n'
             'user_pref("browser.tabs.warnOnClose", false);\n'
             'user_pref("browser.tabs.closeWindowWithLastTab", true);\n'
             'user_pref("browser.shell.checkDefaultBrowser", false);\n'
@@ -187,7 +215,7 @@ def main():
     with open(os.path.join(pdir, "chrome", "userChrome.css"), "w", encoding="utf-8") as fh:
         fh.write(
             '@namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");\n'
-            "#navigator-toolbox, #TabsToolbar, #nav-bar, #PersonalToolbar, #titlebar, #sidebar-box, #sidebar-splitter {\n"
+            "#navigator-toolbox, #TabsToolbar, #nav-bar, #PersonalToolbar, #titlebar, .titlebar-buttonbox-container, #sidebar-box, #sidebar-splitter {\n"
             "    visibility: collapse !important; display: none !important; max-height: 0 !important; min-height: 0 !important;\n"
             "}\n"
             "#browser, #appcontent, #tabbrowser-tabbox, #tabbrowser-tabpanels { margin: 0 !important; padding: 0 !important; border: 0 !important; }\n"
@@ -208,15 +236,8 @@ def main():
         )
     d = json.load(open(fjson, encoding="utf-8")) if os.path.exists(fjson) else {}
     d.setdefault("targets", {})[slug] = {
-        "type": "webapp",
-        "app_id": aid,
-        "name": title,
-        "url": url,
-        "profile": mode,
-        "binary": bpath,
-        "icon": icon_p,
-        "desktop": desk_p,
-        "built_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "type": "webapp", "app_id": aid, "name": title, "url": url, "profile": mode, "binary": bpath, "icon": icon_p,
+        "desktop": desk_p, "built_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     with open(fjson, "w", encoding="utf-8") as fh:
         json.dump(d, fh, indent=2)

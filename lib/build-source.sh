@@ -165,8 +165,24 @@ build_target() {
             make -C "$tmp/btop" PREFIX="$HOME/.local" install
             rm -rf "$tmp"
             [[ -x "$HOME/.local/bin/btop" ]] && mark_built btop ;;
+        superfedora|sf)
+            ensure_build_deps gcc make
+            if ! command -v cargo >/dev/null 2>&1; then
+                curl -fsSL https://sh.rustup.rs | sh -s -- -y --no-modify-path
+            fi
+            echo "[+] Compiling superfedora Rust engine for localhost ($MARCH_TARGET, $CPU_JOBS threads)..."
+            (cd "$SF_ROOT" && CC="$cc_bin" CXX="$cxx_bin" CFLAGS="$HOST_CFLAGS" CXXFLAGS="$HOST_CXXFLAGS" \
+                RUSTFLAGS="$HOST_RUSTFLAGS" CARGO_BUILD_JOBS="$CPU_JOBS" cargo build --release)
+            local sf_bin="$SF_ROOT/target/x86_64-unknown-linux-musl/release/superfedora"
+            [[ -x "$sf_bin" ]] || sf_bin="$SF_ROOT/target/release/superfedora"
+            if [[ -x "$sf_bin" ]]; then
+                install -m 755 "$sf_bin" "$SF_ROOT/bin/.sf.tmp.$$" && mv -f "$SF_ROOT/bin/.sf.tmp.$$" "$SF_ROOT/bin/superfedora"
+                install -m 755 "$sf_bin" "$HOME/.local/bin/.sf.tmp.$$" && mv -f "$HOME/.local/bin/.sf.tmp.$$" "$HOME/.local/bin/superfedora"
+                ln -sf "$HOME/.local/bin/superfedora" "$HOME/.local/bin/sf"
+                mark_built superfedora
+            fi ;;
         *)
-            echo "error: unknown source target '$comp' (expected: wlctl, bluetui, wiremix, tuigreet, fuzzel, btop, all)" >&2
+            echo "error: unknown source target '$comp' (expected: superfedora, wlctl, bluetui, wiremix, tuigreet, fuzzel, btop, all)" >&2
             exit 2 ;;
     esac
     echo "[OK] Built $comp for localhost CPU ($MARCH_TARGET)"
@@ -187,10 +203,10 @@ print_status() {
     printf '  COMPONENT   STATE           BINARY\n'
     printf '  ---------   -------------   ------\n'
     local c
-    for c in wlctl bluetui wiremix tuigreet fuzzel btop; do
+    for c in superfedora wlctl bluetui wiremix tuigreet fuzzel btop; do
         local st="binary/pkg"
         is_source_built "$c" "$c" && st="source-native"
-        printf '  %-10s  [%-13s] %s\n' "$c" "$st" "$(command -v "$c" 2>/dev/null || echo missing)"
+        printf '  %-12s [%-13s] %s\n' "$c" "$st" "$(command -v "$c" 2>/dev/null || echo missing)"
     done
 }
 
@@ -219,10 +235,10 @@ case "$ACTION" in
         echo "[OK] Localhost hardware profile written to $HW_ENV (-march=$MARCH_TARGET, $CPU_JOBS threads)" ;;
     all)
         write_hw_profile
-        for t in wlctl bluetui wiremix tuigreet fuzzel btop; do
+        for t in superfedora wlctl bluetui wiremix tuigreet fuzzel btop; do
             build_target "$t" "$FORCE"
         done ;;
-    wlctl|bluetui|wiremix|tuigreet|fuzzel|btop)
+    superfedora|sf|wlctl|bluetui|wiremix|tuigreet|fuzzel|btop)
         build_target "$ACTION" "$FORCE" ;;
     *)
         if [[ -x "$SF_ROOT/lib/forge.sh" ]]; then

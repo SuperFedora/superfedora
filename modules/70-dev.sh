@@ -29,11 +29,11 @@ module_run() {
 
         _src_t() {
             local c
-            for c in wlctl bluetui wiremix tuigreet fuzzel btop; do
+            for c in superfedora wlctl bluetui wiremix tuigreet fuzzel btop; do
                 [[ -f "$SF_STATE/source-built/$c.stamp" ]] || return 1
             done
         }
         _src_i() { "$SF_ROOT/lib/build-source.sh" all; }
-        need "localhost native source builds (wlctl, bluetui, wiremix, tuigreet, fuzzel, btop)" _src_t _src_i
+        need "localhost native source builds (superfedora, wlctl, bluetui, wiremix, tuigreet, fuzzel, btop)" _src_t _src_i
     fi
 }

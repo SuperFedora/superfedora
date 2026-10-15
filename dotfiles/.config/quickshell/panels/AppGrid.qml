@@ -44,7 +44,7 @@ PanelWindow {
     }
 
     readonly property var apps: {
-        const raw = ((DesktopEntries.applications && DesktopEntries.applications.values) ? DesktopEntries.applications.values : []).concat(Status.localApps || []);
+        const raw = (Status.localApps || []).concat((DesktopEntries.applications && DesktopEntries.applications.values) ? DesktopEntries.applications.values : []);
         const q = root.filterText.trim().toLowerCase(), list = [], seen = {};
         for (let i = 0; i < raw.length; i++) {
             const e = raw[i];
@@ -212,8 +212,9 @@ PanelWindow {
                 Repeater {
                     model: root.menuEntry ? [
                         { label: "Open " + root.menuEntry.name, act: "open" },
-                        { label: root.isPinned(root.menuEntry.id) ? "Remove from Dock" : "Keep in Dock", act: "pin" }
-                    ] : []
+                        { label: root.isPinned(root.menuEntry.id) ? "Remove from Dock" : "Keep in Dock", act: "pin" },
+                        { label: "Uninstall WebApp", act: "unforge", hide: !String(root.menuEntry.id || "").startsWith("sf-webapp-") }
+                    ].filter(r => !r.hide) : []
                     Rectangle {
                         required property var modelData
                         Layout.fillWidth: true; implicitHeight: 26; radius: Theme.radiusSm; color: cmMouse.containsMouse ? Theme.bgHover : "transparent"
@@ -224,6 +225,7 @@ PanelWindow {
                                 const entry = root.menuEntry; root.menuEntry = null;
                                 if (!entry) return;
                                 if (parent.modelData.act === "open") root.launchEntry(entry);
+                                else if (parent.modelData.act === "unforge") Status.removeForge(entry.id);
                                 else Status.runDockCmd((root.isPinned(entry.id) ? "unpin '" : "pin '") + entry.id + "'");
                             }
                         }
