@@ -5,7 +5,7 @@ import re
 import sys
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-CODE_EXTS = {".sh", ".py", ".qml", ".js", ".css"}
+CODE_EXTS = {".sh", ".py", ".qml", ".js", ".css", ".svg"}
 SKIP_DIRS = {".git", "__pycache__", "node_modules"}
 
 EMOJI_RE = re.compile(

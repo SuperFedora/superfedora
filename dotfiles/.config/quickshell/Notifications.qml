@@ -81,7 +81,7 @@ Scope {
             engineer: { role: "engineer", roleTitle: "SYS ENG",   zone: "top-right",     appName: "SUPERFEDORA",     summary: "Btrfs Checkpoint Verified",  body: "Workstation subvolume state synchronized and ready for rollback.", urgency: "normal", timeout: 6000 },
             app:      { role: "app",      roleTitle: "APP COMMS", zone: "top-right",     appName: "FIREFOX",         summary: "External App Transmission",  body: "Incoming desktop application relay framed in 16-bit scanline bezel.", urgency: "normal", timeout: 6000 }
         };
-        if (r === "all") { for (const k of ["ai", "security", "builder", "engineer"]) { root.synthSeq += 1; root.pushItem(Object.assign({ id: root.synthSeq }, samples[k])); } }
+        if (r === "all") { for (const k of ["ai", "security", "builder", "engineer", "app"]) { root.synthSeq += 1; root.pushItem(Object.assign({ id: root.synthSeq }, samples[k])); } }
         else if (samples[r]) { root.synthSeq += 1; root.pushItem(Object.assign({ id: root.synthSeq }, samples[r])); Status.playSfx(r === "security" ? "alert" : "confirm"); }
     }
 
@@ -138,7 +138,7 @@ Scope {
             visible: zoneWin.zoneToasts.length > 0 && !Status.sessionLocked
             screen: Quickshell.screens[0]; color: "transparent"; exclusionMode: ExclusionMode.Ignore
             anchors { top: zoneWin.zid !== "bottom-center"; bottom: zoneWin.zid === "bottom-center"; right: zoneWin.zid === "top-right" }
-            margins { top: zoneWin.zid === "top-center" ? (bannerOverlay.active ? Theme.barHeight + 162 : Theme.barHeight + 10) : (Theme.barHeight + 8); bottom: 68; right: 10 }
+            margins { top: zoneWin.zid === "top-center" ? ((bannerOverlay.active && bannerOverlay.kind === "warning") ? Theme.barHeight + 162 : Theme.barHeight + 10) : (Theme.barHeight + 8); bottom: 68; right: 10 }
             implicitWidth: zoneWin.modelData.w; implicitHeight: zoneCol.implicitHeight
 
             ColumnLayout {
@@ -147,7 +147,9 @@ Scope {
                     model: zoneWin.zoneToasts
                     Rectangle {
                         id: card; required property var modelData
+                        readonly property bool hasBody: String(modelData.body || "") !== ""
                         readonly property string fullBody: String(modelData.body || modelData.summary || "")
+                        readonly property bool hasAppIcon: modelData.role === "app" && (modelData.image !== "" || modelData.appIcon !== "")
                         property int visibleChars: 0; property bool talkOpen: false
                         readonly property bool typing: card.visibleChars < card.fullBody.length
                         readonly property color roleColor: modelData.role === "security" ? Theme.danger : (modelData.role === "builder" ? Theme.ok : (modelData.role === "ai" ? Theme.primary : (modelData.role === "engineer" ? Theme.accent : Theme.magenta)))
@@ -161,6 +163,13 @@ Scope {
                             running: card.typing; interval: 25; repeat: true; triggeredOnStart: true
                             onTriggered: { card.visibleChars = Math.min(card.fullBody.length, card.visibleChars + Math.max(1, Math.ceil(card.fullBody.length / 12))); card.talkOpen = card.typing ? !card.talkOpen : false; portraitCanvas.requestPaint(); }
                         }
+                        Connections {
+                            target: Theme
+                            function onModeChanged() { portraitCanvas.requestPaint(); }
+                            function onBgChanged() { portraitCanvas.requestPaint(); }
+                            function onBlueChanged() { portraitCanvas.requestPaint(); }
+                            function onCyanChanged() { portraitCanvas.requestPaint(); }
+                        }
 
                         RowLayout {
                             id: contentRow; anchors { fill: parent; margins: 10 } spacing: 12
@@ -168,16 +177,27 @@ Scope {
                                 id: portraitFrame; Layout.preferredWidth: 64; Layout.preferredHeight: 64; Layout.alignment: Qt.AlignTop
                                 color: Theme.bgAlt; radius: Theme.radiusSm; border.width: 2; border.color: card.roleColor
                                 Rectangle { anchors { fill: parent; margins: 2 } color: "transparent"; border.width: 1; border.color: Theme.border }
-                                Image { anchors { fill: parent; margins: 4 } fillMode: Image.PreserveAspectFit; smooth: false; source: "file://" + root.castDir + (card.modelData.role || "engineer") + ".svg"; visible: !(card.modelData.role === "app" && (card.modelData.image !== "" || card.modelData.appIcon !== "")) }
-                                IconImage { readonly property string appSrc: card.modelData.image || card.modelData.appIcon; visible: card.modelData.role === "app" && appSrc !== ""; anchors { fill: parent; margins: 8 } implicitSize: 48; source: appSrc.startsWith("/") ? "file://" + appSrc : (appSrc !== "" ? Quickshell.iconPath(appSrc, true) : "") }
+                                Image { id: castImg; property bool tryPng: false; anchors { fill: parent; margins: 4 } fillMode: Image.PreserveAspectFit; smooth: false; source: card.hasAppIcon ? "" : ("file://" + root.castDir + (card.modelData.role || "engineer") + (tryPng ? ".png" : ".svg")); visible: !card.hasAppIcon && status === Image.Ready; onStatusChanged: { if (status === Image.Error && !tryPng) tryPng = true; portraitCanvas.requestPaint(); } }
+                                IconImage { readonly property string appSrc: card.modelData.image || card.modelData.appIcon; visible: card.hasAppIcon; anchors { fill: parent; margins: 8 } implicitSize: 48; source: appSrc.startsWith("/") ? "file://" + appSrc : (appSrc !== "" ? Quickshell.iconPath(appSrc, true) : "") }
                                 Canvas {
                                     id: portraitCanvas; anchors { fill: parent; margins: 4 }
                                     onPaint: {
-                                        const ctx = getContext("2d"); ctx.clearRect(0, 0, width, height);
-                                        if (card.modelData.role !== "app") {
-                                            ctx.fillStyle = (card.talkOpen ? Theme.fg : card.roleColor).toString(); ctx.fillRect(18, 20, 8, 4); ctx.fillRect(30, 20, 8, 4);
-                                            ctx.fillStyle = Theme.bg.toString(); ctx.fillRect(16, 34, 24, 8);
-                                            ctx.fillStyle = card.roleColor.toString(); ctx.fillRect(18, card.talkOpen ? 35 : 37, 20, card.talkOpen ? 6 : 2);
+                                        const ctx = getContext("2d"), u = width / 16.0, rl = card.modelData.role || "engineer";
+                                        const px = (x, y, w, h, c) => { ctx.fillStyle = c.toString(); ctx.fillRect(Math.round(x * u), Math.round(y * u), Math.ceil(w * u), Math.ceil(h * u)); };
+                                        ctx.clearRect(0, 0, width, height);
+                                        if (!card.hasAppIcon && !(castImg.tryPng && castImg.status === Image.Ready)) {
+                                            px(0, 0, 16, 16, Theme.bg);
+                                            if (rl === "ai") { px(7, 0, 2, 2, Theme.primary); px(3, 2, 10, 2, card.roleColor); px(1, 5, 1, 4, Theme.primary); px(14, 5, 1, 4, Theme.primary); }
+                                            else if (rl === "security") { px(3, 1, 10, 2, card.roleColor); px(7, 1, 2, 3, Theme.warning); px(1, 5, 1, 4, card.roleColor); px(14, 5, 1, 4, card.roleColor); }
+                                            else if (rl === "builder") { px(4, 1, 8, 2, Theme.warning); px(2, 2, 12, 3, card.roleColor); px(6, 1, 4, 3, Theme.primary); }
+                                            else if (rl === "app") { px(3, 1, 10, 1, card.roleColor); px(2, 2, 12, 10, Theme.border); px(3, 3, 10, 8, Theme.bgAlt); px(6, 12, 4, 2, Theme.border); px(4, 14, 8, 1, card.roleColor); }
+                                            else { px(4, 1, 8, 1, Theme.primary); px(3, 2, 10, 2, card.roleColor); px(2, 4, 12, 1, Theme.primary); px(1, 6, 2, 3, card.roleColor); px(13, 6, 2, 3, Theme.primary); }
+                                            if (rl !== "app") { px(3, 4, 10, 8, Theme.border); px(3, 12, 10, 3, Theme.bgAlt); px(6, 13, 4, 1, card.roleColor); }
+                                            px(4, 5, 8, 3, Theme.bg); px(4, 9, 8, 2, Theme.bg);
+                                            const ec = card.talkOpen ? Theme.fg : (rl === "security" ? Theme.warning : Theme.primary);
+                                            px(5, 6, 2, 1, ec); px(9, 6, 2, 1, ec); px(5, 9, 6, card.talkOpen ? 2 : 1, card.talkOpen ? Theme.fg : card.roleColor);
+                                        } else if (!card.hasAppIcon && card.talkOpen) {
+                                            px(5, 6, 2, 1, Theme.fg); px(9, 6, 2, 1, Theme.fg); px(5, 9, 6, 2, card.roleColor);
                                         }
                                         ctx.fillStyle = Qt.rgba(0, 0, 0, 0.22).toString();
                                         for (let y = 0; y < height; y += 3) ctx.fillRect(0, y, width, 1);
@@ -192,8 +212,8 @@ Scope {
                                     Text { text: card.modelData.time; color: Theme.muted; font.family: Theme.font; font.pixelSize: 10; font.bold: true }
                                     Rectangle { width: ackTxt.implicitWidth + 10; height: 18; radius: Theme.radiusSm; color: ackM.containsMouse ? card.roleColor : Theme.bgAlt; border.width: 1; border.color: card.roleColor; Text { id: ackTxt; anchors.centerIn: parent; text: "[ACK]"; color: ackM.containsMouse ? Theme.bg : card.roleColor; font.family: Theme.font; font.pixelSize: 10; font.bold: true } MouseArea { id: ackM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.dismissById(card.modelData.id) } }
                                 }
-                                Text { Layout.fillWidth: true; text: card.modelData.summary; color: Theme.fg; font.family: Theme.font; font.pixelSize: 13; font.bold: true; elide: Text.ElideRight }
-                                Text { Layout.fillWidth: true; visible: card.fullBody !== ""; text: card.fullBody.slice(0, card.visibleChars) + (card.typing ? "█" : ""); color: Theme.fgDim; font.family: Theme.font; font.pixelSize: 12; wrapMode: Text.Wrap; maximumLineCount: 3 }
+                                Text { Layout.fillWidth: true; text: card.hasBody ? card.modelData.summary : (card.fullBody.slice(0, card.visibleChars) + (card.typing ? "█" : "")); color: Theme.fg; font.family: Theme.font; font.pixelSize: 13; font.bold: true; elide: Text.ElideRight }
+                                Text { Layout.fillWidth: true; visible: card.hasBody; text: card.fullBody.slice(0, card.visibleChars) + (card.typing ? "█" : ""); color: Theme.fgDim; font.family: Theme.font; font.pixelSize: 12; wrapMode: Text.Wrap; maximumLineCount: 3 }
                                 Row {
                                     visible: (card.modelData.actions || []).length > 0; spacing: 6
                                     Repeater {

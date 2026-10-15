@@ -16,6 +16,7 @@ PanelWindow {
     visible: bannerWin.active; screen: Quickshell.screens[0]; color: "transparent"
     WlrLayershell.namespace: "superfedora-banner"; WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None; exclusionMode: ExclusionMode.Ignore
+    anchors.top: bannerWin.kind === "warning"; margins.top: bannerWin.kind === "warning" ? (Theme.barHeight + 8) : 0
     implicitWidth: 640; implicitHeight: 148
 
     readonly property string pixelWord: bannerWin.kind === "warning" ? "WARNING" : (bannerWin.kind === "update" ? "UPDATE COMPLETE" : (bannerWin.kind === "checkpoint" ? "CHECKPOINT SAVED" : "READY"))
@@ -63,6 +64,7 @@ PanelWindow {
     }
     Connections {
         target: Theme
+        function onModeChanged() { topHazard.requestPaint(); botHazard.requestPaint(); pixelCanvas.requestPaint(); }
         function onBgChanged() { topHazard.requestPaint(); botHazard.requestPaint(); pixelCanvas.requestPaint(); }
         function onBlueChanged() { topHazard.requestPaint(); botHazard.requestPaint(); pixelCanvas.requestPaint(); }
         function onCyanChanged() { topHazard.requestPaint(); botHazard.requestPaint(); pixelCanvas.requestPaint(); }

@@ -20,14 +20,14 @@ Singleton {
     property color cyan: "#bcd3ff"
     readonly property color accent: root.blue
     readonly property color primary: root.cyan
-    readonly property color green: "#9ece6a"
+    readonly property color green: root.mode === "light" ? "#15803d" : "#9ece6a"
     readonly property color ok: root.green
-    readonly property color yellow: "#e0af68"
+    readonly property color yellow: root.mode === "light" ? "#b45309" : "#e0af68"
     readonly property color warning: root.yellow
-    readonly property color orange: "#ff9e64"
-    readonly property color red: "#f7768e"
+    readonly property color orange: root.mode === "light" ? "#c2410c" : "#ff9e64"
+    readonly property color red: root.mode === "light" ? "#be123c" : "#f7768e"
     readonly property color danger: root.red
-    readonly property color magenta: "#bb9af7"
+    readonly property color magenta: root.mode === "light" ? "#7e22ce" : "#bb9af7"
     readonly property string font: "JetBrainsMono Nerd Font"
     property int fontSize: 14
     readonly property int iconSize: 18
