@@ -15,6 +15,6 @@ module_run() {
     fi
 
     _sa_t() { command -v superagent >/dev/null 2>&1; }
-    _sa_i() { command -v superforge >/dev/null 2>&1 && superforge build superagent; }
+    _sa_i() { "$SF_ROOT/lib/forge.sh" build superagent; }
     need "SuperAgent Autonomous Daemon & CLI (superagent)" _sa_t _sa_i
 }

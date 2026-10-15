@@ -203,7 +203,7 @@ same_file() {
 # need_root_file SRC DEST [MODE] — system file identical to the repo copy
 need_root_file() {
     local src="$SF_ROOT/$1" dest="$2" mode="${3:-644}"
-    _rf2_t() { [[ -f "$dest" ]] && same_file "$src" "$dest"; }
+    _rf2_t() { ([[ -f "$dest" ]] && same_file "$src" "$dest") || as_root cmp -s "$src" "$dest" 2>/dev/null; }
     _rf2_i() {
         [[ -f "$dest" ]] && as_root cp -a "$dest" "$dest.superfedora-backup"
         as_root install -D -m "$mode" "$src" "$dest"

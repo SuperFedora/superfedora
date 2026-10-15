@@ -47,13 +47,7 @@ module_run() {
             command -v "$bin" >/dev/null 2>&1 || [[ -x "$HOME/.local/bin/$bin" ]] || return 1
             [[ -f "$HOME/.local/share/superfedora/forge/stamps/$name.stamp" || -f "$SF_STATE/source-built/$name.stamp" ]]
         }
-        _app_i() {
-            if command -v superforge >/dev/null 2>&1; then
-                superforge build "$name"
-            else
-                "$SF_ROOT/lib/forge.sh" build "$name"
-            fi
-        }
+        _app_i() { "$SF_ROOT/lib/forge.sh" build "$name"; }
         need "$label" _app_t _app_i
     done
 

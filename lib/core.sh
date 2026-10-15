@@ -14,6 +14,7 @@ SF_ROOT="${SF_ROOT:?SF_ROOT must point at the SuperFedora source tree}"
 SF_VERSION="$(tr -d '[:space:]' < "$SF_ROOT/VERSION" 2>/dev/null || echo unknown)"
 SF_STATE="${SF_STATE:-${XDG_CONFIG_HOME:-$HOME/.config}/superfedora}"
 SF_LOG="$SF_STATE/install.log"
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/bin:$PATH"
 
 # Counters for the final summary
 SF_OK=0 SF_ADDED=0 SF_MISSING=0 SF_FAILED=0 SF_MANUAL=0

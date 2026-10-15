@@ -21,6 +21,7 @@ Item {
     readonly property bool inItemPanel: pg.qNorm === "" && pg.curItem !== null && Status.settingsSubPanel === ""
     readonly property bool inSubPanel: pg.qNorm === "" && pg.curItem !== null && Status.settingsSubPanel !== ""
     readonly property bool inListPanel: !pg.inItemPanel && !pg.inSubPanel
+    readonly property bool isCompact: pg.width < 560
     function matchCountFor(catId, qStr) { return reg.matchCountFor(catId, qStr); }
     readonly property var visibleItems: pg.qNorm !== "" ? reg.items.filter(it => reg.matchesQuery(it, pg.qNorm)) : reg.items.filter(it => it.cats.indexOf(pg.activePage) >= 0)
 
@@ -50,7 +51,7 @@ Item {
     Connections { target: Status; function onExpandedSettingIdChanged() { flick.contentY = 0; panelAnim.restart(); } function onSettingsSubPanelChanged() { flick.contentY = 0; panelAnim.restart(); } }
 
     Flickable {
-        id: flick; anchors { fill: parent; leftMargin: 28; rightMargin: 24; topMargin: 4; bottomMargin: 12 }
+        id: flick; anchors { fill: parent; leftMargin: pg.isCompact ? 16 : 26; rightMargin: pg.isCompact ? 14 : 24; topMargin: 4; bottomMargin: 12 }
         contentWidth: width; contentHeight: contentCol.implicitHeight + 28; clip: true; boundsBehavior: Flickable.DragOverBounds; flickDeceleration: 3500
         ColumnLayout {
             id: contentCol; width: flick.width; spacing: 8
@@ -67,7 +68,7 @@ Item {
                     color: hdrM.containsMouse ? Theme.bgHover : Theme.bgAlt; border.width: 1; border.color: hdrM.containsMouse ? Theme.blue : Theme.border; clip: true
                     MouseArea { id: hdrM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pg.openCardPanel(sCard.modelData) }
                     RowLayout {
-                        id: cardRow; anchors { fill: parent; leftMargin: 18; rightMargin: 16; topMargin: 9; bottomMargin: 9 } spacing: 14
+                        id: cardRow; anchors { fill: parent; leftMargin: 16; rightMargin: 14; topMargin: 9; bottomMargin: 9 } spacing: 12
                         Rectangle {
                             visible: sCard.modelData.id === "ui-saver" && Status.currentWallpaper !== ""
                             implicitWidth: 52; implicitHeight: 32; radius: 4; color: Theme.bg; border.width: 1; border.color: Theme.blue; clip: true
@@ -80,7 +81,7 @@ Item {
                             Text { text: sCard.modelData.sub; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; Layout.fillWidth: true; elide: Text.ElideRight }
                         }
                         RowLayout {
-                            visible: sCard.hasSlider; spacing: 10
+                            visible: sCard.hasSlider; spacing: 8
                             Rectangle {
                                 visible: sCard.modelData.slider === "spk" || sCard.modelData.slider === "mic"
                                 implicitWidth: 30; implicitHeight: 30; radius: 5; color: muteM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: Theme.border
@@ -88,17 +89,17 @@ Item {
                                 MouseArea { id: muteM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pg.triggerAction({ act: sCard.modelData.slider === "spk" ? "spkMute" : "micMute" }) }
                             }
                             Item {
-                                implicitWidth: 136; implicitHeight: 24
+                                implicitWidth: pg.isCompact ? 84 : 136; implicitHeight: 24
                                 Rectangle { anchors.verticalCenter: parent.verticalCenter; width: parent.width; height: 4; radius: 2; color: Theme.bg; border.width: 1; border.color: Theme.border }
                                 Rectangle { anchors { left: parent.left; verticalCenter: parent.verticalCenter } width: Math.round(parent.width * Math.max(0, Math.min(1, Number(sCard.modelData.val || 0)))); height: 4; radius: 2; color: Theme.blue }
                                 Rectangle { width: 16; height: 16; radius: 8; anchors.verticalCenter: parent.verticalCenter; x: Math.max(0, Math.min(parent.width - width, Math.round(parent.width * Number(sCard.modelData.val || 0)) - 8)); color: Theme.blue; border.width: 3; border.color: Theme.bgAlt }
                                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onPressed: mouse => pg.setSlider(sCard.modelData.slider, mouse.x / width); onPositionChanged: mouse => { if (pressed) pg.setSlider(sCard.modelData.slider, mouse.x / width); } }
                             }
-                            Text { Layout.preferredWidth: 38; horizontalAlignment: Text.AlignRight; text: Math.round(Number(sCard.modelData.val || 0) * 100) + "%"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2 }
+                            Text { Layout.preferredWidth: 36; horizontalAlignment: Text.AlignRight; text: Math.round(Number(sCard.modelData.val || 0) * 100) + "%"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2 }
                         }
                         RowLayout {
-                            visible: sCard.hasToggle; spacing: 10
-                            Text { text: (sCard.modelData.toggle && sCard.modelData.toggle.on) ? "On" : "Off"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2 }
+                            visible: sCard.hasToggle; spacing: 8
+                            Text { visible: !pg.isCompact; text: (sCard.modelData.toggle && sCard.modelData.toggle.on) ? "On" : "Off"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2 }
                             Rectangle {
                                 readonly property bool tOn: Boolean(sCard.modelData.toggle && sCard.modelData.toggle.on)
                                 implicitWidth: 42; implicitHeight: 22; radius: 11; color: tOn ? Theme.blue : Theme.bg; border.width: 1; border.color: tOn ? Theme.blue : Theme.muted
@@ -122,12 +123,12 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true; implicitHeight: heroCol.implicitHeight + 28; radius: 8; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
                     ColumnLayout {
-                        id: heroCol; anchors { left: parent.left; right: parent.right; top: parent.top; margins: 18 } spacing: 12
+                        id: heroCol; anchors { left: parent.left; right: parent.right; top: parent.top; margins: 16 } spacing: 12
                         RowLayout {
-                            Layout.fillWidth: true; spacing: 16
+                            Layout.fillWidth: true; spacing: 14
                             Rectangle {
                                 visible: pg.curItem && pg.curItem.id === "ui-saver"
-                                implicitWidth: 148; implicitHeight: 86; radius: 6; color: Theme.bg; border.width: 2; border.color: wpHeroM.containsMouse ? Theme.cyan : Theme.blue; clip: true
+                                implicitWidth: pg.isCompact ? 96 : 148; implicitHeight: pg.isCompact ? 56 : 86; radius: 6; color: Theme.bg; border.width: 2; border.color: wpHeroM.containsMouse ? Theme.cyan : Theme.blue; clip: true
                                 Image { anchors { fill: parent; margins: 2 } source: Status.currentWallpaper ? ("file://" + Status.currentWallpaper) : ""; fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: false }
                                 MouseArea { id: wpHeroM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsSub("wp-gallery") }
                             }

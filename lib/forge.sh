@@ -50,17 +50,17 @@ ensure_pkgs() {
     local -a missing=(); local p l f
     for p in "$@"; do [[ "$p" == "ffmpeg-free-devel" ]] && rpm -q --quiet ffmpeg-libs 2>/dev/null && p="ffmpeg-devel"; [[ "$p" =~ ^(gcc|gcc-c\+\+|make|cmake|ninja-build)$ ]] && command -v "${p%-build}" >/dev/null 2>&1 && continue; rpm -q --quiet "$p" 2>/dev/null || [[ -f "$HOME/.local/pkg_cache/.ok-$p" ]] || missing+=("$p"); done
     [[ ${#missing[@]} -eq 0 ]] && return 0
-    if [[ $EUID -eq 0 ]]; then dnf install -y "${missing[@]}"; elif [[ "${INSTALL_DEPS:-0}" -eq 1 ]]; then sudo dnf install -y "${missing[@]}"
+    if [[ $EUID -eq 0 ]]; then dnf install -y "${missing[@]}"; elif [[ "${INSTALL_DEPS:-0}" -eq 1 ]] || sudo -n true 2>/dev/null; then sudo dnf install -y "${missing[@]}"
     else
         echo "[+] Staging build headers into user sysroot: ${missing[*]}" | tee -a "$FORGE_LOG"; mkdir -p "$HOME/.local/pkg_cache" "$SYSROOT/lib64" "$SYSROOT/bin" "$SYSROOT/libexec/qt6"
         dnf download --resolve --arch="$(uname -m)" --arch=noarch --destdir="$HOME/.local/pkg_cache" "${missing[@]}" >/dev/null 2>&1 || dnf download --arch="$(uname -m)" --arch=noarch --destdir="$HOME/.local/pkg_cache" "${missing[@]}" >/dev/null 2>&1 || true
         for p in "$HOME/.local/pkg_cache"/*.rpm; do [[ -f "$p" && ! -f "$HOME/.local/pkg_cache/.extracted-$(basename "$p")" ]] && (cd "$HOME/.local/sysroot" && rpm2cpio "$p" 2>/dev/null | cpio -idmu --quiet 2>/dev/null || true) && touch "$HOME/.local/pkg_cache/.extracted-$(basename "$p")"; done
-        for f in /usr/lib64/lib*.so*; do [[ -e "$SYSROOT/lib64/${f##*/}" ]] || ln -s "$f" "$SYSROOT/lib64/${f##*/}" 2>/dev/null || true; done
+        for f in /usr/lib64/lib*.so* /usr/lib64/*.a /usr/lib64/*.o; do [[ -e "$SYSROOT/lib64/${f##*/}" ]] || ln -s "$f" "$SYSROOT/lib64/${f##*/}" 2>/dev/null || true; done
         for f in /usr/libexec/qt6/*; do [[ -e "$SYSROOT/libexec/qt6/${f##*/}" ]] || ln -s "$f" "$SYSROOT/libexec/qt6/${f##*/}" 2>/dev/null || true; done
         mkdir -p "$SYSROOT/lib64/qt6" && cp -rs /usr/lib64/qt6/* "$SYSROOT/lib64/qt6/" 2>/dev/null || true
         for f in /usr/bin/*; do [[ -e "$SYSROOT/bin/${f##*/}" ]] || ln -s "$f" "$SYSROOT/bin/${f##*/}" 2>/dev/null || true; done
         for l in "$SYSROOT/lib64"/lib*.so*; do [[ -L "$l" && ! -e "$l" && -e "/usr/lib64/$(readlink "$l")" ]] && ln -sf "/usr/lib64/$(readlink "$l")" "$l" || true; done
-        sed -i "s|$HOME/.local/sysroot||g; s|/usr/lib64/libc_nonshared.a|$SYSROOT/lib64/libc_nonshared.a|g; s|/usr/lib64/libmvec_nonshared.a|$SYSROOT/lib64/libmvec_nonshared.a|g" "$SYSROOT/lib64/libc.so" "$SYSROOT/lib64/libm.so" 2>/dev/null || true
+        [[ -f "$SYSROOT/lib64/libc_nonshared.a" && ! -L "$SYSROOT/lib64/libc.so" ]] && sed -i "s|$HOME/.local/sysroot||g; s|/usr/lib64/libc_nonshared.a|$SYSROOT/lib64/libc_nonshared.a|g; s|/usr/lib64/libmvec_nonshared.a|$SYSROOT/lib64/libmvec_nonshared.a|g" "$SYSROOT/lib64/libc.so" "$SYSROOT/lib64/libm.so" 2>/dev/null || true
         sed -i "s|$HOME/.local/sysroot||g; s|^prefix=/usr$|prefix=$SYSROOT|g; s|/usr/include|$SYSROOT/include|g; s|/usr/lib64|$SYSROOT/lib64|g" "$SYSROOT"/lib64/pkgconfig/*.pc "$SYSROOT"/share/pkgconfig/*.pc 2>/dev/null || true
         find "$SYSROOT/lib64/cmake" -name "*.cmake" -exec sed -i "s|$HOME/.local/sysroot||g; s|/usr/include|$SYSROOT/include|g; s|/usr/lib64/qt6|$SYSROOT/lib64/qt6|g; s|/usr/libexec/qt6|$SYSROOT/libexec/qt6|g" {} + 2>/dev/null || true
         sed -i -E 's/(__builtin_)*isnormal\(val\)/__builtin_isnormal(val)/g; s/(__builtin_)*isinf\(val\)/__builtin_isinf(val)/g; s/(__builtin_)*signbit\(val\)/__builtin_signbit(val)/g' "$SYSROOT/include/spa-0.2/spa/utils/json-core.h" 2>/dev/null || true
@@ -130,7 +130,7 @@ forge_generic_dir() {
         [[ -x "$found" ]] || { command -v cargo-binstall >/dev/null 2>&1 && cargo-binstall -y --force --install-path "$BIN_DIR" "$name" >/dev/null 2>&1 && found="$BIN_DIR/$bin_hint" || true; }
         [[ -x "$found" ]] || { [[ -x "$SYSROOT/bin/$bin_hint" ]] && found="$SYSROOT/bin/$bin_hint"; }
         [[ "$found" != "$BIN_DIR/$bin_hint" ]] && install_bin "$found" "$bin_hint"; record_forge "$name" "$repo" "$bin_hint" "cargo" "$sha"
-        if [[ "$name" == "supershell" ]]; then for sb in superdock superbar supersettings superlock; do [[ -x "${found%/*}/$sb" ]] && install_bin "${found%/*}/$sb" "$sb"; done; fi
+        if [[ "$name" == "supershell" ]]; then for sb in superdock superbar supersettings superlock; do [[ -x "${found%/*}/$sb" ]] && install_bin "${found%/*}/$sb" "$sb"; done; elif [[ "$name" == "superforge" && -d "$dir/lib" ]]; then mkdir -p "$HOME/.local/share/superforge" && cp -rf "$dir/lib" "$dir/scripts" "$HOME/.local/share/superforge/" 2>/dev/null || true; fi
     elif [[ -f "$dir/CMakeLists.txt" ]]; then
         local gen="-G Unix Makefiles" extra_cmake="-DBUILD_TESTING=OFF -DCMAKE_PREFIX_PATH=$SYSROOT;/usr"; command -v ninja >/dev/null 2>&1 && gen="-G Ninja"
         [[ "$name" == "quickshell" ]] && extra_cmake="$extra_cmake -DCRASH_HANDLER=OFF -DCRASH_REPORTER=OFF -DDISTRIBUTOR=SuperFedora"; [[ "$name" == "hyprland" ]] && extra_cmake="$extra_cmake -DNO_TESTS=ON -DNO_HYPRPM=OFF"; local c_lto="-ffat-lto-objects"; [[ "$name" == "cava" ]] && c_lto="-fno-lto"
@@ -192,13 +192,16 @@ forge_target() {
             if [[ -z "$rem_sha" || -z "$cur_sha" || "$rem_sha" == "$cur_sha" ]]; then [[ ! -f "$STAMP_DIR/$name.stamp" ]] && cp -f "$sf_stamp" "$STAMP_DIR/$name.stamp"; echo "[OK] $name ($BIN_DIR/$bin) is already up-to-date for $MARCH_TARGET (sha:${cur_sha:0:7})" | tee -a "$FORGE_LOG"; return 0; fi
         else set_live 0 ok "$name" 100 "[OK] $name ($BIN_DIR/$bin) is already forged for $MARCH_TARGET (use --force to rebuild)"; return 0; fi
     fi
+    if [[ "${SF_BUILD_MODE:-source}" == "quick" && "$repo" != *"SuperFedora/"* && "$force" -eq 0 ]]; then
+        [[ -x "/usr/bin/$bin" ]] && { install_bin "/usr/bin/$bin" "$bin"; record_forge "$name" "$repo" "$bin" "system" "quick"; set_live 0 ok "$name" 100 "[OK] Installed $name ($BIN_DIR/$bin)"; return 0; }
+        local bpkg="$name"; [[ "$cargo_args" == -p\ * ]] && bpkg="${cargo_args#-p }"; command -v cargo-binstall >/dev/null 2>&1 || curl -fsSL https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash >/dev/null 2>&1 || true
+        if command -v cargo-binstall >/dev/null 2>&1 && cargo-binstall -y --force --install-path "$BIN_DIR" "$bpkg" >/dev/null 2>&1 && [[ -x "$BIN_DIR/$bin" ]]; then record_forge "$name" "$repo" "$bin" "binstall" "quick"; set_live 0 ok "$name" 100 "[OK] Installed $name ($BIN_DIR/$bin)"; return 0; fi
+    fi
     [[ "${IN_UPDATE:-0}" -eq 0 ]] && : > "$FORGE_LOG"; set_live 1 running "$name" 15 "[1/4] Checking & staging build headers for $name..."
     # shellcheck disable=SC2046
     ensure_pkgs $(preset_deps "$name"); [[ -n "$local_src" ]] && { forge_generic_dir "$local_src" "$name" "$repo" "$bin" "$cargo_args"; return 0; }
     CURRENT_TMP="$(mktemp -d -p "$TMP_BUILD")"; set_live 1 running "$name" 35 "[2/4] Cloning $repo ${git_branch:+($git_branch)}..."
-    if [[ -n "$git_branch" ]]; then git clone --depth 1 --branch "$git_branch" --recurse-submodules --shallow-submodules "$repo" "$CURRENT_TMP/src" 2>&1 | tee -a "$FORGE_LOG" || git clone --depth 1 --recurse-submodules --shallow-submodules "$repo" "$CURRENT_TMP/src" 2>&1 | tee -a "$FORGE_LOG"
-    else git clone --depth 1 --recurse-submodules --shallow-submodules "$repo" "$CURRENT_TMP/src" 2>&1 | tee -a "$FORGE_LOG"; fi
-    forge_generic_dir "$CURRENT_TMP/src" "$name" "$repo" "$bin" "$cargo_args"; rm -rf "$CURRENT_TMP"; CURRENT_TMP=""
+    if [[ -n "$git_branch" ]]; then git clone --depth 1 --branch "$git_branch" --recurse-submodules --shallow-submodules "$repo" "$CURRENT_TMP/src" 2>&1 | tee -a "$FORGE_LOG" || git clone --depth 1 --recurse-submodules --shallow-submodules "$repo" "$CURRENT_TMP/src" 2>&1 | tee -a "$FORGE_LOG"; else git clone --depth 1 --recurse-submodules --shallow-submodules "$repo" "$CURRENT_TMP/src" 2>&1 | tee -a "$FORGE_LOG"; fi; forge_generic_dir "$CURRENT_TMP/src" "$name" "$repo" "$bin" "$cargo_args"; rm -rf "$CURRENT_TMP"; CURRENT_TMP=""
 }
 check_updates_forge() {
     detect_hw; python3 -c 'import concurrent.futures as cf,glob,os,subprocess as sp,sys; sd,ld,dry=sys.argv[1],sys.argv[2],sys.argv[3]=="1"; st={os.path.basename(p)[:-6]:p for d in (ld,sd) for p in sorted(glob.glob(os.path.join(d,"*.stamp")))}; print("SuperForge Stamp & Upstream Git SHA Tracker (%s)\n  %-14s %-15s %-12s %-12s STATUS\n  %-14s %-15s %-12s %-12s ------"%(sd,"RECIPE","BINARY","LOCAL SHA","REMOTE SHA","------","------","---------","----------"))

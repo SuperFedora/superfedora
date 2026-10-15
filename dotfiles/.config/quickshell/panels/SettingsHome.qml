@@ -15,6 +15,10 @@ Item {
     readonly property bool btEnabled: btAdapter !== null && btAdapter.enabled
     readonly property var btList: btAdapter ? Bluetooth.devices.values.slice(0, 3) : []
     readonly property string wpPath: Status.currentWallpaper ? ("file://" + Status.currentWallpaper) : ""
+    readonly property bool isWide: home.width >= 820
+    readonly property bool isMedium: home.width >= 640
+    readonly property bool isCompact: home.width < 560
+    readonly property int visibleHeroPills: home.width >= 920 ? 3 : (home.width >= 760 ? 2 : (home.width >= 620 ? 1 : 0))
 
     readonly property var themeSwatches: [
         { id: "01-crimson", l: "Crimson", hex: "#f7768e" }, { id: "02-scarlet", l: "Scarlet", hex: "#ff5a5f" },
@@ -37,7 +41,7 @@ Item {
     }
 
     Flickable {
-        id: hFlick; anchors { fill: parent; leftMargin: 28; rightMargin: 24; topMargin: 4; bottomMargin: 14 }
+        id: hFlick; anchors { fill: parent; leftMargin: home.isMedium ? 26 : 16; rightMargin: home.isMedium ? 24 : 14; topMargin: 4; bottomMargin: 14 }
         contentWidth: width; contentHeight: mainCol.implicitHeight + 20; clip: true; boundsBehavior: Flickable.DragOverBounds; flickDeceleration: 3500
 
         ColumnLayout {
@@ -45,13 +49,13 @@ Item {
 
             // ================ TOP HERO DEVICE BANNER (Windows 11 Home Header with Live Wallpaper Monitor) ================
             Rectangle {
-                Layout.fillWidth: true; implicitHeight: 112; radius: 8; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
+                Layout.fillWidth: true; implicitHeight: home.isCompact ? 92 : 112; radius: 8; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
                 RowLayout {
-                    anchors { fill: parent; leftMargin: 18; rightMargin: 18; topMargin: 12; bottomMargin: 12 } spacing: 18
+                    anchors { fill: parent; leftMargin: 16; rightMargin: 16; topMargin: 10; bottomMargin: 10 } spacing: 16
                     ColumnLayout {
-                        spacing: 3
+                        visible: !home.isCompact; spacing: 3
                         Rectangle {
-                            implicitWidth: 132; implicitHeight: 76; radius: 6; color: Theme.bg; border.width: 2; border.color: wpMonM.containsMouse ? Theme.cyan : Theme.blue; clip: true
+                            implicitWidth: home.isWide ? 132 : 104; implicitHeight: home.isWide ? 76 : 60; radius: 6; color: Theme.bg; border.width: 2; border.color: wpMonM.containsMouse ? Theme.cyan : Theme.blue; clip: true
                             Image { id: wpImg; anchors { fill: parent; margins: 2 } source: home.wpPath; fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: false }
                             Text { visible: wpImg.status !== Image.Ready; anchors.centerIn: parent; text: "󰍹"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize + 10 }
                             MouseArea { id: wpMonM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("personalization", "ui-saver") }
@@ -62,7 +66,7 @@ Item {
                         Layout.fillWidth: true; spacing: 3
                         Text { text: home.hostShort; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize + 5; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("system", "sys-storage") } }
                         Text { text: "Fedora Linux  ·  " + Status.gpuArch + "  ·  " + Theme.themeName; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; elide: Text.ElideRight; Layout.fillWidth: true; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("system", "sys-gpu") } }
-                        Text { text: "System specifications & display 󰅂"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.weight: Font.DemiBold; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("system", "disp-scale") } }
+                        Text { text: "System specifications & display 󰅂"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("system", "disp-scale") } }
                     }
                     Repeater {
                         model: [
@@ -71,7 +75,9 @@ Item {
                             { cat: "ai",      item: "ai-cluster",   icon: "󰚩", title: Status.aiAgentLabel || "AI Cluster", sub: Status.ollamaModel + " · " + Status.llmServers.length + " nodes" }
                         ]
                         Rectangle {
-                            id: hPill; required property var modelData; implicitWidth: 168; implicitHeight: 62; radius: 6; color: hpM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: hpM.containsMouse ? Theme.blue : Theme.border
+                            id: hPill; required property var modelData; required property int index
+                            visible: index < home.visibleHeroPills
+                            implicitWidth: 164; implicitHeight: 62; radius: 6; color: hpM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: hpM.containsMouse ? Theme.blue : Theme.border
                             RowLayout {
                                 anchors { fill: parent; leftMargin: 12; rightMargin: 10 } spacing: 10
                                 Text { text: hPill.modelData.icon; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize + 4 }
@@ -83,9 +89,9 @@ Item {
                 }
             }
 
-            // ================ 2x2 WINDOWS 11 HOME DASHBOARD CARDS GRID ================
+            // ================ ADAPTIVE 2x2 / 1-COLUMN WINDOWS 11 HOME DASHBOARD CARDS GRID ================
             GridLayout {
-                Layout.fillWidth: true; columns: 2; columnSpacing: 12; rowSpacing: 12
+                Layout.fillWidth: true; columns: home.width >= 680 ? 2 : 1; columnSpacing: 12; rowSpacing: 12
 
                 // -------- CARD 1: RECOMMENDED & QUICK CONTROLS --------
                 Rectangle {
@@ -130,8 +136,8 @@ Item {
                                 }
                             }
                         }
-                        RowLayout {
-                            Layout.fillWidth: true; spacing: 8
+                        GridLayout {
+                            Layout.fillWidth: true; columns: home.width >= 520 ? 4 : 2; columnSpacing: 6; rowSpacing: 6
                             Repeater {
                                 model: [ { l: "Default apps", cat: "apps", item: "app-def-extensions" }, { l: "Audio devices", cat: "system", item: "snd-spk" }, { l: "Taskbar & dock", cat: "windowing", item: "wm-dock" }, { l: "Accessibility", cat: "accessibility", item: "acc-fontsize" } ]
                                 Rectangle { id: navChip; required property var modelData; Layout.fillWidth: true; implicitHeight: 28; radius: 5; color: ncM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: Theme.border; Text { anchors.centerIn: parent; text: navChip.modelData.l + " 󰅂"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3 } MouseArea { id: ncM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem(navChip.modelData.cat, navChip.modelData.item) } }
@@ -152,7 +158,7 @@ Item {
                             Rectangle { implicitWidth: 118; implicitHeight: 28; radius: 5; color: nwM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: Theme.border; Text { anchors.centerIn: parent; text: "󰸉 Wallpaper picker"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3 } MouseArea { id: nwM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("personalization", "ui-saver", "wp-gallery") } }
                         }
                         GridLayout {
-                            Layout.fillWidth: true; columns: 8; columnSpacing: 6; rowSpacing: 6
+                            Layout.fillWidth: true; columns: home.width >= 540 ? 8 : 4; columnSpacing: 6; rowSpacing: 6
                             Repeater {
                                 model: home.themeSwatches
                                 Rectangle { id: swBox; required property var modelData; readonly property bool isCur: Theme.theme === modelData.id; Layout.fillWidth: true; implicitHeight: 28; radius: 5; color: modelData.hex; border.width: isCur ? 2 : 1; border.color: isCur ? Theme.fg : Theme.border; Text { visible: swBox.isCur; anchors.centerIn: parent; text: "󰄬"; color: "#1a1b26"; font.family: Theme.font; font.pixelSize: Theme.fontSize; font.bold: true } MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: home.executeCommand("~/.local/bin/supertheme " + swBox.modelData.id + " || ~/.local/bin/sf theme " + swBox.modelData.id, false) } }
