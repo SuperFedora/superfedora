@@ -30,7 +30,7 @@ Singleton {
     readonly property color magenta: root.mode === "light" ? "#7e22ce" : "#bb9af7"
     readonly property string font: "JetBrainsMono Nerd Font"
     property int fontSize: 14
-    readonly property int iconSize: 18
+    readonly property int iconSize: root.fontSize + 4
     readonly property int barHeight: 36
     readonly property int pad: 14
     property string corners: "square"
@@ -42,8 +42,19 @@ Singleton {
         id: themeFile
         path: Quickshell.env("HOME") + "/.config/superfedora/quickshell-theme.json"
     }
+    FileView {
+        id: uiScaleFile
+        path: Quickshell.env("HOME") + "/.config/superfedora/ui-scale"
+    }
+
+    function reloadScale(): void {
+        uiScaleFile.reload();
+        const s = Number(uiScaleFile.text().trim() || "14");
+        if (s >= 12 && s <= 22) root.fontSize = s;
+    }
 
     function reload(): void {
+        root.reloadScale();
         themeFile.reload();
         const raw = themeFile.text().trim();
         if (!raw) return;
