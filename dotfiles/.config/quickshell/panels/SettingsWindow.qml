@@ -17,7 +17,7 @@ FloatingWindow {
     property int navMode: 0
     readonly property bool compactWindow: win.width < 860
     readonly property bool veryNarrow: win.width < 620
-    readonly property bool railCollapsed: win.navMode === 2 || (win.navMode === 0 && win.compactWindow)
+    readonly property bool railCollapsed: win.veryNarrow || win.navMode === 2 || (win.navMode === 0 && win.compactWindow)
     onCompactWindowChanged: win.navMode = 0
 
     readonly property var categories: pagesView.categories
@@ -28,17 +28,17 @@ FloatingWindow {
     readonly property string userShort: String(Status.userAccount || "user").split("@")[0]
     readonly property string displayUser: Status.userFullName || win.userShort
     readonly property string displaySub: Status.userEmail || Status.userAccount
-    readonly property string hostShort: Status.userDeviceName || String(Status.userAccount || "user@fedora").split("@")[1] || "workstation"
+    readonly property string hostShort: Status.userDeviceName || Status.hostName
 
     NumberAnimation { id: openAnim; target: rootBox; property: "opacity"; from: 0.88; to: 1.0; duration: 90; easing.type: Easing.OutCubic }
     function toggleRail() { win.navMode = win.railCollapsed ? 1 : 2; }
-    function focusSearch() { if (win.railCollapsed) win.navMode = 1; searchBox.forceActiveFocus(); }
+    function focusSearch() { if (win.railCollapsed && !win.veryNarrow) win.navMode = 1; searchBox.forceActiveFocus(); }
     function clearSearch() { if (win.searchQuery !== "") { win.searchQuery = ""; searchBox.text = ""; } rootBox.forceActiveFocus(); }
     function navBackAction() { if (win.searchQuery !== "") win.clearSearch(); else { rootBox.forceActiveFocus(); Status.navBack(); } }
     function navUpAction() { if (win.searchQuery !== "") win.clearSearch(); else { rootBox.forceActiveFocus(); Status.navUp(); } }
     Connections {
         target: Status
-        function onSettingsOpenChanged() { if (win.visible !== Status.settingsOpen) win.visible = Status.settingsOpen; if (Status.settingsOpen) rootBox.forceActiveFocus(); }
+        function onSettingsOpenChanged() { if (Status.settingsOpen) rootBox.forceActiveFocus(); }
         function onSettingsPageChanged() { win.clearSearch(); }
         function onExpandedSettingIdChanged() { win.clearSearch(); }
         function onSettingsSubPanelChanged() { win.clearSearch(); }
@@ -51,14 +51,14 @@ FloatingWindow {
 
     function selectCategory(id) { win.clearSearch(); Status.openSettings(id); }
     function stepCategory(delta) { const list = win.categories; if (!list || list.length === 0) return; const idx = list.findIndex(c => c.id === win.activePage); win.selectCategory(list[(Math.max(0, idx) + delta + list.length) % list.length].id); }
-    function runCmd(cmd, closeAfter) { if (closeAfter) Status.settingsOpen = false; Status.playSfx("confirm"); Quickshell.execDetached(["sh", "-c", cmd]); Status.refresh(); }
+    function runCmd(cmd, closeAfter) { if (closeAfter) Status.settingsOpen = false; Status.playSfx("confirm"); Quickshell.execDetached(["sh", "-c", closeAfter ? cmd : ("(" + cmd + "); qs ipc call status refresh >/dev/null 2>&1 || true")]); }
 
     Rectangle {
         id: rootBox; anchors.fill: parent; color: Theme.bg; focus: true; clip: true
         MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onClicked: mouse => { rootBox.forceActiveFocus(); if (mouse.button === Qt.BackButton) win.navBackAction(); } }
 
         Keys.onPressed: event => {
-            if (event.key === Qt.Key_Escape) { if (win.searchQuery !== "") win.clearSearch(); else if (Status.expandedSettingId !== "" || Status.settingsSubPanel !== "") win.navUpAction(); else Status.settingsOpen = false; event.accepted = true; }
+            if (event.key === Qt.Key_Escape) { if (pagesView.confirmDanger !== "") pagesView.confirmDanger = ""; else if (win.searchQuery !== "") win.clearSearch(); else if (Status.expandedSettingId !== "" || Status.settingsSubPanel !== "") win.navUpAction(); else Status.settingsOpen = false; event.accepted = true; }
             else if (((event.modifiers & Qt.AltModifier) && event.key === Qt.Key_Left) || (rootBox.activeFocus && event.key === Qt.Key_Backspace)) { win.navBackAction(); event.accepted = true; }
             else if ((event.modifiers & Qt.AltModifier) && event.key === Qt.Key_Up) { win.navUpAction(); event.accepted = true; }
             else if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_F) { win.focusSearch(); event.accepted = true; }
@@ -116,7 +116,9 @@ FloatingWindow {
                                 id: searchBox; Layout.fillWidth: true; verticalAlignment: TextInput.AlignVCenter; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; clip: true
                                 onTextChanged: win.searchQuery = text
                                 Keys.onEscapePressed: { if (searchBox.text !== "") win.clearSearch(); else if (Status.expandedSettingId !== "" || Status.settingsSubPanel !== "") win.navUpAction(); else Status.settingsOpen = false; }
-                                Keys.onDownPressed: win.stepCategory(1); Keys.onUpPressed: win.stepCategory(-1)
+                                Keys.onReturnPressed: { if (win.searchQuery !== "" && pagesView.visibleItems.length > 0) pagesView.openCardPanel(pagesView.visibleItems[0]); }
+                                Keys.onDownPressed: { if (searchBox.text === "") win.stepCategory(1); else rootBox.forceActiveFocus(); }
+                                Keys.onUpPressed: { if (searchBox.text === "") win.stepCategory(-1); else rootBox.forceActiveFocus(); }
                                 Text { visible: searchBox.text === ""; anchors.verticalCenter: parent.verticalCenter; text: "Find a setting"; color: Theme.muted; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1 }
                             }
                             Text { text: searchBox.text !== "" ? "󰅖" : "󰍉"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize; MouseArea { anchors.fill: parent; enabled: searchBox.text !== ""; cursorShape: Qt.PointingHandCursor; onClicked: win.clearSearch() } }
@@ -175,7 +177,7 @@ FloatingWindow {
                                 Text { visible: !win.veryNarrow && win.searchQuery === "" && Status.expandedSettingId !== "" && Status.settingsSubPanel !== ""; text: "󰅂"; color: Theme.muted; font.family: Theme.font; font.pixelSize: Theme.fontSize + 1 }
                                 Text { text: win.searchQuery !== "" ? ("Search: \"" + win.searchQuery + "\"") : (Status.settingsSubPanel !== "" ? pagesView.curSubTitle : (Status.expandedSettingId !== "" ? pagesView.curItemTitle : win.currentCatObj.title)); color: Theme.fg; font.family: Theme.font; font.pixelSize: Status.expandedSettingId !== "" ? (Theme.fontSize + 4) : (win.veryNarrow ? Theme.fontSize + 4 : Theme.fontSize + 7); font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
                             }
-                            Rectangle { implicitWidth: win.veryNarrow ? 36 : 104; implicitHeight: 30; radius: 5; color: qdM.containsMouse ? Theme.bgHover : Theme.bgAlt; border.width: 1; border.color: Theme.border; Text { anchors.centerIn: parent; text: win.veryNarrow ? "󰚩" : "󰚩  Quick AI"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2 } MouseArea { id: qdM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.toggleSuperDeck("ai") } }
+                            Rectangle { implicitWidth: win.veryNarrow ? 36 : 104; implicitHeight: 30; radius: 5; color: qdM.containsMouse ? Theme.bgHover : Theme.bgAlt; border.width: 1; border.color: Theme.border; Text { anchors.centerIn: parent; text: win.veryNarrow ? "󰚩" : "󰚩  Quick AI"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2 } MouseArea { id: qdM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Status.settingsOpen = false; Status.toggleSuperDeck("ai"); } } }
                             Rectangle { implicitWidth: 32; implicitHeight: 30; radius: 5; color: clsM.containsMouse ? Theme.red : Theme.bgAlt; border.width: 1; border.color: clsM.containsMouse ? Theme.red : Theme.border; Text { anchors.centerIn: parent; text: "󰅖"; color: clsM.containsMouse ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize } MouseArea { id: clsM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.settingsOpen = false } }
                         }
 
@@ -189,7 +191,7 @@ FloatingWindow {
                             }
                             RowLayout {
                                 visible: win.width >= 760; spacing: 16
-                                RowLayout { spacing: 8; Text { text: Status.wifiEnabled ? "󰤨" : "󰈀"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize + 3 } ColumnLayout { spacing: 0; Text { text: (Status.ssid || Status.netIface) + " 󰅂"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.weight: Font.DemiBold; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("network", "net-wifi") } } Text { text: "Connected"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3 } } }
+                                RowLayout { spacing: 8; Text { text: Status.wifiEnabled ? "󰤨" : "󰈀"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize + 3 } ColumnLayout { spacing: 0; Text { text: (Status.ssid || Status.netIface) + " 󰅂"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.weight: Font.DemiBold; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("network", "net-wifi") } } Text { text: (Status.netType !== "none" && Status.netIpv4 !== "Disconnected") ? "Connected" : "Not connected"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3 } } }
                                 RowLayout { spacing: 8; Text { text: "󰓅"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize + 3 } ColumnLayout { spacing: 0; Text { text: "Power mode 󰅂"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.weight: Font.DemiBold; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("power", "pwr-mode") } } Text { text: Status.workstationMode; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3 } } }
                             }
                         }

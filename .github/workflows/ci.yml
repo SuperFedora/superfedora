@@ -56,9 +56,9 @@ jobs:
           chmod 440 /etc/sudoers.d/tester
           cp -a "$GITHUB_WORKSPACE" /home/tester/sf && chown -R tester: /home/tester/sf
       - name: Dry run
-        run: sudo -iu tester env NO_COLOR=1 /home/tester/sf/bin/superfedora install --dry-run
+        run: sudo -iu tester env NO_COLOR=1 /home/tester/sf/bin/superfedora install --quick --dry-run
       - name: Install
-        run: sudo -iu tester env NO_COLOR=1 /home/tester/sf/bin/superfedora install
+        run: sudo -iu tester env NO_COLOR=1 /home/tester/sf/bin/superfedora install --quick
       - name: Second run installs nothing
         run: |
           out="$(sudo -iu tester env NO_COLOR=1 /home/tester/sf/bin/superfedora install)"

@@ -42,8 +42,8 @@ pub fn print_usage(st: &WorkstationState) {
     println!("  {b}modules | rollback{r}   List installer modules or run Btrfs Boot-Guard rollback");
     println!("  {b}version{r}              Print the SuperFedora Rust engine version\n");
     println!("{s}{b}Install / Audit Options:{r}");
-    println!("  --quick              Use prebuilt binary packages (default)");
-    println!("  --build-from-source  Compile & tune for localhost hardware (-march=native)");
+    println!("  --quick              Use prebuilt binary packages");
+    println!("  --build-from-source  Compile & tune for localhost hardware (-march=native) (default)");
     println!("  --dry-run            Show what would be installed without changes");
     println!("  --only / --skip a,b  Filter installer modules (e.g. 40,desktop)");
     println!("  -v, --verbose        Show verbose command output");
@@ -156,7 +156,14 @@ fn exec_script(st: &WorkstationState, rel: &str, args: &[String]) -> i32 {
 }
 
 fn run_module_engine(cmd: &str, args: &[String], st: &WorkstationState) -> i32 {
-    let mut build_mode = env::var("SUPERFEDORA_BUILD_MODE").unwrap_or_default();
+    // Normalize the environment override; an unrecognized value falls through to
+    // the engine default (source) instead of leaking a bogus SF_BUILD_MODE.
+    let mut build_mode = match env::var("SUPERFEDORA_BUILD_MODE").unwrap_or_default().to_ascii_lowercase().as_str() {
+        "source" | "native" | "build-from-source" => "source",
+        "quick" | "binary" | "prebuilt" => "quick",
+        _ => "",
+    }
+    .to_string();
     let (mut only, mut skip, mut dry, mut verbose, mut i) = (String::new(), String::new(), false, false, 0);
     while i < args.len() {
         match args[i].as_str() {
@@ -177,7 +184,7 @@ fn run_module_engine(cmd: &str, args: &[String], st: &WorkstationState) -> i32 {
     let script = r#"
 set -uo pipefail
 source "$SF_ROOT/lib/core.sh"; source "$SF_ROOT/lib/check.sh"
-[[ -z "${SF_BUILD_MODE:-}" ]] && { [[ -f "$SF_STATE/build-mode" ]] && SF_BUILD_MODE="$(tr -d '[:space:]' < "$SF_STATE/build-mode")" || SF_BUILD_MODE="quick"; }
+[[ -z "${SF_BUILD_MODE:-}" ]] && { [[ -f "$SF_STATE/build-mode" ]] && SF_BUILD_MODE="$(tr -d '[:space:]' < "$SF_STATE/build-mode")" || SF_BUILD_MODE="source"; }
 export SF_BUILD_MODE
 module_files() { find "$SF_ROOT/modules" -maxdepth 1 -name '[0-9][0-9]-*.sh' | sort; }
 module_name()  { local b; b="$(basename "$1" .sh)"; echo "${b#[0-9][0-9]-}"; }

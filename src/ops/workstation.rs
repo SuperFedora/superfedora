@@ -28,7 +28,7 @@ pub fn generate_manifest(st: &WorkstationState) -> String {
         .unwrap_or_default()
         .trim()
         .to_string();
-    let build_mode = fs::read_to_string(cfg.join("build-mode")).unwrap_or_else(|_| "quick".into()).trim().to_string();
+    let build_mode = fs::read_to_string(cfg.join("build-mode")).unwrap_or_else(|_| "source".into()).trim().to_string();
 
     let forged: Vec<String> = st.forge_items.iter().filter(|i| i.installed).map(|i| format!("\"{}\"", i.name)).collect();
     let webapps: Vec<String> = st.webapps.iter().map(|(slug, _, url)| format!("\"{slug}|{url}\"")).collect();
@@ -170,7 +170,7 @@ pub fn run_import_cmd(st: &mut WorkstationState, args: &[String]) -> i32 {
     let th_mode = parse_kv(&txt, "supertheme", "mode").unwrap_or_else(|| st.theme_mode.clone());
     let corners = parse_kv(&txt, "supertheme", "corners").unwrap_or_else(|| st.theme_corners.clone());
     let nightlight = parse_kv(&txt, "supertheme", "nightlight").unwrap_or_else(|| "off".into());
-    let build_mode = parse_kv(&txt, "superforge", "build_mode").unwrap_or_else(|| "quick".into());
+    let build_mode = parse_kv(&txt, "superforge", "build_mode").unwrap_or_else(|| "source".into());
     let dock_pos = parse_kv(&txt, "supershell", "dock_position").unwrap_or_else(|| st.dock_pos.clone());
     let dock_hide = parse_kv(&txt, "supershell", "dock_autohide").unwrap_or_else(|| st.dock_autohide.clone());
     let tiling = parse_kv(&txt, "supershell", "tiling_layout").unwrap_or_else(|| st.tiling_layout.clone());

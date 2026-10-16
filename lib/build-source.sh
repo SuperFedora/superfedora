@@ -191,7 +191,7 @@ build_target() {
 
 print_status() {
     detect_host_hw
-    local mode="quick"
+    local mode="source"
     [[ -f "$STATE_DIR/build-mode" ]] && mode="$(tr -d '[:space:]' < "$STATE_DIR/build-mode")"
     printf 'SuperFedora Localhost Hardware Build Profile\n'
     printf '  Install Mode   : %s\n' "$mode"

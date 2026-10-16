@@ -205,14 +205,28 @@ case "${1:-touchpad}" in
     kbd|kbd-backlight|backlight) shift || true; cmd_kbd_backlight "${1:-cycle}" ;;
     dpms|screen) shift || true; cmd_dpms "${1:-off}" ;;
     *)
+        [[ "${1:-}" == "touchpad" ]] && { shift || true; }
+        sub="${1:-toggle}"
         state="${XDG_RUNTIME_DIR:-/tmp}/touchpad-disabled"
-        if [[ -f "$state" ]]; then
-            hyprctl keyword 'device[elan-touchpad]:enabled' true >/dev/null
+        cfg_val="$(tr -d '[:space:]' < "$STATE_DIR/touchpad-enabled" 2>/dev/null || echo 1)"
+        cur_on=1
+        [[ -f "$state" || "$cfg_val" == "0" || "$cfg_val" == "off" ]] && cur_on=0
+        case "$sub" in
+            on|1|enable|true) want_on=1 ;;
+            off|0|disable|false) want_on=0 ;;
+            *) want_on=$(( 1 - cur_on )) ;;
+        esac
+        if [[ "$want_on" -eq 1 ]]; then
+            hyprctl keyword 'device[elan-touchpad]:enabled' true >/dev/null 2>&1 || true
             rm -f "$state"
+            echo "1" > "$STATE_DIR/touchpad-enabled"
+            refresh_qs
             notify-send -a System -t 1500 "Touchpad on"
         else
-            hyprctl keyword 'device[elan-touchpad]:enabled' false >/dev/null
+            hyprctl keyword 'device[elan-touchpad]:enabled' false >/dev/null 2>&1 || true
             touch "$state"
+            echo "0" > "$STATE_DIR/touchpad-enabled"
+            refresh_qs
             notify-send -a System -t 1500 "Touchpad off"
         fi
         ;;

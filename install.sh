@@ -14,13 +14,13 @@
 #   1. checks that this is Fedora and that you can use sudo
 #   2. downloads the latest SuperFedora release to ~/.local/share/superfedora
 #   3. installs the `superfedora` and `sf` commands to ~/.local/bin
-#   4. prompts for Quick Install vs Build from Source (tuned to localhost CPU)
+#   4. prompts for Build from Source (default) vs Quick Install (tuned to localhost CPU)
 #   5. runs `superfedora install`, checking every component idempotently
 #
 # Arguments:
 #   -h, --help                   show this help message
-#   --quick                      prebuilt binary packages & fast bootstrap (default)
-#   --build-from-source          compile & tune for localhost hardware (-march=native)
+#   --quick                      prebuilt binary packages & fast bootstrap
+#   --build-from-source          compile & tune for localhost hardware (-march=native) [default]
 #   --dry-run                    preview what would be installed without changes
 #   --only <modules>             run only specified modules (e.g. 40,desktop)
 #   --skip <modules>             skip specified modules
@@ -50,14 +50,14 @@ Fedora system. This script:
   1. checks that this is Fedora and that you can use sudo
   2. downloads the latest SuperFedora release to ~/.local/share/superfedora
   3. installs the `superfedora` and `sf` commands to ~/.local/bin
-  4. selects Quick Install or Build from Source (localhost -march=native)
+  4. selects Build from Source (default) or Quick Install (localhost -march=native)
   5. runs `superfedora install`, which checks every component and installs
      only what is missing (safe to re-run at any time)
 
 Arguments:
   -h, --help                   show this help message
-  --quick                      prebuilt binary packages & fast bootstrap (default)
-  --build-from-source          compile & tune for localhost hardware (-march=native)
+  --quick                      prebuilt binary packages & fast bootstrap
+  --build-from-source          compile & tune for localhost hardware (-march=native) [default]
   --dry-run                    preview what would be installed without changes
   --only <modules>             run only specified modules (e.g. 40,desktop)
   --skip <modules>             skip specified modules
@@ -83,6 +83,10 @@ esac
 REPO="SuperFedora/superfedora"
 DEST="${XDG_DATA_HOME:-$HOME/.local/share}/superfedora"
 BIN_DIR="$HOME/.local/bin"
+# SuperFedora builds from source by default: every binary is compiled and tuned
+# for the localhost CPU (-march=native / target-cpu=native). Set to "quick" to
+# opt into prebuilt binary packages instead.
+DEFAULT_BUILD_MODE="source"
 
 say()  { printf '\033[1;34m::\033[0m %s\n' "$*"; }
 fail() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
@@ -175,23 +179,33 @@ done
 if [[ $HAS_MODE_FLAG -eq 0 && -n "${SUPERFEDORA_BUILD_MODE:-}" ]]; then
     case "${SUPERFEDORA_BUILD_MODE,,}" in
         source|native|build-from-source) FORWARD_ARGS+=("--build-from-source"); HAS_MODE_FLAG=1 ;;
-        *) FORWARD_ARGS+=("--quick"); HAS_MODE_FLAG=1 ;;
+        quick|binary|prebuilt) FORWARD_ARGS+=("--quick"); HAS_MODE_FLAG=1 ;;
+        *) FORWARD_ARGS+=("--${DEFAULT_BUILD_MODE}"); HAS_MODE_FLAG=1 ;;
     esac
 fi
 
 if [[ $HAS_MODE_FLAG -eq 0 && $IS_DRY_RUN -eq 0 && -t 1 && -r /dev/tty ]]; then
     printf '\n\033[1;34m::\033[0m \033[1mSelect SuperFedora installation mode:\033[0m\n'
-    printf '   \033[1;32m[1]\033[0m Quick Install     -- Prebuilt binary packages & fast bootstrap (default)\n'
-    printf '   \033[1;36m[2]\033[0m Build from Source -- Compile & tune for localhost hardware (-march=native)\n'
+    printf '   \033[1;32m[1]\033[0m Build from Source -- Compile & tune for localhost hardware (-march=native) (default)\n'
+    printf '   \033[1;36m[2]\033[0m Quick Install     -- Prebuilt binary packages & fast bootstrap\n'
     mode_choice="1"
     read -r -p ":: Enter selection [1/2] (default: 1): " mode_choice < /dev/tty || mode_choice="1"
     case "${mode_choice,,}" in
-        2|source|s|native|build-from-source)
-            say "selected Build from Source (localhost hardware optimization: -march=native / target-cpu=native)"
-            FORWARD_ARGS+=("--build-from-source") ;;
-        *)
+        2|quick|q|binary|prebuilt)
             say "selected Quick Install (prebuilt binary packages)"
             FORWARD_ARGS+=("--quick") ;;
+        *)
+            say "selected Build from Source (localhost hardware optimization: -march=native / target-cpu=native)"
+            FORWARD_ARGS+=("--build-from-source") ;;
+    esac
+fi
+
+# Non-interactive runs with no explicit mode flag still get the documented
+# default, so piped/headless installs are deterministic.
+if [[ $HAS_MODE_FLAG -eq 0 ]]; then
+    case "$DEFAULT_BUILD_MODE" in
+        quick) FORWARD_ARGS+=("--quick") ;;
+        *) FORWARD_ARGS+=("--build-from-source") ;;
     esac
 fi
 

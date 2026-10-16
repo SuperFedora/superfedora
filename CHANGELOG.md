@@ -5,6 +5,13 @@ All notable changes to SuperFedora. Every change ships as a tagged release
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-10-16
+
+### Added
+- **SuperSettings Deep-Link Navigation, Keyboard UX & Hardware Probes (`supersettings`, `src/settings_engine.rs`, `SettingsWindow.qml`, `SettingsPages.qml`):** Added multi-segment category/item/sub-panel deep-linking (`supersettings open <page>:<item>:<subpanel>`), non-zero exit codes for unknown CLI domains/pages, inline confirmation before destructive actions, live Bluetooth scan feedback, PipeWire `module-remap-sink` mono-audio downmix routing, and declarative Hyprland touchpad enable/disable state persistence (`toggle-touchpad.sh`).
+- **SuperDeck Modular + All-in-One AI Harness Configurator (`StatusPopup.qml`, `Status.qml`, `quake-ai.sh`):** Added inline SuperDeck Dock Settings with All-in-One agent selection (`agy`, `mcode`, `grok`, `vibe`, `claude`, `chatgpt`) and Modular Harness + Local/LAN Ollama server & model picker (`pi`, `mcode`, `opencode`, `aider`, `ollama-cli`, `sf-chat`).
+- **Build-from-Source Default Mode & DE Ecosystem Suites (`install.sh`, `src/cli.rs`, `v0.10.0`–`v0.11.0`):** Promoted `--build-from-source` (`-march=native` / `target-cpu=native`) as the default workstation build mode and synced curated DE Ecosystem Suite presets, 12 XDG default application roles, and searchable file extension associations with `supershell` v0.5.0.
+
 ## [0.9.0] — 2026-10-15
 
 ### Added

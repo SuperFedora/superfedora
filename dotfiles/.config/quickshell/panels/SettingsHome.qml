@@ -27,7 +27,7 @@ Item {
         { id: "07-peridot", l: "Peridot", hex: "#a6e3a1" }, { id: "08-emerald", l: "Emerald", hex: "#9ece6a" },
         { id: "09-verdant", l: "Verdant", hex: "#73daca" }, { id: "10-lagoon",  l: "Lagoon",  hex: "#2ac3de" },
         { id: "11-glacier", l: "Glacier", hex: "#7dcfff" }, { id: "12-cobalt",  l: "Cobalt",  hex: "#7aa2f7" },
-        { id: "13-indigo",  label: "Indigo", l: "Indigo", hex: "#6c71c4" }, { id: "14-violet", l: "Violet", hex: "#bb9af7" },
+        { id: "13-indigo",  l: "Indigo",  hex: "#6c71c4" }, { id: "14-violet",  l: "Violet",  hex: "#bb9af7" },
         { id: "15-orchid",  l: "Orchid",  hex: "#cba6f7" }, { id: "16-fuchsia", l: "Fuchsia", hex: "#f43f5e" }
     ]
     readonly property var powerModes: [
@@ -37,7 +37,7 @@ Item {
     function diskPct(str) {
         const m = String(str || "").match(/([0-9.]+)\s*%/); if (m) return Math.max(0.06, Math.min(1.0, Number(m[1]) / 100.0));
         const p = String(str || "").split("/"); if (p.length === 2) { const u = parseFloat(p[0]), t = parseFloat(p[1]); if (t > 0 && !isNaN(u)) return Math.max(0.08, Math.min(1.0, u / t)); }
-        return 0.32;
+        return 0.0;
     }
 
     Flickable {
@@ -66,24 +66,25 @@ Item {
                         Layout.fillWidth: true; spacing: 3
                         Text { text: Status.userDeviceName || home.hostShort; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize + 5; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("accounts", "acc-profile") } }
                         Text { text: (Status.userFullName || "Fedora Linux") + "  ·  " + Status.gpuArch + "  ·  " + Theme.themeName; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; elide: Text.ElideRight; Layout.fillWidth: true; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("system", "sys-gpu") } }
-                        Text { text: "Edit profile & system specifications 󰅂"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("accounts", "acc-profile") } }
+                        Text { text: "Edit profile & system identity 󰅂"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("accounts", "acc-profile") } }
                     }
                     Repeater {
-                        model: [
-                            { cat: "network", item: "net-wifi",     icon: Status.wifiEnabled ? "󰤨" : "󰈀", title: Status.ssid || Status.netIface || "Network", sub: "Connected · " + Status.netIpv4.split("/")[0] },
-                            { cat: "power",   item: "pwr-mode",     icon: "󰓅", title: "Power mode", sub: Status.workstationMode.toUpperCase() + " · CPU " + Status.cpu + "%" },
-                            { cat: "ai",      item: "ai-cluster",   icon: "󰚩", title: Status.aiAgentLabel || "AI Cluster", sub: Status.ollamaModel + " · " + Status.llmServers.length + " nodes" }
-                        ]
+                        model: 3
                         Rectangle {
-                            id: hPill; required property var modelData; required property int index
+                            id: hPill; required property int index
                             visible: index < home.visibleHeroPills
+                            readonly property string pCat: index === 0 ? "network" : (index === 1 ? "power" : "ai")
+                            readonly property string pItem: index === 0 ? "net-wifi" : (index === 1 ? "pwr-mode" : "ai-cluster")
+                            readonly property string pIcon: index === 0 ? (Status.wifiEnabled ? "󰤨" : "󰈀") : (index === 1 ? "󰓅" : "󰚩")
+                            readonly property string pTitle: index === 0 ? (Status.ssid || Status.netIface || "Network") : (index === 1 ? "Power mode" : (Status.aiAgentLabel || "AI Cluster"))
+                            readonly property string pSub: index === 0 ? ((Status.netType !== "none" && Status.netIpv4 !== "Disconnected") ? ("Connected · " + Status.netIpv4.split("/")[0]) : "Not connected") : (index === 1 ? (String(Status.workstationMode || "balanced").toUpperCase() + " · CPU " + Status.cpu + "%") : (Status.ollamaModel + " · " + Status.llmServers.length + " nodes"))
                             implicitWidth: 164; implicitHeight: 62; radius: 6; color: hpM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: hpM.containsMouse ? Theme.blue : Theme.border
                             RowLayout {
                                 anchors { fill: parent; leftMargin: 12; rightMargin: 10 } spacing: 10
-                                Text { text: hPill.modelData.icon; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize + 4 }
-                                ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { text: hPill.modelData.title; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true } Text { text: hPill.modelData.sub; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; elide: Text.ElideRight; Layout.fillWidth: true } }
+                                Text { text: hPill.pIcon; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize + 4 }
+                                ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { text: hPill.pTitle; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true } Text { text: hPill.pSub; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; elide: Text.ElideRight; Layout.fillWidth: true } }
                             }
-                            MouseArea { id: hpM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem(hPill.modelData.cat, hPill.modelData.item) }
+                            MouseArea { id: hpM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem(hPill.pCat, hPill.pItem) }
                         }
                     }
                 }
@@ -98,7 +99,7 @@ Item {
                     Layout.fillWidth: true; Layout.preferredWidth: 100; Layout.fillHeight: true; implicitHeight: recCol.implicitHeight + 28; radius: 8; color: Theme.bgAlt; border.width: 1; border.color: Theme.border
                     ColumnLayout {
                         id: recCol; anchors { left: parent.left; right: parent.right; top: parent.top; margins: 16 } spacing: 10
-                        RowLayout { Layout.fillWidth: true; spacing: 10; Text { text: "󰒓"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize + 3 } ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { text: "Recommended settings 󰅂"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize + 1; font.weight: Font.DemiBold; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("system", "disp-bright") } } Text { text: "Click any setting card to open its dedicated configuration panel"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; elide: Text.ElideRight; Layout.fillWidth: true } } }
+                        RowLayout { Layout.fillWidth: true; spacing: 10; Text { text: "󰒓"; color: Theme.blue; font.family: Theme.font; font.pixelSize: Theme.fontSize + 3 } ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { text: "Recommended settings 󰅂"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize + 1; font.weight: Font.DemiBold; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: home.selectCategory("system") } } Text { text: "Click any setting card to open its dedicated configuration panel"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3; elide: Text.ElideRight; Layout.fillWidth: true } } }
                         RowLayout {
                             Layout.fillWidth: true; spacing: 10
                             Rectangle { implicitWidth: 30; implicitHeight: 28; radius: 5; color: vMuteM.containsMouse ? Theme.bgHover : Theme.bg; border.width: 1; border.color: Theme.border; Text { anchors.centerIn: parent; text: Status.spkMuted ? "󰝟" : "󰕾"; color: Status.spkMuted ? Theme.red : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize } MouseArea { id: vMuteM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Status.toggleSpeakerMute() } }
@@ -132,7 +133,7 @@ Item {
                                 Rectangle {
                                     id: qtBtn; required property var modelData; Layout.fillWidth: true; implicitHeight: 34; radius: 6; color: modelData.on ? Theme.blue : (qtM.containsMouse ? Theme.bgHover : Theme.bg); border.width: 1; border.color: modelData.on ? Theme.blue : Theme.border
                                     RowLayout { anchors.centerIn: parent; spacing: 6; Text { text: qtBtn.modelData.icon; color: qtBtn.modelData.on ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 1 } Text { text: qtBtn.modelData.l; color: qtBtn.modelData.on ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; font.weight: qtBtn.modelData.on ? Font.DemiBold : Font.Normal } }
-                                    MouseArea { id: qtM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { if (qtBtn.modelData.kind === "nl") home.executeCommand(Status.nightLightRunning ? "~/.local/bin/supersettings apply nightlight off" : "~/.local/bin/supersettings apply nightlight 4000", false); else if (qtBtn.modelData.kind === "dnd") { if (Status.notifAction) Status.notifAction("toggleDnd", ""); } else Status.toggleSfx(); } }
+                                    MouseArea { id: qtM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { if (qtBtn.modelData.kind === "nl") home.executeCommand(Status.nightLightRunning ? "~/.local/bin/supersettings apply nightlight off" : ("~/.local/bin/supersettings apply nightlight " + Status.nightLightTemp), false); else if (qtBtn.modelData.kind === "dnd") { if (Status.notifAction) Status.notifAction("toggleDnd", ""); } else Status.toggleSfx(); } }
                                 }
                             }
                         }
@@ -186,12 +187,13 @@ Item {
                             ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { text: "Bluetooth devices 󰅂"; color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize + 1; font.weight: Font.DemiBold; MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("devices", "dev-bt") } } Text { text: home.btEnabled ? ("Bluetooth is on  ·  " + home.btList.length + " recent devices") : "Bluetooth is turned off"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3 } }
                             RowLayout { spacing: 8; Text { text: home.btEnabled ? "On" : "Off"; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2 } Rectangle { implicitWidth: 42; implicitHeight: 22; radius: 11; color: home.btEnabled ? Theme.blue : Theme.bg; border.width: 1; border.color: home.btEnabled ? Theme.blue : Theme.muted; Rectangle { width: 14; height: 14; radius: 7; anchors.verticalCenter: parent.verticalCenter; x: home.btEnabled ? 23 : 4; color: home.btEnabled ? Theme.bg : Theme.fgDim } MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: home.executeCommand(home.btEnabled ? "bluetoothctl power off" : "rfkill unblock bluetooth; bluetoothctl power on", false) } } }
                         }
-                        Rectangle { visible: home.btList.length === 0; Layout.fillWidth: true; implicitHeight: 54; radius: 6; color: Theme.bg; border.width: 1; border.color: Theme.border; Text { anchors.centerIn: parent; text: "No paired Bluetooth accessories found. Click to manage devices."; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2 } MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("devices", "dev-bt") } }
+                        Rectangle { visible: home.btList.length === 0; Layout.fillWidth: true; implicitHeight: 54; radius: 6; color: Theme.bg; border.width: 1; border.color: Theme.border; Text { anchors.centerIn: parent; text: home.btEnabled ? "No paired Bluetooth accessories found. Click to manage devices." : "Bluetooth is turned off. Turn on Bluetooth or click to manage devices."; color: Theme.fgDim; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2 } MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Status.openSettingsItem("devices", "dev-bt") } }
                         Repeater {
                             model: home.btList
                             Rectangle {
-                                id: btRow; required property var modelData; Layout.fillWidth: true; implicitHeight: 36; radius: 5; color: Theme.bg; border.width: 1; border.color: modelData.connected ? Theme.blue : Theme.border
-                                RowLayout { anchors { fill: parent; leftMargin: 12; rightMargin: 10 } spacing: 8; Text { text: "󰂯  " + (btRow.modelData.name || "Accessory") + (btRow.modelData.connected ? "  ·  Connected" : ""); color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; Layout.fillWidth: true; elide: Text.ElideRight } Rectangle { implicitWidth: 84; implicitHeight: 24; radius: 4; color: btRow.modelData.connected ? Theme.bgAlt : Theme.blue; border.width: 1; border.color: Theme.border; Text { anchors.centerIn: parent; text: btRow.modelData.connected ? "Disconnect" : "Connect"; color: btRow.modelData.connected ? Theme.fg : Theme.bg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3 } MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: home.executeCommand(btRow.modelData.connected ? ("bluetoothctl disconnect " + btRow.modelData.address) : ("bluetoothctl connect " + btRow.modelData.address), false) } } }
+                                id: btRow; required property var modelData; readonly property string safeAddr: String(modelData.address || "").replace(/[^0-9A-Fa-f:]/g, "")
+                                Layout.fillWidth: true; implicitHeight: 36; radius: 5; color: Theme.bg; border.width: 1; border.color: modelData.connected ? Theme.blue : Theme.border
+                                RowLayout { anchors { fill: parent; leftMargin: 12; rightMargin: 10 } spacing: 8; Text { text: "󰂯  " + (btRow.modelData.name || "Accessory") + (btRow.modelData.connected ? "  ·  Connected" : ""); color: Theme.fg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 2; Layout.fillWidth: true; elide: Text.ElideRight } Rectangle { implicitWidth: 84; implicitHeight: 24; radius: 4; color: btRow.modelData.connected ? Theme.bgAlt : Theme.blue; border.width: 1; border.color: Theme.border; Text { anchors.centerIn: parent; text: btRow.modelData.connected ? "Disconnect" : "Connect"; color: btRow.modelData.connected ? Theme.fg : Theme.bg; font.family: Theme.font; font.pixelSize: Theme.fontSize - 3 } MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (btRow.safeAddr) home.executeCommand(btRow.modelData.connected ? ("bluetoothctl disconnect " + btRow.safeAddr) : ("bluetoothctl connect " + btRow.safeAddr), false) } } }
                             }
                         }
                         RowLayout {
