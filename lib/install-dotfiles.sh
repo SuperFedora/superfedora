@@ -149,11 +149,11 @@ if [[ -f "$STATE_DIR/theme.env" && $EUID -ne 0 ]]; then
     fi
 fi
 
-if [[ $units_changed -eq 1 ]]; then
+if [[ $units_changed -eq 1 ]] || { [[ "$TARGET_HOME" == "$HOME" ]] && ! systemctl --user is-enabled --quiet superfedora-session.target cliphist.service hyprpolkitagent.service 2>/dev/null; }; then
     if [[ $EUID -eq 0 && "$TARGET_USER" != root ]]; then
         uid="$(id -u "$TARGET_USER")"
         [[ -d "/run/user/$uid" ]] && sudo -u "$TARGET_USER" XDG_RUNTIME_DIR="/run/user/$uid" sh -c 'systemd-tmpfiles --user --create 2>/dev/null || true; systemctl --user daemon-reload 2>/dev/null || true; systemctl --user enable superfedora-session.target supershell.service idlescreen.service cliphist.service hyprpolkitagent.service hypridle.service hyprpaper.service 2>/dev/null || true; systemctl --user enable --now supertheme-sun.timer superforge-check.timer 2>/dev/null || true' || true
-    else
+    elif [[ "$TARGET_HOME" == "$HOME" ]]; then
         systemd-tmpfiles --user --create 2>/dev/null || true
         systemctl --user daemon-reload 2>/dev/null || true
         systemctl --user enable superfedora-session.target supershell.service idlescreen.service cliphist.service hyprpolkitagent.service hypridle.service hyprpaper.service 2>/dev/null || true

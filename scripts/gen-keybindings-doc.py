@@ -80,7 +80,15 @@ def main() -> int:
         out += [f"## {title}", "", "| Keys | Action |", "| :--- | :--- |"]
         out += [f"| {c} | {d} |" for c, d in rows]
         out.append("")
-    OUT.write_text("\n".join(out))
+    rendered = "\n".join(out)
+    if "--check" in sys.argv[1:]:
+        cur = OUT.read_text() if OUT.exists() else ""
+        if cur != rendered:
+            print(f"FAIL: {OUT.relative_to(REPO)} is out of sync with {SRC.relative_to(REPO)}", file=sys.stderr)
+            return 1
+        print(f"OK: {OUT.relative_to(REPO)} matches {SRC.relative_to(REPO)} ({sum(len(r) for _, r in sections)} bindings)")
+        return 0
+    OUT.write_text(rendered)
     print(f"wrote {OUT.relative_to(REPO)} ({sum(len(r) for _, r in sections)} bindings)")
     return 0
 

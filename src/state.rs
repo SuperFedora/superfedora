@@ -176,9 +176,14 @@ impl WorkstationState {
             self.secondary_rgb = *s;
         }
         self.sfx_on = fs::read_to_string(self.state_dir.join("sfx")).map(|s| s.trim() != "off").unwrap_or(true);
-        self.dock_pos = fs::read_to_string(self.state_dir.join("dock-position")).unwrap_or_else(|_| "bottom".into()).trim().to_string();
-        self.dock_autohide = fs::read_to_string(self.state_dir.join("dock-autohide")).unwrap_or_else(|_| "always".into()).trim().to_string();
-        self.tiling_layout = fs::read_to_string(self.state_dir.join("tiling-layout")).unwrap_or_else(|_| "dwindle".into()).trim().to_string();
+        let sb_json: serde_json::Value = fs::read_to_string(self.state_dir.join("superbar.json")).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+        self.dock_pos = fs::read_to_string(self.state_dir.join("dock-position")).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+            .or_else(|| ["bottom", "top", "left", "right"].into_iter().find(|&e| sb_json["edges"][e]["enabled"].as_bool() == Some(true)).map(String::from)).unwrap_or_else(|| "top".into());
+        self.dock_autohide = fs::read_to_string(self.state_dir.join("dock-autohide")).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+            .or_else(|| sb_json["edges"][&self.dock_pos]["hideMode"].as_str().or_else(|| sb_json["edges"]["top"]["hideMode"].as_str()).map(String::from)).unwrap_or_else(|| "always".into());
+        let wm_json: serde_json::Value = fs::read_to_string(self.state_dir.join("workspace-modes.json")).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+        self.tiling_layout = wm_json["workspaces"].as_object().and_then(|m| m.get("1").or_else(|| m.values().next())).and_then(|v| v.as_str()).map(String::from)
+            .or_else(|| fs::read_to_string(self.state_dir.join("tiling-layout")).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())).unwrap_or_else(|| "dwindle".into());
         self.baseline_snap = fs::read_to_string(self.state_dir.join("last_pre_install_snapshot")).unwrap_or_else(|_| "none".into()).trim().to_string();
         self.refresh_fast();
         self.refresh_forge();

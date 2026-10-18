@@ -188,11 +188,11 @@ fn handle_tab_key(
                 st.load_snapshots();
                 *status_msg = format!("Sealed Btrfs Time-Machine checkpoint #{num}");
             }
-            KeyCode::Char('d') => {
+            KeyCode::Char('d') | KeyCode::Char('b') => {
                 let exe = std::env::current_exe().unwrap_or_else(|_| st.sf_root.join("bin/superfedora"));
-                run_fullscreen_cmd(terminal, exe.to_str().unwrap_or("superfedora"), &["snapshot", "diff"]);
+                let args: &[&str] = if code == KeyCode::Char('d') { &["snapshot", "diff"] } else { &["snapshot", "restore", "--baseline"] };
+                run_fullscreen_cmd(terminal, exe.to_str().unwrap_or("superfedora"), args);
             }
-            KeyCode::Char('b') => run_fullscreen_cmd(terminal, st.sf_root.join("lib/tui.sh").to_str().unwrap_or("superfedora"), &["rollback", "--baseline"]),
             _ => {}
         },
         4 => match code {
@@ -210,11 +210,10 @@ fn handle_tab_key(
             _ => {}
         },
         _ => match code {
-            KeyCode::Enter | KeyCode::Char('a') => {
+            KeyCode::Enter | KeyCode::Char('a') | KeyCode::Char('d') => {
                 let exe = std::env::current_exe().unwrap_or_else(|_| st.sf_root.join("bin/superfedora"));
-                run_fullscreen_cmd(terminal, exe.to_str().unwrap_or("superfedora"), &["status"]);
+                run_fullscreen_cmd(terminal, exe.to_str().unwrap_or("superfedora"), if code == KeyCode::Char('d') { &["dotfiles"] } else { &["status"] });
             }
-            KeyCode::Char('d') => run_fullscreen_cmd(terminal, st.sf_root.join("lib/install-dotfiles.sh").to_str().unwrap_or("superfedora"), &[]),
             _ => {}
         },
     }

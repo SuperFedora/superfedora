@@ -3,6 +3,8 @@
 # Usage: menu.sh [main|apps|capture|toggle|style|setup|system]
 set -u
 
+[[ -x "$HOME/.local/bin/superbar" ]] && exec "$HOME/.local/bin/superbar" menu "${1:-main}"
+
 H="$HOME/.config/hypr"
 TERM_CMD="xdg-terminal-exec"
 
@@ -16,7 +18,7 @@ float_term() { "$TERM_CMD" --class floating-term -e "$@" & }
 menu_main() {
     case "$(pick "Go" \
         "󰚩  Quake AI" "󰀻  Apps" "  Capture" "󰔡  Toggle" "  Style" "  Setup" "  About" "  System")" in
-        *Quake*)   ~/.local/bin/superagent toggle ;;
+        *Quake*)   qs ipc call ai toggle ;;
         *Apps*)    fuzzel ;;
         *Capture*) menu_capture ;;
         *Toggle*)  menu_toggle ;;
@@ -38,7 +40,7 @@ menu_capture() {
 
 menu_toggle() {
     case "$(pick "Toggle" "󰚩  Quake AI console" "󰀻  Launchpad App Grid" "󰘔  Dock visibility" "󰕰  Workspace layout" "󰒲  Idle / stay awake" "󰍜  Top bar" "  Gaps" "󰹑  Float active window")" in
-        *Quake*)     ~/.local/bin/superagent toggle ;;
+        *Quake*)     qs ipc call ai toggle ;;
         *Launchpad*) qs ipc call dock toggleApps ;;
         *Dock*)      qs ipc call dock toggle ;;
         *Workspace*) ~/.local/bin/superbar tiling cycle ;;
