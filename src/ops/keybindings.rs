@@ -54,7 +54,12 @@ fn fmt_combo(mods: &str, key: &str) -> String {
 }
 
 pub fn run_keybindings_doc(st: &WorkstationState, args: &[String]) -> i32 {
-    let repo = &st.sf_root;
+    let cwd = std::env::current_dir().unwrap_or_else(|_| st.sf_root.clone());
+    let repo = if cwd.join("dotfiles/.config/hypr/conf/bindings.conf").is_file() {
+        &cwd
+    } else {
+        &st.sf_root
+    };
     let src = repo.join("dotfiles/.config/hypr/conf/bindings.conf");
     let out_path = repo.join("docs/keybindings.md");
     let version = fs::read_to_string(repo.join("VERSION"))
