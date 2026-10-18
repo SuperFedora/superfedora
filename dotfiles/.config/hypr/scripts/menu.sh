@@ -4,7 +4,6 @@
 set -u
 
 H="$HOME/.config/hypr"
-S="$H/scripts"
 TERM_CMD="xdg-terminal-exec"
 
 pick() { # pick <prompt> <lines...>
