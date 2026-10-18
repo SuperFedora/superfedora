@@ -181,7 +181,7 @@ else
 fi
 
 # 12. Verify systemd --user units, system Btrfs units, user-tmpfiles.d, and declarative OS drop-ins exist
-for u in superfedora-session.target supershell.service idlescreen.service supertheme-sun.service supertheme-sun.timer superforge-check.service superforge-check.timer; do
+for u in superfedora-session.target supershell.service idlescreen.service cliphist.service supertheme-sun.service supertheme-sun.timer superforge-check.service superforge-check.timer; do
   if [[ -f "$SCRIPT_DIR/dotfiles/.config/systemd/user/$u" ]]; then
     pass "systemd user unit present: $u"
   else

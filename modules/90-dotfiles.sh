@@ -31,28 +31,12 @@ module_run() {
     }
     command -v xdg-mime >/dev/null && need "default browser: Firefox" _browser_t _browser_i
 
-    _ensure_yazi_desktop() {
-        mkdir -p "$HOME/.local/share/applications"
-        cat > "$HOME/.local/share/applications/yazi.desktop" <<'EOF'
-[Desktop Entry]
-Type=Application
-Name=Yazi File Manager
-Comment=Blazing fast terminal file manager written in Rust
-Exec=xdg-terminal-exec --class superfiles --title="Yazi File Manager" -e yazi %u
-Icon=system-file-manager
-Terminal=false
-Categories=System;FileTools;FileManager;
-MimeType=inode/directory;
-EOF
-    }
     _fm_t() {
-        [[ -f "$HOME/.local/share/applications/superfiles.desktop" || -f "$HOME/.local/share/applications/yazi.desktop" || -f /usr/share/applications/yazi.desktop ]] &&
-        [[ "$(xdg-mime query default inode/directory 2>/dev/null)" =~ ^(superfiles|yazi)\.desktop$ ]]
+        [[ -f "$HOME/.local/share/applications/superfiles.desktop" ]] &&
+        [[ "$(xdg-mime query default inode/directory 2>/dev/null)" == "superfiles.desktop" ]]
     }
     _fm_i() {
-        _ensure_yazi_desktop
-        grep -qE '^inode/directory=(superfiles|yazi)\.desktop' "$HOME/.config/mimeapps.list" 2>/dev/null || \
-            xdg-mime default superfiles.desktop inode/directory
+        xdg-mime default superfiles.desktop inode/directory
     }
     command -v xdg-mime >/dev/null && need "default file manager: Yazi" _fm_t _fm_i
 
@@ -63,6 +47,10 @@ EOF
     need_user_service superfedora-session.target
     need_user_service supershell.service
     need_user_service idlescreen.service
+    need_user_service cliphist.service
     need_user_service supertheme-sun.timer
     need_user_service superforge-check.timer
+    for v_unit in hyprpolkitagent.service hypridle.service hyprpaper.service; do
+        systemctl --user list-unit-files "$v_unit" --no-legend 2>/dev/null | grep -q "$v_unit" && need_user_service "$v_unit"
+    done
 }

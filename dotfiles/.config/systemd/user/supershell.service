@@ -4,11 +4,12 @@ Description=SuperFedora Quickshell 16-Bit Wayland Shell & Dock
 PartOf=graphical-session.target superfedora-session.target
 After=graphical-session.target
 ConditionEnvironment=WAYLAND_DISPLAY
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 ExecStartPre=/usr/bin/sh -c 'rm -f "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/superfedora.locked"'
-ExecStart=/usr/bin/sh -c 'if pgrep -x quickshell >/dev/null || pgrep -x qs >/dev/null; then exec sleep infinity; fi; exec $(command -v quickshell || command -v qs || echo /usr/bin/quickshell)'
+ExecStart=/usr/bin/sh -c 'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/bin:/usr/bin:$PATH"; exec $(command -v quickshell || command -v qs || echo /usr/bin/quickshell)'
 Restart=on-failure
 RestartSec=1
 

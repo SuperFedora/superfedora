@@ -1,0 +1,16 @@
+# Managed by SuperFedora — Wayland Clipboard History Watcher (wl-paste + cliphist)
+[Unit]
+Description=SuperFedora Wayland Clipboard History Watcher (cliphist)
+PartOf=graphical-session.target superfedora-session.target
+After=graphical-session.target
+ConditionEnvironment=WAYLAND_DISPLAY
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/sh -c 'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/bin:/usr/bin:$PATH"; wl-paste --type image --watch cliphist store & exec wl-paste --type text --watch cliphist store'
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=superfedora-session.target graphical-session.target

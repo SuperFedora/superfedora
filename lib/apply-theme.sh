@@ -184,7 +184,7 @@ apply_all() {
     echo "$ACCENT" > "$STATE_DIR/rgb-color"
     [[ -s "$STATE_DIR/rgb-devices" ]] && command -v openrgb >/dev/null 2>&1 && (openrgb --noautoconnect -m direct -c "$ACCENT" >/dev/null 2>&1 &) || true
     local tui_theme="border=$TUI_C;title=$TUI_C;prompt=$TUI_C;time=$TUI_TEXT;action=$TUI_C;button=$TUI_C;container=$TUI_BG;input=$TUI_TEXT"
-    [[ -w /etc/greetd/config.toml ]] && printf '# SuperFedora login screen: greetd + tuigreet on tty1.\n[terminal]\nvt = 1\n\n[default_session]\ncommand = "tuigreet --time --asterisks --remember --remember-session --theme '\''%s'\'' --sessions /usr/share/wayland-sessions --cmd '\''uwsm start -e -D Hyprland:SuperFedora superfedora.desktop'\'' --greeting '\''SUPER FEDORA'\''"\nuser = "greetd"\n' "$tui_theme" > /etc/greetd/config.toml
+    [[ -w /etc/greetd/config.toml ]] && printf '# SuperFedora login screen: greetd + tuigreet on tty1.\n[terminal]\nvt = 1\n\n[default_session]\ncommand = "tuigreet --time --asterisks --remember --remember-session --theme '\''%s'\'' --sessions /usr/share/wayland-sessions --cmd '\''uwsm start -e -D Hyprland:SuperFedora hyprland.desktop'\'' --greeting '\''SUPER FEDORA'\''"\nuser = "greetd"\n' "$tui_theme" > /etc/greetd/config.toml
     local mode_disp="night"; [[ "$mode" == "light" ]] && mode_disp="day"
     printf '[OK] Active 16-bit theme: %s (%s/%s mode, %s corners, nightlight: %s)\n' "$NAME" "$mode_disp" "$mode" "$corners" "$nl"
 }

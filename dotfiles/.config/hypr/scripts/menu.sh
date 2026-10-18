@@ -86,23 +86,13 @@ menu_system() {
 }
 
 restart_shell() {
+    [[ -x "$HOME/.local/bin/superbar" ]] && exec "$HOME/.local/bin/superbar" restart-shell
     hyprctl reload >/dev/null 2>&1 || true
-    local lock_file="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/superfedora.locked"
-    if [ ! -f "$lock_file" ]; then
-        pkill -x quickshell || true
-        pkill -x qs || true
-        sleep 0.3
-        hyprctl dispatch exec quickshell >/dev/null
-    elif ! pgrep -x quickshell >/dev/null && ! pgrep -x qs >/dev/null; then
-        hyprctl dispatch exec quickshell >/dev/null
-        for _ in $(seq 1 30); do
-            qs ipc --any-display call lock activate >/dev/null 2>&1 && break
-            sleep 0.1
-        done
-    fi
+    systemctl --user restart supershell.service 2>/dev/null || true
 }
 
 toggle_screenreader() {
+    [[ -x "$HOME/.local/bin/supersettings" ]] && exec "$HOME/.local/bin/supersettings" apply orca toggle
     if pgrep -x orca >/dev/null; then
         pkill -x orca
         notify-send -a System -t 1500 "Screen reader off"

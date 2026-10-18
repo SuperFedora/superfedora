@@ -12,6 +12,7 @@ const USER_TIMERS_AND_UNITS: &[&str] = &[
     "superfedora-session.target",
     "supershell.service",
     "idlescreen.service",
+    "cliphist.service",
     "supertheme-sun.timer",
     "supertheme-sun.service",
     "superforge-check.timer",

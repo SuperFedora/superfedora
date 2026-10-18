@@ -6,6 +6,8 @@
 # ==============================================================================
 set -euo pipefail
 
+[[ -x "$HOME/.local/bin/superbar" ]] && exec "$HOME/.local/bin/superbar" keybindings "$@"
+
 hyprctl binds -j | jq -r '
   def mods($m):
     [ (if ($m / 64 | floor) % 2 == 1 then "SUPER" else empty end),

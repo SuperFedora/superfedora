@@ -3,8 +3,9 @@
 Description=SuperFedora 16-Bit Wayland Workstation Session
 Documentation=man:systemd.special(7)
 BindsTo=graphical-session.target
-Wants=graphical-session-pre.target supershell.service idlescreen.service supertheme-sun.timer superforge-check.timer
+PartOf=graphical-session.target hyprland-session.target
+Wants=graphical-session-pre.target hyprpolkitagent.service supershell.service hypridle.service hyprpaper.service idlescreen.service cliphist.service supertheme-sun.timer superforge-check.timer
 After=graphical-session-pre.target
 
 [Install]
-WantedBy=graphical-session.target
+WantedBy=graphical-session.target hyprland-session.target

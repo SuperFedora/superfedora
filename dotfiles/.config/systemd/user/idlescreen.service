@@ -4,6 +4,7 @@ Description=SuperFedora 16-Bit IdleScreen Wayland Screensaver Daemon
 PartOf=graphical-session.target superfedora-session.target
 After=graphical-session.target
 ConditionEnvironment=WAYLAND_DISPLAY
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple

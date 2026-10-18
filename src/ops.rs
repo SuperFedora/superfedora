@@ -31,6 +31,10 @@ pub const USER_UNITS: &[(&str, &str)] = &[
     ("hyprland-session.target", "Hyprland compositor session target"),
     ("supershell.service", "Quickshell 16-bit Wayland shell & dock"),
     ("idlescreen.service", "16-bit IdleScreen Wayland screensaver"),
+    ("cliphist.service", "Wayland clipboard history watcher"),
+    ("hyprpolkitagent.service", "Hyprland Polkit authentication agent"),
+    ("hypridle.service", "Hyprland idle management daemon"),
+    ("hyprpaper.service", "Hyprland wallpaper daemon"),
     ("supertheme-sun.timer", "Solar day/night palette sync timer (15m)"),
     ("superforge-check.timer", "Weekly native binary & toolchain audit"),
 ];
@@ -162,8 +166,9 @@ pub fn run_system_upgrade(st: &WorkstationState, args: &[String]) -> i32 {
     println!("\x1b[1;38;5;141m[::] SUPERFEDORA RELEASE UPGRADE ENGINE (Fedora {cur_rel} -> Fedora {next_rel})\x1b[0m");
     if rebuild_only {
         println!("  [+] Rebuilding forged native binaries for Fedora {cur_rel} (-march=native)...");
-        let forge_sh = st.sf_root.join("lib/forge.sh");
-        return Command::new("bash").arg(forge_sh).arg("rebuild").status().ok().and_then(|s| s.code()).unwrap_or(0);
+        let status = Command::new("superforge").arg("rebuild").status()
+            .or_else(|_| Command::new("bash").arg(st.sf_root.join("lib/forge.sh")).arg("rebuild").status());
+        return status.ok().and_then(|s| s.code()).unwrap_or(0);
     }
     if dry {
         println!("  [DRY-RUN] 1. Pre-Upgrade Checkpoint : snapper -c root create -d \"SuperFedora pre-upgrade F{cur_rel}->F{next_rel}\"");
@@ -176,7 +181,8 @@ pub fn run_system_upgrade(st: &WorkstationState, args: &[String]) -> i32 {
     println!("  [1/3] Creating pre-upgrade Btrfs snapshot via Snapper (ARCHIVIST)...");
     let desc = format!("SuperFedora pre-upgrade Fedora {cur_rel} -> {next_rel}");
     let _ = Command::new("sudo").args(["snapper", "-c", "root", "create", "-t", "single", "-d", &desc]).status();
-    let _ = Command::new("bash").arg(st.sf_root.join("lib/notify-ctl.sh")).args(["--cast", "archivist"]).stdout(Stdio::null()).status();
+    let _ = Command::new("supernotify").args(["--cast", "archivist"]).stdout(Stdio::null()).status()
+        .or_else(|_| Command::new("bash").arg(st.sf_root.join("lib/notify-ctl.sh")).args(["--cast", "archivist"]).stdout(Stdio::null()).status());
 
     println!("  [2/3] Downloading Fedora {next_rel} system-upgrade packages via dnf5...");
     let dnf_bin = if Path::new("/usr/bin/dnf5").is_file() { "dnf5" } else { "dnf" };

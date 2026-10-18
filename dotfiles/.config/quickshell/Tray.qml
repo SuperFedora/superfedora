@@ -16,6 +16,8 @@ Flow {
     readonly property int edgeAnchor: !root.bar ? Edges.Bottom : (root.bar.edge === "bottom" ? Edges.Top : (root.bar.edge === "left" ? Edges.Right : (root.bar.edge === "right" ? Edges.Left : Edges.Bottom)))
     flow: root.vertical ? Flow.TopToBottom : Flow.LeftToRight
     spacing: 4
+    width: root.vertical ? Theme.barHeight : implicitWidth
+    height: root.vertical ? implicitHeight : Theme.barHeight
 
     function parseCustomPng(rawIcon) {
         const s = String(rawIcon || "");
@@ -56,7 +58,7 @@ Flow {
 
     Timer {
         interval: 1800
-        running: root.bar && root.bar.modelData === Quickshell.screens[0] && root.bar.edge === "top"
+        running: root.bar && root.bar.modelData === Quickshell.screens[0]
         repeat: false
         onTriggered: Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/superbar", "tray", "sync"])
     }

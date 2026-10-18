@@ -196,12 +196,12 @@ fn handle_tab_key(
             _ => {}
         },
         4 => match code {
-            KeyCode::Char('b') => run_sync_bin(st, "panel-ctl.sh", "lib/panel-ctl.sh", &["position", "bottom"]),
-            KeyCode::Char('t') => run_sync_bin(st, "panel-ctl.sh", "lib/panel-ctl.sh", &["position", "top"]),
-            KeyCode::Char('l') => run_sync_bin(st, "panel-ctl.sh", "lib/panel-ctl.sh", &["position", "left"]),
-            KeyCode::Char('r') => run_sync_bin(st, "panel-ctl.sh", "lib/panel-ctl.sh", &["position", "right"]),
-            KeyCode::Char('a') => run_sync_bin(st, "panel-ctl.sh", "lib/panel-ctl.sh", &["autohide", "toggle"]),
-            KeyCode::Char('w') => run_sync_bin(st, "panel-ctl.sh", "lib/panel-ctl.sh", &["layout", "cycle"]),
+            KeyCode::Char('b') => run_sync_bin(st, "superbar", "lib/panel-ctl.sh", &["edge", "bottom"]),
+            KeyCode::Char('t') => run_sync_bin(st, "superbar", "lib/panel-ctl.sh", &["edge", "top"]),
+            KeyCode::Char('l') => run_sync_bin(st, "superbar", "lib/panel-ctl.sh", &["edge", "left"]),
+            KeyCode::Char('r') => run_sync_bin(st, "superbar", "lib/panel-ctl.sh", &["edge", "right"]),
+            KeyCode::Char('a') => run_sync_bin(st, "superbar", "lib/panel-ctl.sh", &["hide", "toggle"]),
+            KeyCode::Char('w') => run_sync_bin(st, "superbar", "lib/panel-ctl.sh", &["tiling", "cycle"]),
             KeyCode::Char('s') => run_sync_bin(st, "supertheme", "lib/sfx.sh", &["sfx", "toggle"]),
             KeyCode::Char('p') => run_fullscreen_cmd(terminal, "wiremix", &[]),
             KeyCode::Char('i') => run_fullscreen_cmd(terminal, "wlctl", &[]),

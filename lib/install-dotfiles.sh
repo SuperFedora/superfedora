@@ -132,7 +132,7 @@ for dir in .config/quickshell .config/hypr/conf .config/hypr/scripts .config/sys
         fi
     done < <(find "$TARGET_HOME/$dir" -maxdepth 2 -type f -print0)
 done
-for obs in .local/share/applications/superfedora-settings.desktop .local/share/applications/superdock.desktop .local/bin/sf-ollama .local/bin/sf; do
+for obs in .local/share/applications/superfedora-settings.desktop .local/share/applications/superdock.desktop .local/share/applications/yazi.desktop .local/share/applications/ouch.desktop .local/bin/sf-ollama .local/bin/sf; do
     if [[ ( -e "$TARGET_HOME/$obs" || -L "$TARGET_HOME/$obs" ) && ! -e "$SRC/$obs" ]]; then
         mkdir -p "$BACKUP/$(dirname "$obs")"
         mv "$TARGET_HOME/$obs" "$BACKUP/$obs"
@@ -141,18 +141,22 @@ for obs in .local/share/applications/superfedora-settings.desktop .local/share/a
     fi
 done
 
-if [[ -f "$STATE_DIR/theme.env" && -x "$REPO_DIR/lib/apply-theme.sh" && $EUID -ne 0 ]]; then
-    "$REPO_DIR/lib/apply-theme.sh" reload || true
+if [[ -f "$STATE_DIR/theme.env" && $EUID -ne 0 ]]; then
+    if [[ -x "$TARGET_HOME/.local/bin/supertheme" ]]; then
+        "$TARGET_HOME/.local/bin/supertheme" reload >/dev/null 2>&1 || true
+    elif [[ -x "$REPO_DIR/lib/apply-theme.sh" ]]; then
+        "$REPO_DIR/lib/apply-theme.sh" reload || true
+    fi
 fi
 
 if [[ $units_changed -eq 1 ]]; then
     if [[ $EUID -eq 0 && "$TARGET_USER" != root ]]; then
         uid="$(id -u "$TARGET_USER")"
-        [[ -d "/run/user/$uid" ]] && sudo -u "$TARGET_USER" XDG_RUNTIME_DIR="/run/user/$uid" sh -c 'systemd-tmpfiles --user --create 2>/dev/null || true; systemctl --user daemon-reload 2>/dev/null || true; systemctl --user enable superfedora-session.target supershell.service idlescreen.service 2>/dev/null || true; systemctl --user enable --now supertheme-sun.timer superforge-check.timer 2>/dev/null || true' || true
+        [[ -d "/run/user/$uid" ]] && sudo -u "$TARGET_USER" XDG_RUNTIME_DIR="/run/user/$uid" sh -c 'systemd-tmpfiles --user --create 2>/dev/null || true; systemctl --user daemon-reload 2>/dev/null || true; systemctl --user enable superfedora-session.target supershell.service idlescreen.service cliphist.service hyprpolkitagent.service hypridle.service hyprpaper.service 2>/dev/null || true; systemctl --user enable --now supertheme-sun.timer superforge-check.timer 2>/dev/null || true' || true
     else
         systemd-tmpfiles --user --create 2>/dev/null || true
         systemctl --user daemon-reload 2>/dev/null || true
-        systemctl --user enable superfedora-session.target supershell.service idlescreen.service 2>/dev/null || true
+        systemctl --user enable superfedora-session.target supershell.service idlescreen.service cliphist.service hyprpolkitagent.service hypridle.service hyprpaper.service 2>/dev/null || true
         systemctl --user enable --now supertheme-sun.timer superforge-check.timer 2>/dev/null || true
     fi
     echo "systemd user units & tmpfiles reloaded"
