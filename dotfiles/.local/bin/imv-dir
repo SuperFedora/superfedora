@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+set -efu
+export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:$PATH"
+if [ $# -ge 2 ]; then
+  exec imv "$@"
+else
+  exec imv -n "$1" "$(dirname "$1")"
+fi

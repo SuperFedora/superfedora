@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Satty
+GenericName=Screenshot Annotation
+Comment=Modern screenshot annotation tool
+Exec=satty --filename %f
+Terminal=false
+Icon=accessories-screenshot
+Categories=Graphics;2DGraphics;Utility;
+MimeType=image/png;image/jpeg;
+StartupNotify=false
+StartupWMClass=satty

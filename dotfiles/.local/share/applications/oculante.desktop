@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Oculante
+GenericName=Image Viewer
+Comment=Fast and minimal Rust image viewer and editor
+Exec=oculante %F
+Terminal=false
+Icon=multimedia-photo-viewer
+Categories=Graphics;2DGraphics;Viewer;
+MimeType=image/bmp;image/gif;image/jpeg;image/png;image/tiff;image/webp;image/avif;image/svg+xml;
+StartupNotify=false
+StartupWMClass=oculante

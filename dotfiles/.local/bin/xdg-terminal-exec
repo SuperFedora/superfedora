@@ -42,7 +42,7 @@ app_to_desktop() {
         kate) d="org.kde.kate.desktop" ;; gnome-text-editor) d="org.gnome.TextEditor.desktop" ;; gedit) d="org.gnome.gedit.desktop" ;;
         zathura) d="org.pwmt.zathura.desktop" ;; papers) d="org.gnome.Papers.desktop" ;; evince) d="org.gnome.Evince.desktop" ;;
         okular) d="org.kde.okular.desktop" ;; foliate) d="com.github.johnfactotum.Foliate.desktop" ;;
-        imv) d="imv.desktop" ;; loupe) d="org.gnome.Loupe.desktop" ;; gwenview) d="org.kde.gwenview.desktop" ;;
+        imv) d="imv.desktop" ;; oculante) d="oculante.desktop" ;; loupe) d="org.gnome.Loupe.desktop" ;; gwenview) d="org.kde.gwenview.desktop" ;;
         eog) d="org.gnome.eog.desktop" ;; gimp) d="gimp.desktop" ;; inkscape) d="org.inkscape.Inkscape.desktop" ;;
         mpv) d="mpv.desktop" ;; vlc) d="vlc.desktop" ;; celluloid) d="io.github.celluloid_player.Celluloid.desktop" ;;
         haruna) d="org.kde.haruna.desktop" ;; clapper) d="com.github.rafostar.Clapper.desktop" ;; totem) d="org.gnome.Totem.desktop" ;;
@@ -68,7 +68,7 @@ desktop_to_app() {
         *cosmicfiles*) echo "cosmic-files" ;; *cosmicedit*) echo "cosmic-edit" ;; *cosmicterm*) echo "cosmic-term" ;; *cosmicplayer*) echo "cosmic-player" ;;
         *nvim*) echo "nvim" ;; *helix*) echo "hx" ;; *zed*) echo "zed" ;; *codium*) echo "codium" ;; *code*) echo "code" ;;
         *texteditor*) echo "gnome-text-editor" ;; *kate*) echo "kate" ;; *zathura*) echo "zathura" ;; *papers*) echo "papers" ;;
-        *evince*) echo "evince" ;; *okular*) echo "okular" ;; *foliate*) echo "foliate" ;; *imv*) echo "imv" ;;
+        *evince*) echo "evince" ;; *okular*) echo "okular" ;; *foliate*) echo "foliate" ;; *imv*) echo "imv" ;; *oculante*) echo "oculante" ;;
         *loupe*) echo "loupe" ;; *gwenview*) echo "gwenview" ;; *gimp*) echo "gimp" ;; *inkscape*) echo "inkscape" ;;
         *mpv*) echo "mpv" ;; *vlc*) echo "vlc" ;; *celluloid*) echo "celluloid" ;; *haruna*) echo "haruna" ;;
         *clapper*) echo "clapper" ;; *amberol*) echo "amberol" ;; *elisa*) echo "elisa" ;; *rhythmbox*) echo "rhythmbox" ;;
@@ -106,11 +106,11 @@ folder/|Files & Disks|inode/directory|$DEFAULT_FILES|yazi,nautilus,thunar,dolphi
 .pptx|Documents & Office|application/vnd.openxmlformats-officedocument.presentationml.presentation|$DEFAULT_OFFICE|libreoffice,onlyoffice-desktopeditors,calligra
 .odt|Documents & Office|application/vnd.oasis.opendocument.text|$DEFAULT_OFFICE|libreoffice,onlyoffice-desktopeditors,abiword
 .csv|Documents & Office|text/csv|$DEFAULT_OFFICE|libreoffice,nvim,hx,zed,codium,gnome-text-editor,gnumeric
-.png|Images & Graphics|image/png|$DEFAULT_IMAGE|imv,loupe,swayimg,feh,gwenview,eog,gimp,firefox
-.jpg|Images & Graphics|image/jpeg|$DEFAULT_IMAGE|imv,loupe,swayimg,feh,gwenview,eog,gimp,firefox
-.webp|Images & Graphics|image/webp|$DEFAULT_IMAGE|imv,loupe,swayimg,feh,gwenview,gimp,firefox
-.gif|Images & Graphics|image/gif|$DEFAULT_IMAGE|imv,loupe,mpv,gwenview,firefox
-.svg|Images & Graphics|image/svg+xml|$DEFAULT_IMAGE|inkscape,imv,loupe,gimp,firefox,nvim,hx
+.png|Images & Graphics|image/png|$DEFAULT_IMAGE|imv,oculante,loupe,swayimg,feh,gwenview,eog,gimp,firefox
+.jpg|Images & Graphics|image/jpeg|$DEFAULT_IMAGE|imv,oculante,loupe,swayimg,feh,gwenview,eog,gimp,firefox
+.webp|Images & Graphics|image/webp|$DEFAULT_IMAGE|imv,oculante,loupe,swayimg,feh,gwenview,gimp,firefox
+.gif|Images & Graphics|image/gif|$DEFAULT_IMAGE|imv,oculante,loupe,mpv,gwenview,firefox
+.svg|Images & Graphics|image/svg+xml|$DEFAULT_IMAGE|inkscape,imv,oculante,loupe,gimp,firefox,nvim,hx
 .mp4|Video & Audio|video/mp4|$DEFAULT_VIDEO|mpv,vlc,celluloid,haruna,clapper,cosmic-player,totem,firefox
 .mkv|Video & Audio|video/x-matroska|$DEFAULT_VIDEO|mpv,vlc,celluloid,haruna,clapper,cosmic-player,totem
 .webm|Video & Audio|video/webm|$DEFAULT_VIDEO|mpv,vlc,celluloid,haruna,clapper,firefox
@@ -141,7 +141,7 @@ apply_role_mimes() {
         files|filemanager) set_mime_keys "$desk" inode/directory ;;
         editor|code) set_mime_keys "$desk" text/plain text/markdown application/json application/toml application/x-yaml application/x-shellscript text/rust text/x-python ;;
         pdf|docs) set_mime_keys "$desk" application/pdf application/epub+zip ;;
-        image|photo) set_mime_keys "$desk" image/png image/jpeg image/webp image/gif image/svg+xml image/bmp image/avif ;;
+        image|photo) set_mime_keys "$desk" image/png image/jpeg image/webp image/gif image/svg+xml image/bmp image/tiff image/avif ;;
         video|media) set_mime_keys "$desk" video/mp4 video/x-matroska video/webm video/quicktime video/x-msvideo ;;
         audio|music) set_mime_keys "$desk" audio/mpeg audio/flac audio/x-wav audio/ogg audio/opus ;;
         office) set_mime_keys "$desk" application/vnd.openxmlformats-officedocument.wordprocessingml.document application/vnd.openxmlformats-officedocument.spreadsheetml.sheet application/vnd.openxmlformats-officedocument.presentationml.presentation application/vnd.oasis.opendocument.text text/csv ;;
@@ -196,7 +196,7 @@ case "${1:-}" in
     --probe)
         printf 'DEF|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n' "$DEFAULT_TERMINAL" "$DEFAULT_BROWSER" "$DEFAULT_FILES" "$DEFAULT_EDITOR" "$DEFAULT_MONITOR" "$DEFAULT_PDF" "$DEFAULT_IMAGE" "$DEFAULT_VIDEO" "$DEFAULT_AUDIO" "$DEFAULT_OFFICE" "$DEFAULT_MAIL" "$DEFAULT_ARCHIVE" "${DEFAULT_SUITE:-superfedora}"
         ins=""
-        for c in kitty foot ghostty alacritty wezterm ptyxis kgx rio konsole cosmic-term firefox brave-browser chromium google-chrome zen-browser librewolf vivaldi floorp epiphany qutebrowser yazi lf ranger nnn dua nautilus thunar dolphin nemo pcmanfm cosmic-files nvim hx micro nano zed code codium subl kate gnome-text-editor gedit cosmic-edit zathura papers evince okular sioyek foliate calibre imv loupe swayimg feh nsxiv gwenview eog gimp inkscape mpv vlc celluloid haruna clapper cosmic-player totem amberol elisa rhythmbox audacious strawberry termusic cmus libreoffice onlyoffice-desktopeditors abiword gnumeric calligra thunderbird betterbird geary evolution kmail aerc neomutt file-roller ark peazip xarchiver ouch qbittorrent transmission-gtk fragments btop htop btm glances nvtop missioncenter resources; do
+        for c in kitty foot ghostty alacritty wezterm ptyxis kgx rio konsole cosmic-term firefox brave-browser chromium google-chrome zen-browser librewolf vivaldi floorp epiphany qutebrowser yazi lf ranger nnn dua nautilus thunar dolphin nemo pcmanfm cosmic-files nvim hx micro nano zed code codium subl kate gnome-text-editor gedit cosmic-edit zathura papers evince okular sioyek foliate calibre imv oculante loupe swayimg feh nsxiv gwenview eog gimp inkscape mpv vlc celluloid haruna clapper cosmic-player totem amberol elisa rhythmbox audacious strawberry termusic cmus libreoffice onlyoffice-desktopeditors abiword gnumeric calligra thunderbird betterbird geary evolution kmail aerc neomutt file-roller ark peazip xarchiver ouch qbittorrent transmission-gtk fragments btop htop btm glances nvtop missioncenter resources; do
             command -v "$c" >/dev/null 2>&1 && ins="${ins:+$ins,}$c"
         done
         printf 'INS|%s\n' "$ins"
@@ -214,7 +214,7 @@ case "${1:-}" in
         shift; s="${1:-gnome}"
         case "$s" in
             gnome) pkgs="ptyxis nautilus gnome-text-editor papers loupe celluloid rhythmbox geary file-roller" ;; kde) pkgs="konsole dolphin kate okular gwenview haruna elisa kmail ark" ;;
-            cosmic) pkgs="cosmic-term cosmic-files cosmic-edit cosmic-player" ;; studio) pkgs="thunar gimp vlc strawberry peazip nvtop" ;; *) pkgs="kitty yazi neovim zathura imv mpv btop" ;;
+            cosmic) pkgs="cosmic-term cosmic-files cosmic-edit cosmic-player cosmic-icon-theme pop-icon-theme" ;; studio) pkgs="thunar gimp vlc strawberry peazip nvtop" ;; *) pkgs="kitty yazi neovim zathura imv mpv btop" ;;
         esac
         exec "$0" --class floating-tui -e sh -c "echo 'Installing $s ecosystem suite packages: $pkgs'; echo; sudo dnf install -y --skip-unavailable $pkgs; ~/.local/bin/xdg-terminal-exec --preset $s; echo; read -n 1 -p 'Done! Press any key...'" ;;
     --set) shift; set_role "${1:-}" "${2:-}" ;;

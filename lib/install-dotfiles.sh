@@ -158,11 +158,13 @@ if [[ $units_changed -eq 1 ]]; then
     echo "systemd user units & tmpfiles reloaded"
 fi
 
-mkdir -p "$STATE_DIR"
+mkdir -p "$STATE_DIR" "$TARGET_HOME/.cache/thumbnails"/{normal,large,x-large,xx-large}
+command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$TARGET_HOME/.local/share/applications" 2>/dev/null || true
 echo "$VERSION" > "$STATE_DIR/version"
 if [[ $EUID -eq 0 && "$TARGET_USER" != root ]]; then
-    chown -R "$TARGET_USER:$TARGET_USER" "$STATE_DIR" "$TARGET_HOME/.config"
+    chown -R "$TARGET_USER:$TARGET_USER" "$STATE_DIR" "$TARGET_HOME/.config" "$TARGET_HOME/.cache/thumbnails"
     [[ -d "$TARGET_HOME/.local/bin" ]] && chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.local/bin"
+    [[ -d "$TARGET_HOME/.local/share/applications" ]] && chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.local/share/applications"
 fi
 
 echo "SuperFedora v$VERSION dotfiles: $changed file(s) updated"
