@@ -25,17 +25,15 @@ jobs:
           shellcheck -S warning -x install.sh lib/*.sh modules/*.sh scripts/*.sh tests/*.sh dotfiles/.config/hypr/scripts/*.sh
       - name: Installer unit tests
         run: bash tests/test_installer.sh
-      - name: Page Rules & Zero-Emoji Invariant
-        run: python3 tests/test_page_rules.py
+      - name: Page Rules, Zero-Emoji Invariant & Keybinding Doc Sync (Rust)
+        run: |
+          cargo test
+          cargo run -- keybindings-doc --check
       - name: Package lists are clean
         run: |
           if sed -e 's/#.*//' -e 's/[[:space:]]*$//' -e 's/^[[:space:]]*//' packages/*.txt | grep -n '[[:space:]]'; then
             echo "one package per line"; exit 1
           fi
-      - name: Keybinding doc is current
-        run: |
-          python3 scripts/gen-keybindings-doc.py
-          git diff --exit-code docs/keybindings.md
 
   install:
     name: Install on clean Fedora ${{ matrix.fedora }}

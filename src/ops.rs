@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod hardware;
+pub mod keybindings;
 pub mod mode;
 pub mod snapshot;
 pub mod uninstall;
@@ -51,23 +52,15 @@ pub const ORG_REPOS: &[&str] = &[
 ];
 
 fn unit_state(user: bool, unit: &str) -> (String, String, &'static str) {
-    let mut cmd = Command::new("systemctl");
-    if user { cmd.arg("--user"); }
-    let active = cmd.args(["is-active", unit]).output().ok()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .filter(|s| !s.is_empty()).unwrap_or_else(|| "inactive".into());
-    let mut cmd2 = Command::new("systemctl");
-    if user { cmd2.arg("--user"); }
-    let enabled = cmd2.args(["is-enabled", unit]).output().ok()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .filter(|s| !s.is_empty()).unwrap_or_else(|| "disabled".into());
+    let run_ctl = |sub: &str, def: &str| {
+        let mut cmd = Command::new("systemctl");
+        if user { cmd.arg("--user"); }
+        cmd.args([sub, unit]).output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).filter(|s| !s.is_empty()).unwrap_or_else(|| def.into())
+    };
+    let (active, enabled) = (run_ctl("is-active", "inactive"), run_ctl("is-enabled", "disabled"));
     let mode_lbl = if unit.ends_with(".socket") || unit == "packagekit.service" || unit == "ModemManager.service" {
         if active == "active" { "Active" } else { "On-Demand (Socket)" }
-    } else if active == "active" {
-        "Active"
-    } else {
-        "Stopped"
-    };
+    } else if active == "active" { "Active" } else { "Stopped" };
     (active, enabled, mode_lbl)
 }
 
@@ -224,11 +217,15 @@ pub fn run_repo_cmd(st: &WorkstationState, args: &[String]) -> i32 {
         "test" | "check" => {
             let mut failed = 0;
             for r in ORG_REPOS {
-                let test_py = ws.join(r).join("tests/test_page_rules.py");
-                if test_py.is_file() {
-                    let ok = Command::new("python3").arg(&test_py).status().map(|s| s.success()).unwrap_or(false);
-                    if !ok { failed += 1; }
-                }
+                let dir = ws.join(r);
+                let ok = if dir.join("Cargo.toml").is_file() {
+                    Command::new("cargo").arg("test").arg("--manifest-path").arg(dir.join("Cargo.toml")).status().map(|s| s.success()).unwrap_or(false)
+                } else if dir.join("tests/test_page_rules.mjs").is_file() {
+                    Command::new("node").arg(dir.join("tests/test_page_rules.mjs")).status().map(|s| s.success()).unwrap_or(false)
+                } else {
+                    dir.join("AGENTS.md").is_file() && dir.join("LICENSE").is_file() && dir.join("VERSION").is_file()
+                };
+                if !ok { failed += 1; }
             }
             if failed == 0 { 0 } else { 1 }
         }

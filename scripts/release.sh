@@ -78,7 +78,7 @@ echo "$NEW" > VERSION
 sed -i "s/^## \[Unreleased\]/## [Unreleased]\n\n## [$NEW] — $(date +%F)/" CHANGELOG.md
 
 # Regenerate docs derived from the shipped config
-python3 scripts/gen-keybindings-doc.py
+./bin/superfedora keybindings-doc
 
 git add -A
 git commit -q -m "release: $TAG — $SUMMARY"

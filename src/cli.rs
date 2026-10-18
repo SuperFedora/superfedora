@@ -85,6 +85,7 @@ pub fn dispatch(cmd: &str, args: &[String], st: &mut WorkstationState) -> i32 {
         "system-upgrade" | "dist-upgrade" | "release-upgrade" => crate::ops::run_system_upgrade(st, args),
         "service" | "services" | "systemd" => crate::ops::run_service_cmd(st, args),
         "repo" | "repos" => crate::ops::run_repo_cmd(st, args),
+        "keybindings-doc" | "keybindings" | "gen-keybindings-doc" => crate::ops::keybindings::run_keybindings_doc(st, args),
         "dock" | "superdock" | "panel" | "panels" | "bar" | "superbar" => exec_bin_or_script(st, "superbar", "lib/panel-ctl.sh", args),
         "notify" | "supernotify" | "notifications" | "notif" => exec_bin_or_script(st, "supernotify", "lib/notify-ctl.sh", args),
         "lock" | "superlock" | "session" | "de" => exec_bin_or_script(st, "superlock", "lib/session-ctl.sh", args),
@@ -185,7 +186,7 @@ sync_runtime_tree() {
         done
         for f in VERSION install.sh AGENTS.md README.md LICENSE CHANGELOG.md; do [[ -f "$src/$f" ]] && cp -a "$src/$f" "$dst/$f"; done
     fi
-    [[ -d "$ws/superforge/lib" ]] && { mkdir -p "$HOME/.local/share/superforge" && cp -rf "$ws/superforge/lib" "$ws/superforge/scripts" "$HOME/.local/share/superforge/" 2>/dev/null || true; }
+    [[ -d "$ws/superforge/lib" ]] && { mkdir -p "$HOME/.local/share/superforge" && cp -rf "$ws/superforge/lib" "$HOME/.local/share/superforge/" 2>/dev/null || true; }
     rm -f "$dst/forge/stamps/superagent.stamp" "$dst/forge/stamps/superdock.stamp" "$SF_STATE/source-built/superagent.stamp" "$SF_STATE/source-built/superdock.stamp" 2>/dev/null || true
     [[ -f "$SF_STATE/forge.json" ]] && python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); t=d.get("targets",{}); c=any(t.pop(k,None) for k in ("superagent","superdock")); ts=t.get("supershell",{}); (ts.get("binary","").endswith("/superdock") and (ts.update({"binary":ts["binary"][:-9]+"supersettings"}) or True) and (c:=True)); c and json.dump(d,open(p,"w"),indent=2)' "$SF_STATE/forge.json" 2>/dev/null || true
     for f in "$dst/forge/stamps/supershell.stamp" "$SF_STATE/source-built/supershell.stamp"; do [[ -f "$f" ]] && sed -i 's|/superdock$|/supersettings|' "$f" 2>/dev/null || true; done
