@@ -4,6 +4,7 @@
 pub mod hardware;
 pub mod mode;
 pub mod snapshot;
+pub mod uninstall;
 pub mod workstation;
 
 use crate::state::WorkstationState;
@@ -29,7 +30,6 @@ pub const USER_UNITS: &[(&str, &str)] = &[
     ("superfedora-session.target", "SuperFedora Wayland session target"),
     ("hyprland-session.target", "Hyprland compositor session target"),
     ("supershell.service", "Quickshell 16-bit Wayland shell & dock"),
-    ("superagent.service", "Autonomous telemetry & Cast Comms daemon"),
     ("idlescreen.service", "16-bit IdleScreen Wayland screensaver"),
     ("supertheme-sun.timer", "Solar day/night palette sync timer (15m)"),
     ("superforge-check.timer", "Weekly native binary & toolchain audit"),
@@ -40,8 +40,8 @@ pub const ORG_REPOS: &[&str] = &[
     "superforge",
     "supertheme",
     "supernotify",
+    "superbar",
     "supershell",
-    "superagent",
     "superfedora.github.io",
     ".github",
 ];

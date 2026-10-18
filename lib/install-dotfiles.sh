@@ -63,9 +63,9 @@ if [[ "$MODE" == "check" ]]; then
         if [[ ! -e "$live" ]]; then
             echo "missing   ~/$rel"; drift=1
         elif ! same_file "$SRC/$rel" "$live"; then
-            if [[ -f "$STATE_DIR/theme.env" ]]; then
+            if [[ -f "$STATE_DIR/theme.env" || -f "$STATE_DIR/defaults.env" ]]; then
                 case "$rel" in
-                    .config/hypr/hyprpaper.conf|.config/hypr/hyprlock.conf|.config/hypr/hyprqt6engine.conf|.config/hypr/conf/looknfeel.conf|.config/quickshell/Theme.qml|.config/fuzzel/fuzzel.ini|.config/kitty/kitty.conf|.config/gtk-3.0/settings.ini|.config/gtk-4.0/settings.ini)
+                    .config/hypr/hyprpaper.conf|.config/hypr/hyprlock.conf|.config/hypr/hyprqt6engine.conf|.config/hypr/conf/looknfeel.conf|.config/quickshell/Theme.qml|.config/fuzzel/fuzzel.ini|.config/kitty/kitty.conf|.config/gtk-3.0/settings.ini|.config/gtk-4.0/settings.ini|.config/mimeapps.list)
                         continue ;;
                 esac
             fi
@@ -94,13 +94,15 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP="$STATE_DIR/backups/$STAMP"
 changed=0
 shell_changed=0
-idle_changed=0
 units_changed=0
 
 for rel in "${FILES[@]}"; do
     rel="${rel#./}"
     dst="$TARGET_HOME/$rel"
     if [[ -e "$dst" ]] && same_file "$SRC/$rel" "$dst"; then
+        continue
+    fi
+    if [[ "$rel" == ".config/mimeapps.list" && -f "$dst" && -f "$STATE_DIR/defaults.env" ]]; then
         continue
     fi
     if [[ -e "$dst" ]]; then
@@ -112,23 +114,32 @@ for rel in "${FILES[@]}"; do
     echo "  installed ~/$rel"
     changed=$((changed + 1))
     [[ "$rel" == .config/quickshell/* ]] && shell_changed=1
-    [[ "$rel" == .config/hypr/hypridle.conf ]] && idle_changed=1
     [[ "$rel" == .config/systemd/user/* || "$rel" == .config/user-tmpfiles.d/* ]] && units_changed=1
 done
 
-if [[ -d "$TARGET_HOME/.config/quickshell" ]]; then
+for dir in .config/quickshell .config/hypr/conf .config/hypr/scripts .config/systemd/user .config/user-tmpfiles.d .config/xdg-desktop-portal; do
+    [[ -d "$TARGET_HOME/$dir" ]] || continue
     while IFS= read -r -d '' f; do
         rel="${f#"$TARGET_HOME"/}"
-        case "$rel" in *.bak|*~) continue ;; esac
+        case "$rel" in *.bak|*~|.config/hypr/.current-wallpaper) continue ;; esac
         if [[ ! -e "$SRC/$rel" ]]; then
             mkdir -p "$BACKUP/$(dirname "$rel")"
             mv "$f" "$BACKUP/$rel"
             echo "  removed   ~/$rel"
             changed=$((changed + 1))
-            shell_changed=1
+            [[ "$rel" == .config/quickshell/* ]] && shell_changed=1
+            [[ "$rel" == .config/systemd/user/* || "$rel" == .config/user-tmpfiles.d/* ]] && units_changed=1
         fi
-    done < <(find "$TARGET_HOME/.config/quickshell" -type f -print0)
-fi
+    done < <(find "$TARGET_HOME/$dir" -maxdepth 2 -type f -print0)
+done
+for obs in .local/share/applications/superfedora-settings.desktop .local/share/applications/superdock.desktop .local/bin/sf-ollama .local/bin/sf; do
+    if [[ ( -e "$TARGET_HOME/$obs" || -L "$TARGET_HOME/$obs" ) && ! -e "$SRC/$obs" ]]; then
+        mkdir -p "$BACKUP/$(dirname "$obs")"
+        mv "$TARGET_HOME/$obs" "$BACKUP/$obs"
+        echo "  removed   ~/$obs"
+        changed=$((changed + 1))
+    fi
+done
 
 if [[ -f "$STATE_DIR/theme.env" && -x "$REPO_DIR/lib/apply-theme.sh" && $EUID -ne 0 ]]; then
     "$REPO_DIR/lib/apply-theme.sh" reload || true
@@ -137,11 +148,11 @@ fi
 if [[ $units_changed -eq 1 ]]; then
     if [[ $EUID -eq 0 && "$TARGET_USER" != root ]]; then
         uid="$(id -u "$TARGET_USER")"
-        [[ -d "/run/user/$uid" ]] && sudo -u "$TARGET_USER" XDG_RUNTIME_DIR="/run/user/$uid" sh -c 'systemd-tmpfiles --user --create 2>/dev/null || true; systemctl --user daemon-reload 2>/dev/null || true; systemctl --user enable superfedora-session.target supershell.service superagent.service idlescreen.service 2>/dev/null || true; systemctl --user enable --now supertheme-sun.timer superforge-check.timer 2>/dev/null || true' || true
+        [[ -d "/run/user/$uid" ]] && sudo -u "$TARGET_USER" XDG_RUNTIME_DIR="/run/user/$uid" sh -c 'systemd-tmpfiles --user --create 2>/dev/null || true; systemctl --user daemon-reload 2>/dev/null || true; systemctl --user enable superfedora-session.target supershell.service idlescreen.service 2>/dev/null || true; systemctl --user enable --now supertheme-sun.timer superforge-check.timer 2>/dev/null || true' || true
     else
         systemd-tmpfiles --user --create 2>/dev/null || true
         systemctl --user daemon-reload 2>/dev/null || true
-        systemctl --user enable superfedora-session.target supershell.service superagent.service idlescreen.service 2>/dev/null || true
+        systemctl --user enable superfedora-session.target supershell.service idlescreen.service 2>/dev/null || true
         systemctl --user enable --now supertheme-sun.timer superforge-check.timer 2>/dev/null || true
     fi
     echo "systemd user units & tmpfiles reloaded"
@@ -171,18 +182,9 @@ if [[ $RELOAD -eq 1 && $changed -gt 0 && -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]
         exit 1
     fi
     echo "Hyprland reloaded (no config errors)"
-    target_rt="${XDG_RUNTIME_DIR:-/run/user/$(id -u "$TARGET_USER")}"
-    if [[ $shell_changed -eq 1 ]] && [ ! -f "$target_rt/superfedora.locked" ] && { pgrep -x quickshell >/dev/null || pgrep -x qs >/dev/null; }; then
-        pkill -x quickshell || true
-        pkill -x qs || true
-        sleep 0.5
-        hyprctl dispatch exec quickshell >/dev/null
-        echo "Quickshell restarted"
-    fi
-    if [[ $idle_changed -eq 1 ]] && pgrep -x hypridle >/dev/null; then
-        pkill -x hypridle || true
-        sleep 0.2
-        hyprctl dispatch exec hypridle >/dev/null
-        echo "Hypridle restarted"
+    if [[ $shell_changed -eq 1 ]] && [ ! -f "$target_rt/superfedora.locked" ] && command -v qs >/dev/null && { pgrep -x quickshell >/dev/null || pgrep -x qs >/dev/null; }; then
+        qs ipc call theme reload >/dev/null 2>&1 || true
+        qs ipc call status refresh >/dev/null 2>&1 || true
+        echo "Quickshell state refreshed via IPC"
     fi
 fi

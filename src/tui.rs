@@ -151,7 +151,7 @@ fn handle_tab_key(
                         *status_msg = format!("Forging {name} (-march=native)...");
                         spawn_bg(st, busy, "superforge", "lib/forge.sh", vec![name]);
                     } else if let Some((slug, _, _)) = st.webapps.get(*forge_sel - st.forge_items.len()) {
-                        let _ = Command::new(format!("forge-webapp-{slug}")).stdout(Stdio::null()).stderr(Stdio::null()).spawn();
+                        let _ = Command::new(format!("sf-webapp-{slug}")).stdout(Stdio::null()).stderr(Stdio::null()).spawn();
                     }
                 }
                 KeyCode::Char('x') | KeyCode::Delete => {
@@ -190,18 +190,18 @@ fn handle_tab_key(
             }
             KeyCode::Char('d') => {
                 let exe = std::env::current_exe().unwrap_or_else(|_| st.sf_root.join("bin/superfedora"));
-                run_fullscreen_cmd(terminal, exe.to_str().unwrap_or("sf"), &["snapshot", "diff"]);
+                run_fullscreen_cmd(terminal, exe.to_str().unwrap_or("superfedora"), &["snapshot", "diff"]);
             }
-            KeyCode::Char('b') => run_fullscreen_cmd(terminal, st.sf_root.join("lib/tui.sh").to_str().unwrap_or("sf"), &["rollback", "--baseline"]),
+            KeyCode::Char('b') => run_fullscreen_cmd(terminal, st.sf_root.join("lib/tui.sh").to_str().unwrap_or("superfedora"), &["rollback", "--baseline"]),
             _ => {}
         },
         4 => match code {
-            KeyCode::Char('b') => run_sync_bin(st, "superdock", "lib/panel-ctl.sh", &["position", "bottom"]),
-            KeyCode::Char('t') => run_sync_bin(st, "superdock", "lib/panel-ctl.sh", &["position", "top"]),
-            KeyCode::Char('l') => run_sync_bin(st, "superdock", "lib/panel-ctl.sh", &["position", "left"]),
-            KeyCode::Char('r') => run_sync_bin(st, "superdock", "lib/panel-ctl.sh", &["position", "right"]),
-            KeyCode::Char('a') => run_sync_bin(st, "superdock", "lib/panel-ctl.sh", &["autohide", "toggle"]),
-            KeyCode::Char('w') => run_sync_bin(st, "superdock", "lib/panel-ctl.sh", &["layout", "cycle"]),
+            KeyCode::Char('b') => run_sync_bin(st, "panel-ctl.sh", "lib/panel-ctl.sh", &["position", "bottom"]),
+            KeyCode::Char('t') => run_sync_bin(st, "panel-ctl.sh", "lib/panel-ctl.sh", &["position", "top"]),
+            KeyCode::Char('l') => run_sync_bin(st, "panel-ctl.sh", "lib/panel-ctl.sh", &["position", "left"]),
+            KeyCode::Char('r') => run_sync_bin(st, "panel-ctl.sh", "lib/panel-ctl.sh", &["position", "right"]),
+            KeyCode::Char('a') => run_sync_bin(st, "panel-ctl.sh", "lib/panel-ctl.sh", &["autohide", "toggle"]),
+            KeyCode::Char('w') => run_sync_bin(st, "panel-ctl.sh", "lib/panel-ctl.sh", &["layout", "cycle"]),
             KeyCode::Char('s') => run_sync_bin(st, "supertheme", "lib/sfx.sh", &["sfx", "toggle"]),
             KeyCode::Char('p') => run_fullscreen_cmd(terminal, "wiremix", &[]),
             KeyCode::Char('i') => run_fullscreen_cmd(terminal, "wlctl", &[]),
@@ -212,9 +212,9 @@ fn handle_tab_key(
         _ => match code {
             KeyCode::Enter | KeyCode::Char('a') => {
                 let exe = std::env::current_exe().unwrap_or_else(|_| st.sf_root.join("bin/superfedora"));
-                run_fullscreen_cmd(terminal, exe.to_str().unwrap_or("sf"), &["status"]);
+                run_fullscreen_cmd(terminal, exe.to_str().unwrap_or("superfedora"), &["status"]);
             }
-            KeyCode::Char('d') => run_fullscreen_cmd(terminal, st.sf_root.join("lib/install-dotfiles.sh").to_str().unwrap_or("sf"), &[]),
+            KeyCode::Char('d') => run_fullscreen_cmd(terminal, st.sf_root.join("lib/install-dotfiles.sh").to_str().unwrap_or("superfedora"), &[]),
             _ => {}
         },
     }

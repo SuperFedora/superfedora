@@ -13,8 +13,7 @@ module_run() {
     if [[ -x "$HOME/.local/bin/agy" && ! -e "$HOME/.local/bin/antigravity-cli" ]]; then
         ln -sf "$HOME/.local/bin/agy" "$HOME/.local/bin/antigravity-cli" 2>/dev/null || true
     fi
-
-    _sa_t() { command -v superagent >/dev/null 2>&1; }
-    _sa_i() { "$SF_ROOT/lib/forge.sh" build superagent; }
-    need "SuperAgent Autonomous Daemon & CLI (superagent)" _sa_t _sa_i
+    _dig_t() { [[ -x "$HOME/.local/bin/sf-digest" || -x "$SF_ROOT/dotfiles/.local/bin/sf-digest" ]]; }
+    _dig_i() { mkdir -p "$HOME/.local/bin" && install -m 755 "$SF_ROOT/dotfiles/.local/bin/sf-digest" "$HOME/.local/bin/sf-digest"; }
+    need "SuperFedora AI Digest Utility (sf-digest)" _dig_t _dig_i
 }

@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# sf-digest — shrink long text (logs, mcode output) into a short digest via local Ollama,
+# so a token-limited agent reads only the digest. Full text is never printed by default.
+#
+# Usage:
+#   sf-digest [-p 'custom instruction'] [FILE...]   # files or stdin
+#   sf-digest --run -- <command...>                 # run cmd, log full output, print digest
+set -uo pipefail
+
+URL="${SF_DIGEST_URL:-http://spotlight:11434}"
+MODEL="${SF_DIGEST_MODEL:-gemma4:26b-a4b-it-mtp-q4_K_M}"
+INSTR='Summarize in at most 8 terse bullets: what was done, files changed (with line counts if mentioned), and ANY errors/warnings/failures verbatim. No preamble.'
+ERR_RE='error|warn|fail|panic|exception|traceback'
+MAXCHARS=24000
+
+usage() { sed -n '3,7p' "$0" | sed 's/^# \{0,1\}//'; }
+
+RUN=0; LOG=""
+while (( $# )); do
+  case "$1" in
+    -p|--prompt) INSTR="${2-}"; shift 2 ;;
+    --run) RUN=1; shift; [[ "${1-}" == "--" ]] && shift; break ;;
+    -h|--help) usage; exit 0 ;;
+    *) break ;;
+  esac
+done
+
+TMP="$(mktemp -t sf-digest.XXXXXX)"; BODY="$(mktemp -t sf-digest.body.XXXXXX)"
+trap 'rm -f "$TMP" "$BODY"' EXIT
+
+RC=0
+if (( RUN )); then
+  LOG="/tmp/sf-digest-$(date +%Y%m%d-%H%M%S).log"
+  "$@" >"$TMP" 2>&1; RC=$?
+  cp -f -- "$TMP" "$LOG"
+else
+  if (( $# )); then cat -- "$@" >"$TMP"; else cat >"$TMP"; fi
+fi
+
+LINES=$(wc -l <"$TMP")
+if (( LINES <= 40 )); then
+  cat -- "$TMP"
+  printf '[sf-digest] %s lines (<=40) — printed verbatim, no LLM call.\n' "$LINES" >&2
+else
+  { head -n 60 "$TMP"; grep -inE "$ERR_RE" "$TMP"; tail -n 400 "$TMP"; } \
+    | awk '!seen[$0]++' | head -c "$MAXCHARS" >"$BODY"
+  PAYLOAD=$(jq -n --arg m "$MODEL" --arg p "$INSTR" --rawfile t "$BODY" \
+    '{model:$m, prompt:($p + "\n\n<output>\n" + $t + "\n</output>"),
+      stream:false, options:{num_ctx:16384, temperature:0.2}}' 2>/dev/null)
+  RESP=""; DIGEST=""
+  if [[ -n "$PAYLOAD" ]]; then
+    RESP=$(curl -sS --max-time 120 -X POST "$URL/api/generate" \
+      -H 'Content-Type: application/json' -d "$PAYLOAD" 2>/dev/null) || RESP=""
+    [[ -n "$RESP" ]] && DIGEST=$(printf '%s' "$RESP" | jq -r '.response // empty' 2>/dev/null)
+  fi
+  if [[ -n "$DIGEST" ]]; then
+    printf '%s\n' "$DIGEST"
+    printf '[sf-digest] %s lines -> digest via %s @ %s\n' "$LINES" "$MODEL" "$URL" >&2
+  else
+    echo "### sf-digest: Ollama unreachable/unusable at $URL (model $MODEL) — grep fallback"
+    grep -inE "$ERR_RE" "$TMP" | tail -n 40 || true
+    echo '--- tail -n 25 ---'
+    tail -n 25 "$TMP"
+  fi
+fi
+
+if (( RUN )); then printf '[sf-digest] exit code: %s | full log: %s\n' "$RC" "$LOG"; fi
+exit $RC

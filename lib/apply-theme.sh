@@ -5,15 +5,15 @@
 # apply-theme.sh — SuperFedora 16-Bit Theme Engine (Day/Night x Square/Rounded)
 # ==============================================================================
 # Usage:
-#   sf theme                                  Show active theme & available palettes
-#   sf theme <name> [--mode night|day|toggle] [--corners square|rounded|toggle]
-#   sf theme set <color> [night|day] [square|rounded] Apply color, mode & corners
-#   sf theme next | prev                      Cycle through 16-bit palettes
-#   sf theme toggle | mode [night|day|toggle] Flip between night (dark) & day (light)
-#   sf theme corners [square|rounded|toggle]  Swap between 90-degree square & rounded edges
-#   sf theme nightlight [on|off|toggle]       Toggle eye-care warm night light
-#   sf theme pick                             Interactive Fuzzel 16-bit theme selector
-#   sf theme reload                           Re-apply saved theme from state file
+#   superfedora theme                                  Show active theme & available palettes
+#   superfedora theme <name> [--mode night|day|toggle] [--corners square|rounded|toggle]
+#   superfedora theme set <color> [night|day] [square|rounded] Apply color, mode & corners
+#   superfedora theme next | prev                      Cycle through 16-bit palettes
+#   superfedora theme toggle | mode [night|day|toggle] Flip between night (dark) & day (light)
+#   superfedora theme corners [square|rounded|toggle]  Swap between 90-degree square & rounded edges
+#   superfedora theme nightlight [on|off|toggle]       Toggle eye-care warm night light
+#   superfedora theme pick                             Interactive Fuzzel 16-bit theme selector
+#   superfedora theme reload                           Re-apply saved theme from state file
 # ==============================================================================
 set -euo pipefail
 
@@ -102,25 +102,26 @@ apply_all() {
     # shellcheck disable=SC2088
     local wall_rel="~/Pictures/Wallpapers/$mode/$WALL_KEY.png"
     local wall_abs="$HOME/Pictures/Wallpapers/$mode/$WALL_KEY.png"
-
-    # 1. Desktop Wallpaper (hyprpaper)
-    printf 'wallpaper {\n    monitor =\n    path = %s\n    fit_mode = cover\n}\n\nsplash = false\n' "$wall_rel" > "$HOME/.config/hypr/hyprpaper.conf"
-    echo "$wall_abs" > "$HOME/.config/hypr/.current-wallpaper"
-    if command -v hyprctl >/dev/null 2>&1 && [[ -f "$wall_abs" ]]; then
-        hyprctl hyprpaper unload all >/dev/null 2>&1 || true
-        hyprctl hyprpaper preload "$wall_abs" >/dev/null 2>&1 || true
-        hyprctl hyprpaper wallpaper ",$wall_abs" >/dev/null 2>&1 || true
+    local cur_w; cur_w="$(cat "$HOME/.config/hypr/.current-wallpaper" 2>/dev/null || true)"
+    if [[ "$color" == "${THEME_COLOR:-}" && "$mode" == "${THEME_MODE:-}" && -n "$cur_w" && -f "$cur_w" ]]; then
+        wall_rel="$cur_w"; wall_abs="$cur_w"
+    else
+        printf 'wallpaper {\n    monitor =\n    path = %s\n    fit_mode = cover\n}\n\nsplash = false\n' "$wall_rel" > "$HOME/.config/hypr/hyprpaper.conf"
+        echo "$wall_abs" > "$HOME/.config/hypr/.current-wallpaper"
+        if command -v hyprctl >/dev/null 2>&1 && [[ -f "$wall_abs" ]]; then
+            hyprctl hyprpaper unload all >/dev/null 2>&1 || true; hyprctl hyprpaper preload "$wall_abs" >/dev/null 2>&1 || true; hyprctl hyprpaper wallpaper ",$wall_abs" >/dev/null 2>&1 || true
+        fi
     fi
 
     # 2. Lock Screen (hyprlock)
     {
         printf '# Hyprlock Configuration — SuperFedora 16-Bit Theme (%s / %s / %s)\ngeneral {\n    hide_cursor = false\n    ignore_empty_input = true\n    immediate_render = true\n    fail_timeout = 1200\n}\nauth {\n    pam {\n        enabled = true\n        module = password-auth\n    }\n    fingerprint {\n        enabled = true\n    }\n}\nanimations {\n    enabled = false\n}\nbackground {\n    monitor =\n    path = %s\n    blur_passes = 0\n    blur_size = 0\n}\n' "$NAME" "$mode" "$corners" "$wall_rel"
-        write_lock_lbl "<b>󰍹 Screen Off</b>" "rgba($LOCK_FG, 1.0)" "12" "-390, -24" "right" "top" $'    onclick = ~/.config/hypr/scripts/toggle-touchpad.sh dpms off\n'
+        write_lock_lbl "<b>󰍹 Screen Off</b>" "rgba($LOCK_FG, 1.0)" "12" "-390, -24" "right" "top" $'    onclick = ~/.local/bin/superlock dpms off\n'
         write_lock_lbl "<b>󰤄 Suspend</b>"    "rgba($LOCK_FG, 1.0)" "12" "-276, -24" "right" "top" $'    onclick = systemctl suspend\n'
         write_lock_lbl "<b>󰜉 Restart</b>"    "rgba($LOCK_FG, 1.0)" "12" "-162, -24" "right" "top" $'    onclick = systemctl reboot\n'
         write_lock_lbl "<b>󰐥 Power Off</b>"  "rgb(f7768e)"         "12" "-28, -24"  "right" "top" $'    onclick = systemctl poweroff\n'
-        write_lock_lbl "cmd[update:1000] ~/.local/share/superfedora/lib/session-ctl.sh status" "rgb($ACCENT)" "12" "-28, 56" "right" "bottom" $'    onclick = ~/.local/share/superfedora/lib/session-ctl.sh next\n'
-        write_lock_lbl "<b>󰍃 Switch DE / Log Out</b>" "rgba($LOCK_DIM, 1.0)" "12" "-28, 28" "right" "bottom" $'    onclick = ~/.local/share/superfedora/lib/session-ctl.sh switch\n'
+        write_lock_lbl "cmd[update:1000] ~/.local/bin/superlock status" "rgb($ACCENT)" "12" "-28, 56" "right" "bottom" $'    onclick = ~/.local/bin/superlock next\n'
+        write_lock_lbl "<b>󰍃 Switch DE / Log Out</b>" "rgba($LOCK_DIM, 1.0)" "12" "-28, 28" "right" "bottom" $'    onclick = ~/.local/bin/superlock switch\n'
         printf 'image {\n    monitor =\n    path = ~/Pictures/Wallpapers/avatar.jpg\n    size = 88\n    rounding = %s\n    border_size = 2\n    border_color = rgb(%s)\n    position = 0, 148\n    halign = center\n    valign = bottom\n}\n' "$lock_round" "$ACCENT"
         write_lock_lbl "<b>\$USER</b>" "rgba($LOCK_FG, 1.0)" "16" "0, 108" "center" "bottom"
         printf 'input-field {\n    monitor =\n    size = 290, 44\n    outline_thickness = 2\n    rounding = %s\n    dots_size = 0.26\n    dots_spacing = 0.20\n    dots_center = true\n    fade_on_empty = false\n    font_color = rgb(%s)\n    inner_color = rgba(%s, 0.94)\n    outer_color = rgb(%s)\n    check_color = rgb(9ece6a)\n    fail_color = rgb(f7768e)\n    fail_text = <b>Incorrect password ($ATTEMPTS)</b>\n    capslock_color = rgb(e0af68)\n    placeholder_text = Password\n    position = 0, 46\n    halign = center\n    valign = bottom\n}\n' "$lock_round" "$LOCK_FG" "$LOCK_IN" "$ACCENT"
@@ -144,7 +145,7 @@ apply_all() {
     # 4. Quickshell Top Bar, SuperDeck, Docks, OSD & Notifications (live IPC update)
     local nl_bool="false"; [[ "$nl" == "on" ]] && nl_bool="true"
     printf '{"theme":"%s","name":"%s","mode":"%s","bg":"#%s","bgAlt":"#%s","bgHover":"#%s","border":"#%s","fg":"#%s","fgDim":"#%s","muted":"#%s","blue":"#%s","cyan":"#%s","corners":"%s","nightlight":%s,"radius":%s,"radiusSm":%s}\n' \
-        "$color" "$NAME" "$mode" "$BG" "$BG_ALT" "$BG_HOV" "$BORDER" "$FG" "$FG_DIM" "$MUTED" "$ACCENT" "$HOT" "$corners" "$nl_bool" "$qs_rad" "$qs_rad_sm" > "$STATE_DIR/quickshell-theme.json"
+        "$color" "$NAME" "$mode" "$BG" "$BG_ALT" "$BG_HOV" "$BORDER" "$FG" "$FG_DIM" "$MUTED" "$ACCENT" "$HOT" "$corners" "$nl_bool" "$qs_rad" "$qs_rad_sm" > "$STATE_DIR/quickshell-theme.json.tmp" && mv -f "$STATE_DIR/quickshell-theme.json.tmp" "$STATE_DIR/quickshell-theme.json"
     command -v qs >/dev/null 2>&1 && qs ipc call theme reload >/dev/null 2>&1 || true
 
     # 5. Fuzzel, Kitty, Foot, Ghostty, Tmux & Neovim Terminal Theme Sync
@@ -183,7 +184,7 @@ apply_all() {
     echo "$ACCENT" > "$STATE_DIR/rgb-color"
     [[ -s "$STATE_DIR/rgb-devices" ]] && command -v openrgb >/dev/null 2>&1 && (openrgb --noautoconnect -m direct -c "$ACCENT" >/dev/null 2>&1 &) || true
     local tui_theme="border=$TUI_C;title=$TUI_C;prompt=$TUI_C;time=$TUI_TEXT;action=$TUI_C;button=$TUI_C;container=$TUI_BG;input=$TUI_TEXT"
-    [[ -w /etc/greetd/config.toml ]] && printf '# SuperFedora login screen: greetd + tuigreet on tty1.\n[terminal]\nvt = 1\n\n[default_session]\ncommand = "tuigreet --time --asterisks --remember --remember-session --theme '\''%s'\'' --sessions /usr/share/wayland-sessions --cmd '\''uwsm start -e -D Hyprland hyprland.desktop'\'' --greeting '\''SUPER FEDORA'\''"\nuser = "greetd"\n' "$tui_theme" > /etc/greetd/config.toml
+    [[ -w /etc/greetd/config.toml ]] && printf '# SuperFedora login screen: greetd + tuigreet on tty1.\n[terminal]\nvt = 1\n\n[default_session]\ncommand = "tuigreet --time --asterisks --remember --remember-session --theme '\''%s'\'' --sessions /usr/share/wayland-sessions --cmd '\''uwsm start -e -D Hyprland:SuperFedora superfedora.desktop'\'' --greeting '\''SUPER FEDORA'\''"\nuser = "greetd"\n' "$tui_theme" > /etc/greetd/config.toml
     local mode_disp="night"; [[ "$mode" == "light" ]] && mode_disp="day"
     printf '[OK] Active 16-bit theme: %s (%s/%s mode, %s corners, nightlight: %s)\n' "$NAME" "$mode_disp" "$mode" "$corners" "$nl"
 }

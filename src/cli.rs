@@ -8,17 +8,12 @@ use crate::charts_cli::{
 use crate::state::WorkstationState;
 use crate::telemetry::Telemetry;
 use crate::tui::run_tui;
-use std::env;
-use std::io::{self, IsTerminal};
-use std::process::Command;
+use std::{env, io::{self, IsTerminal}, process::Command};
 
 pub fn print_usage(st: &WorkstationState) {
-    let p = ansi_rgb(st.primary_rgb);
-    let s = ansi_rgb(st.secondary_rgb);
-    let b = "\x1b[1m";
-    let r = "\x1b[0m";
+    let (p, s, b, r) = (ansi_rgb(st.primary_rgb), ansi_rgb(st.secondary_rgb), "\x1b[1m", "\x1b[0m");
     println!("{p}{b}SuperFedora v{} — Native Rust 16-Bit Workstation Engine & TUI{r}", st.version);
-    println!("Usage: {b}superfedora{r} [command] [options]   (shorthand alias: {b}sf{r})\n");
+    println!("Usage: {b}superfedora{r} [command] [options]\n");
     println!("{s}{b}Graphical TUI & Telemetry Commands:{r}");
     println!("  {b}tui | welcome | deck{r} Launch full-screen 16-Bit Rust Graphical TUI (default in TTY)");
     println!("  {b}vitals | charts{r}      Render live 16-bit CPU per-core, RAM, GPU, Thermal & Disk bar charts");
@@ -27,7 +22,8 @@ pub fn print_usage(st: &WorkstationState) {
     println!("{s}{b}Workstation Orchestrator Commands:{r}");
     println!("  {b}install{r}              Check every module and install whatever is missing");
     println!("  {b}status | doctor{r}      Audit workstation modules & print readiness bar chart");
-    println!("  {b}update{r}               Fetch the latest SuperFedora release, then run install");
+    println!("  {b}update{r}               Sync @SuperFedora repos, runtime tree, binaries & install");
+    println!("  {b}uninstall{r}            Remove SuperFedora binaries/runtime or restore backups");
     println!("  {b}system-upgrade [ver]{r} Upgrade Fedora release (Snapper + dnf5 + superforge)");
     println!("  {b}hardware [action]{r}    GPU auto-detection, VA-API codecs & Firefox DMABUF tuning");
     println!("  {b}snapshot [action]{r}    Time-Machine Btrfs snapshot browser (list, diff, create, restore)");
@@ -37,13 +33,14 @@ pub fn print_usage(st: &WorkstationState) {
     println!("  {b}repo [status|test]{r}   Multi-repo orchestration across @SuperFedora repos");
     println!("  {b}build [action]{r}       Compile & tune core stack from source (-march=native)");
     println!("  {b}dotfiles [--check]{r}   Deploy desktop configs (or list drift from this release)");
-    println!("  {b}dock | notify | ai{r}   Control SuperDock, SuperNotify Cast Comms & SuperAgent");
+    println!("  {b}bar | notify | ai{r}    Control SuperBar, SuperNotify Cast Comms & AI settings");
     println!("  {b}session | sfx{r}        Switch Desktop Environment session or 16-bit SFX engine");
     println!("  {b}modules | rollback{r}   List installer modules or run Btrfs Boot-Guard rollback");
     println!("  {b}version{r}              Print the SuperFedora Rust engine version\n");
     println!("{s}{b}Install / Audit Options:{r}");
-    println!("  --quick              Use prebuilt binary packages");
-    println!("  --build-from-source  Compile & tune for localhost hardware (-march=native) (default)");
+    println!("  --race               Two-Stage Race: easy binaries first, background -march=native builds after (default)");
+    println!("  --quick              Use prebuilt binary packages only");
+    println!("  --build-from-source  Compile & tune upfront for localhost hardware (-march=native)");
     println!("  --dry-run            Show what would be installed without changes");
     println!("  --only / --skip a,b  Filter installer modules (e.g. 40,desktop)");
     println!("  -v, --verbose        Show verbose command output");
@@ -84,10 +81,11 @@ pub fn dispatch(cmd: &str, args: &[String], st: &mut WorkstationState) -> i32 {
         "mode" | "profile" | "power-mode" => crate::ops::mode::run_mode_cmd(st, args),
         "export" | "backup" => crate::ops::workstation::run_export_cmd(st, args),
         "import" | "clone" => crate::ops::workstation::run_import_cmd(st, args),
+        "uninstall" | "remove" | "purge" => crate::ops::uninstall::run_uninstall_cmd(st, args),
         "system-upgrade" | "dist-upgrade" | "release-upgrade" => crate::ops::run_system_upgrade(st, args),
         "service" | "services" | "systemd" => crate::ops::run_service_cmd(st, args),
         "repo" | "repos" => crate::ops::run_repo_cmd(st, args),
-        "dock" | "superdock" | "panel" | "panels" => exec_bin_or_script(st, "superdock", "lib/panel-ctl.sh", args),
+        "dock" | "superdock" | "panel" | "panels" => exec_script(st, "lib/panel-ctl.sh", args),
         "bar" | "superbar" => exec_bin_or_script(st, "superbar", "lib/panel-ctl.sh", args),
         "notify" | "supernotify" | "notifications" | "notif" => exec_bin_or_script(st, "supernotify", "lib/notify-ctl.sh", args),
         "lock" | "superlock" | "session" | "de" => exec_bin_or_script(st, "superlock", "lib/session-ctl.sh", args),
@@ -101,9 +99,9 @@ pub fn dispatch(cmd: &str, args: &[String], st: &mut WorkstationState) -> i32 {
                 exec_script(st, "lib/tui.sh", &prepend("rollback", args))
             }
         }
-        "agent" | "superagent" | "ai" | "quake" => exec_bin_or_script(st, "superagent", "dotfiles/.config/hypr/scripts/quake-ai.sh", args),
-        "webcam" | "camera" | "mic" | "speaker" => exec_script(st, "dotfiles/.config/hypr/scripts/toggle-touchpad.sh", &prepend(cmd, args)),
-        "io" => exec_script(st, "dotfiles/.config/hypr/scripts/toggle-touchpad.sh", args),
+        "agent" | "superagent" | "ai" | "quake" => exec_bin_or_script(st, "supersettings", "lib/panel-ctl.sh", &prepend("ai", args)),
+        "webcam" | "camera" | "mic" | "speaker" => exec_bin_or_script(st, "supersettings", "lib/panel-ctl.sh", &prepend("apply", &prepend(cmd, args))),
+        "io" => exec_bin_or_script(st, "supersettings", "lib/panel-ctl.sh", &prepend("apply", args)),
         "settings-probe" => { crate::settings_engine::print_probe(); 0 }
         "settings-apply" => crate::settings_engine::apply_setting(args),
         "settings" | "supersettings" | "config" => {
@@ -135,10 +133,7 @@ fn prepend(first: &str, rest: &[String]) -> Vec<String> {
 
 fn exec_bin_or_script(st: &WorkstationState, bin_name: &str, rel: &str, args: &[String]) -> i32 {
     let home = env::var("HOME").unwrap_or_else(|_| "/home/jeryd".into());
-    for cand in [
-        std::path::Path::new(&home).join(".local/bin").join(bin_name),
-        std::path::PathBuf::from("/usr/local/bin").join(bin_name),
-    ] {
+    for cand in [std::path::Path::new(&home).join(".local/bin").join(bin_name), std::path::PathBuf::from("/usr/local/bin").join(bin_name)] {
         if cand.is_file() {
             return Command::new(cand).env("SF_ROOT", &st.sf_root).args(args).status().map(|s| s.code().unwrap_or(0)).unwrap_or(1);
         }
@@ -147,18 +142,12 @@ fn exec_bin_or_script(st: &WorkstationState, bin_name: &str, rel: &str, args: &[
 }
 
 fn exec_script(st: &WorkstationState, rel: &str, args: &[String]) -> i32 {
-    Command::new(st.sf_root.join(rel))
-        .env("SF_ROOT", &st.sf_root)
-        .args(args)
-        .status()
-        .map(|s| s.code().unwrap_or(0))
-        .unwrap_or(1)
+    Command::new(st.sf_root.join(rel)).env("SF_ROOT", &st.sf_root).args(args).status().map(|s| s.code().unwrap_or(0)).unwrap_or(1)
 }
 
 fn run_module_engine(cmd: &str, args: &[String], st: &WorkstationState) -> i32 {
-    // Normalize the environment override; an unrecognized value falls through to
-    // the engine default (source) instead of leaking a bogus SF_BUILD_MODE.
     let mut build_mode = match env::var("SUPERFEDORA_BUILD_MODE").unwrap_or_default().to_ascii_lowercase().as_str() {
+        "race" | "hybrid" | "two-stage" => "race",
         "source" | "native" | "build-from-source" => "source",
         "quick" | "binary" | "prebuilt" => "quick",
         _ => "",
@@ -167,6 +156,7 @@ fn run_module_engine(cmd: &str, args: &[String], st: &WorkstationState) -> i32 {
     let (mut only, mut skip, mut dry, mut verbose, mut i) = (String::new(), String::new(), false, false, 0);
     while i < args.len() {
         match args[i].as_str() {
+            "--race" | "--hybrid" => build_mode = "race".into(),
             "--quick" | "--binary" => build_mode = "quick".into(),
             "--build-from-source" | "--from-source" | "--source" | "--native" => build_mode = "source".into(),
             "--dry-run" => dry = true,
@@ -184,8 +174,26 @@ fn run_module_engine(cmd: &str, args: &[String], st: &WorkstationState) -> i32 {
     let script = r#"
 set -uo pipefail
 source "$SF_ROOT/lib/core.sh"; source "$SF_ROOT/lib/check.sh"
-[[ -z "${SF_BUILD_MODE:-}" ]] && { [[ -f "$SF_STATE/build-mode" ]] && SF_BUILD_MODE="$(tr -d '[:space:]' < "$SF_STATE/build-mode")" || SF_BUILD_MODE="source"; }
+[[ -z "${SF_BUILD_MODE:-}" ]] && { [[ -f "$SF_STATE/build-mode" ]] && SF_BUILD_MODE="$(tr -d '[:space:]' < "$SF_STATE/build-mode")" || SF_BUILD_MODE="race"; }
 export SF_BUILD_MODE
+sync_runtime_tree() {
+    local dst="${XDG_DATA_HOME:-$HOME/.local/share}/superfedora" src="$SF_ROOT" d f ws="$HOME/Projects/superfedora"
+    [[ -d "$ws/superfedora/lib" ]] && src="$ws/superfedora"
+    if [[ "$(realpath "$src" 2>/dev/null)" != "$(realpath "$dst" 2>/dev/null)" ]]; then
+        mkdir -p "$dst"
+        for d in bin lib modules packages scripts system docs dotfiles; do
+            [[ -d "$src/$d" ]] && { rm -rf "$dst/$d.new"; cp -a "$src/$d" "$dst/$d.new" && rm -rf "$dst/$d" && mv "$dst/$d.new" "$dst/$d"; }
+        done
+        for f in VERSION install.sh AGENTS.md README.md LICENSE CHANGELOG.md; do [[ -f "$src/$f" ]] && cp -a "$src/$f" "$dst/$f"; done
+    fi
+    [[ -d "$ws/superforge/lib" ]] && { mkdir -p "$HOME/.local/share/superforge" && cp -rf "$ws/superforge/lib" "$ws/superforge/scripts" "$HOME/.local/share/superforge/" 2>/dev/null || true; }
+    rm -f "$dst/forge/stamps/superagent.stamp" "$dst/forge/stamps/superdock.stamp" "$SF_STATE/source-built/superagent.stamp" "$SF_STATE/source-built/superdock.stamp" 2>/dev/null || true
+    [[ -f "$SF_STATE/forge.json" ]] && python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); t=d.get("targets",{}); c=any(t.pop(k,None) for k in ("superagent","superdock")); ts=t.get("supershell",{}); (ts.get("binary","").endswith("/superdock") and (ts.update({"binary":ts["binary"][:-9]+"supersettings"}) or True) and (c:=True)); c and json.dump(d,open(p,"w"),indent=2)' "$SF_STATE/forge.json" 2>/dev/null || true
+    for f in "$dst/forge/stamps/supershell.stamp" "$SF_STATE/source-built/supershell.stamp"; do [[ -f "$f" ]] && sed -i 's|/superdock$|/supersettings|' "$f" 2>/dev/null || true; done
+    rm -f "$src/bin/sf" "$dst/bin/sf" "$HOME/.local/bin/sf" 2>/dev/null || true
+    [[ -x "$src/bin/superfedora" && -f /usr/local/bin/superfedora ]] && { sudo -n install -m 755 "$src/bin/superfedora" /usr/local/bin/superfedora 2>/dev/null || true; sudo -n rm -f /usr/local/bin/sf 2>/dev/null || true; }
+    SF_ROOT="$src"; SF_VERSION="$(tr -d '[:space:]' < "$src/VERSION" 2>/dev/null || echo "$SF_VERSION")"; export SF_ROOT SF_VERSION
+}
 module_files() { find "$SF_ROOT/modules" -maxdepth 1 -name '[0-9][0-9]-*.sh' | sort; }
 module_name()  { local b; b="$(basename "$1" .sh)"; echo "${b#[0-9][0-9]-}"; }
 module_num()   { basename "$1" | cut -c1-2; }
@@ -203,17 +211,27 @@ run_modules() {
         source "$f"; module_run; unset -f module_run
     done
 }
-if [[ "$CMD_NAME" == "update" ]]; then
-    [[ -d "$SF_ROOT/.git" && "$MODE" != "dry-run" ]] && git -C "$SF_ROOT" pull --ff-only || true
+if [[ "$CMD_NAME" == "update" && "$MODE" != "dry-run" ]]; then
+    for r in superfedora superforge supertheme supernotify superbar supershell superfedora.github.io .github; do
+        [[ -d "$HOME/Projects/superfedora/$r/.git" ]] && git -C "$HOME/Projects/superfedora/$r" pull --ff-only 2>/dev/null || true
+    done
+    sync_runtime_tree
+    FORGE_CMD="$(command -v superforge 2>/dev/null || echo "$SF_ROOT/lib/forge.sh")"
+    [[ -z "$ONLY" && "$SF_BUILD_MODE" == "source" ]] && for c in superforge supertheme superbar supershell supernotify superfedora; do "$FORGE_CMD" build "$c"; done
 fi
 if [[ "$CMD_NAME" == "install" || "$CMD_NAME" == "update" ]]; then
     [[ $EUID -eq 0 ]] && die "run as your normal user (sudo is used when needed)"
     mkdir -p "$SF_STATE"; mode_lbl="quick install"
+    [[ "$SF_BUILD_MODE" == "race" ]] && mode_lbl="two-stage race via SuperForge (easy binaries first -> background -march=native builds)"
     [[ "$SF_BUILD_MODE" == "source" ]] && mode_lbl="build-from-source (-march=native / target-cpu=native)"
+    [[ $MODE == install ]] && sync_runtime_tree
     printf '%sSuperFedora v%s%s — %s [%s]\n' "$C_B" "$SF_VERSION" "$C_R" "$([[ $MODE == dry-run ]] && echo 'dry run, nothing will change' || echo 'installing what is missing')" "$mode_lbl"
     _log_file "superfedora $MODE v$SF_VERSION ($SF_BUILD_MODE)"
     run_modules; summary
-    if [[ $MODE == install ]]; then echo "$SF_VERSION" > "$SF_STATE/version"; echo "$SF_BUILD_MODE" > "$SF_STATE/build-mode"; fi
+    if [[ $MODE == install ]]; then
+        echo "$SF_VERSION" > "$SF_STATE/version"; echo "$SF_BUILD_MODE" > "$SF_STATE/build-mode"
+        [[ "$SF_BUILD_MODE" == "race" && -z "$ONLY" ]] && "$(command -v superforge 2>/dev/null || echo "$SF_ROOT/lib/forge.sh")" background-reforge --async
+    fi
     [[ $SF_FAILED -eq 0 ]] || exit 1
 else
     printf '%sSuperFedora v%s%s — status (installed: %s, mode: %s)\n' "$C_B" "$SF_VERSION" "$C_R" "$(cat "$SF_STATE/version" 2>/dev/null || echo none)" "$SF_BUILD_MODE"

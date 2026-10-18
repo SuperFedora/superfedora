@@ -103,12 +103,13 @@ else
   fail "SUPERFEDORA_BUILD_MODE=source forwarding failed: $env_out"
 fi
 
-# Test --quick flag forwarding
+# Test --race (default) & --quick flag forwarding
+race_out="$(HOME="$MOCK_HOME" XDG_DATA_HOME="$MOCK_HOME/.local/share" SUPERFEDORA_OS_RELEASE="$MOCK_OS_RELEASE" PATH="$MOCK_BIN:$PATH" "$INSTALLER" --race </dev/null 2>&1)" || true
 quick_out="$(HOME="$MOCK_HOME" XDG_DATA_HOME="$MOCK_HOME/.local/share" SUPERFEDORA_OS_RELEASE="$MOCK_OS_RELEASE" PATH="$MOCK_BIN:$PATH" "$INSTALLER" --quick </dev/null 2>&1)" || true
-if [[ "$quick_out" == *"mock superfedora install --quick"* ]]; then
-  pass "--quick flag forwards cleanly to superfedora install"
+if [[ "$race_out" == *"mock superfedora install --race"* && "$quick_out" == *"mock superfedora install --quick"* ]]; then
+  pass "--race and --quick flags forward cleanly to superfedora install"
 else
-  fail "--quick flag forwarding failed: $quick_out"
+  fail "--race or --quick flag forwarding failed: $race_out / $quick_out"
 fi
 
 # Test non-Fedora OS rejection
@@ -132,11 +133,7 @@ fi
 NOTIFY_CTL="$SCRIPT_DIR/lib/notify-ctl.sh"
 for b in ready warning update checkpoint; do
   b_out="$(HOME="$MOCK_HOME" XDG_CONFIG_HOME="$MOCK_HOME/.config" "$NOTIFY_CTL" --banner "$b" 2>&1)" || true
-  if [[ "$b_out" == *"[OK] Banner triggered:"* ]]; then
-    pass "notify-ctl.sh --banner $b triggers workstation banner"
-  else
-    fail "notify-ctl.sh --banner $b failed: $b_out"
-  fi
+  [[ "$b_out" == *"[OK] Banner triggered:"* ]] && pass "notify-ctl.sh --banner $b triggers workstation banner" || fail "notify-ctl.sh --banner $b failed: $b_out"
 done
 
 if HOME="$MOCK_HOME" XDG_CONFIG_HOME="$MOCK_HOME/.config" "$NOTIFY_CTL" --banner invalid_banner >/dev/null 2>&1; then
@@ -147,27 +144,19 @@ fi
 
 for role in ai security builder engineer app navigator medic archivist commander synth all; do
   c_out="$(HOME="$MOCK_HOME" XDG_CONFIG_HOME="$MOCK_HOME/.config" "$NOTIFY_CTL" --cast "$role" 2>&1)" || true
-  if [[ "$c_out" == *"[OK] Cast comms triggered:"* ]]; then
-    pass "notify-ctl.sh --cast $role triggers workstation cast comms"
-  else
-    fail "notify-ctl.sh --cast $role failed: $c_out"
-  fi
+  [[ "$c_out" == *"[OK] Cast comms triggered:"* ]] && pass "notify-ctl.sh --cast $role triggers workstation cast comms" || fail "notify-ctl.sh --cast $role failed: $c_out"
 done
 
 # 9. Verify 16-bit cast portrait SVGs exist in dotfiles/.config/superfedora/cast/
 for role_svg in ai security builder engineer app navigator medic archivist commander synth; do
-  if [[ -f "$SCRIPT_DIR/dotfiles/.config/superfedora/cast/${role_svg}.svg" ]]; then
-    pass "Cast portrait SVG present: dotfiles/.config/superfedora/cast/${role_svg}.svg"
-  else
-    fail "Missing cast portrait SVG: dotfiles/.config/superfedora/cast/${role_svg}.svg"
-  fi
+  [[ -f "$SCRIPT_DIR/dotfiles/.config/superfedora/cast/${role_svg}.svg" ]] && pass "Cast portrait SVG present: dotfiles/.config/superfedora/cast/${role_svg}.svg" || fail "Missing cast portrait SVG: dotfiles/.config/superfedora/cast/${role_svg}.svg"
 done
 
-# 10. Verify sf is a relative symlink to superfedora in $MOCK_HOME/.local/bin
-if [[ -L "$MOCK_HOME/.local/bin/sf" ]] && [[ "$(readlink "$MOCK_HOME/.local/bin/sf")" == "superfedora" ]]; then
-  pass "install.sh creates relative symlink sf -> superfedora"
+# 10. Verify superforge is bootstrapped first and canonical superfedora binary is installed without sf alias in $MOCK_HOME/.local/bin
+if [[ -x "$MOCK_HOME/.local/bin/superforge" ]] && [[ -x "$MOCK_HOME/.local/bin/superfedora" ]] && [[ ! -e "$MOCK_HOME/.local/bin/sf" ]]; then
+  pass "install.sh bootstraps superforge first and installs canonical superfedora binary without sf alias"
 else
-  fail "install.sh did not create relative symlink sf -> superfedora (found: $(readlink "$MOCK_HOME/.local/bin/sf" 2>/dev/null || echo not-a-symlink))"
+  fail "install.sh did not bootstrap superforge or install canonical superfedora binary without sf alias"
 fi
 
 # 11. Test Fedora Minimal Stage-0 bootstrap when zstd is missing
@@ -192,7 +181,7 @@ else
 fi
 
 # 12. Verify systemd --user units, system Btrfs units, user-tmpfiles.d, and declarative OS drop-ins exist
-for u in superfedora-session.target supershell.service superagent.service idlescreen.service supertheme-sun.service supertheme-sun.timer superforge-check.service superforge-check.timer; do
+for u in superfedora-session.target supershell.service idlescreen.service supertheme-sun.service supertheme-sun.timer superforge-check.service superforge-check.timer; do
   if [[ -f "$SCRIPT_DIR/dotfiles/.config/systemd/user/$u" ]]; then
     pass "systemd user unit present: $u"
   else
@@ -242,6 +231,20 @@ if [[ -f "$SCRIPT_DIR/dotfiles/.local/share/applications/supersettings.desktop" 
   pass "XDG DE unification present (.desktop entries, portals, Qt6/GTK3/4 toolkit sync, keyring, superfedora.desktop session)"
 else
   fail "Missing XDG DE unification configs"
+fi
+
+# 16. Verify install.sh --uninstall forwards and isolated superfedora uninstall --restore-backups --purge --yes cleans & restores
+uninst_out="$(HOME="$MOCK_HOME" XDG_DATA_HOME="$MOCK_HOME/.local/share" "$INSTALLER" --uninstall --dry-run </dev/null 2>&1)" || true
+SBX="$TMP_TEST/sbx"; mkdir -p "$SBX/mockbin" "$SBX/.local/bin" "$SBX/.local/share/superfedora" "$SBX/.local/share/superforge" "$SBX/.local/share/applications" "$SBX/.config/superfedora/backups/20261018-010101/.config/hypr"
+printf '#!/bin/sh\nexit 0\n' > "$SBX/mockbin/systemctl" && chmod +x "$SBX/mockbin/systemctl"
+for b in superfedora sf superforge supertheme superbar supersettings superlock supernotify sf-digest; do touch "$SBX/.local/bin/$b"; done
+touch "$SBX/.local/share/applications/superbar.desktop" "$SBX/.local/share/superfedora/marker"
+echo "restored-config" > "$SBX/.config/superfedora/backups/20261018-010101/.config/hypr/hyprland.conf"
+PATH="$SBX/mockbin:$PATH" HOME="$SBX" XDG_CONFIG_HOME="$SBX/.config" XDG_DATA_HOME="$SBX/.local/share" "$SCRIPT_DIR/bin/superfedora" uninstall --restore-backups --purge --yes >/dev/null 2>&1 || true
+if [[ "$uninst_out" == *"mock superfedora uninstall --dry-run"* && ! -e "$SBX/.local/bin/superbar" && ! -d "$SBX/.local/share/superfedora" && ! -d "$SBX/.config/superfedora" && "$(cat "$SBX/.config/hypr/hyprland.conf" 2>/dev/null)" == "restored-config" ]]; then
+  pass "install.sh --uninstall forwards and isolated superfedora uninstall --restore-backups --purge --yes cleans & restores"
+else
+  fail "install.sh --uninstall or isolated superfedora uninstall failed: $uninst_out"
 fi
 
 echo "Test summary: $FAILURES failure(s)."

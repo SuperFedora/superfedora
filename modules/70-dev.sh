@@ -21,12 +21,15 @@ module_run() {
 
     need_script_tool "uv / uvx" uv https://astral.sh/uv/install.sh sh
 
-    # When --build-from-source is active, generate localhost -march=native profile & compile native targets
-    if [[ "${SF_BUILD_MODE:-quick}" == "source" ]]; then
+    # Generate localhost -march=native profile for race and source modes; compile upfront only when --build-from-source is active
+    if [[ "${SF_BUILD_MODE:-race}" =~ ^(source|race)$ ]]; then
+        local forge_cmd
+        forge_cmd="$(command -v superforge 2>/dev/null || echo "$SF_ROOT/lib/build-source.sh")"
         _hw_t() { [[ -f "$SF_STATE/hardware-flags.env" ]]; }
-        _hw_i() { "$SF_ROOT/lib/build-source.sh" profile; }
+        _hw_i() { "$forge_cmd" profile 2>/dev/null || "$SF_ROOT/lib/build-source.sh" profile; }
         need "localhost hardware profile (-march=native / target-cpu=native)" _hw_t _hw_i
-
+    fi
+    if [[ "${SF_BUILD_MODE:-race}" == "source" ]]; then
         _src_t() {
             local c
             for c in superfedora wlctl bluetui wiremix tuigreet fuzzel btop; do

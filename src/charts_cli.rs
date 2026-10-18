@@ -146,7 +146,7 @@ pub fn print_forge_charts(st: &WorkstationState) {
 
     println!("\n{p}{b}━━ CHROMELESS FIREFOX WEBAPPS ({}){r}", st.webapps.len());
     if st.webapps.is_empty() {
-        println!("  \x1b[2m(no webapps installed — run: sf forge webapp <url>)\x1b[0m");
+        println!("  \x1b[2m(no webapps installed — run: superfedora forge webapp <url>)\x1b[0m");
     } else {
         for (slug, name, url) in &st.webapps {
             println!("  \x1b[1;36m[WEBAPP]\x1b[0m {b}{:<18}{r} {:<16} \x1b[2m{}\x1b[0m", name, slug, url);

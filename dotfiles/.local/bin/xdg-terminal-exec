@@ -10,7 +10,7 @@ DEF_FILE="$CFG_DIR/defaults.env"; MIME_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/m
 set_baseline_vars() {
     DEFAULT_SUITE="superfedora"; DEFAULT_TERMINAL="kitty"; DEFAULT_BROWSER="firefox"; DEFAULT_FILES="yazi"
     DEFAULT_EDITOR="nvim"; DEFAULT_MONITOR="btop"; DEFAULT_PDF="zathura"; DEFAULT_IMAGE="imv"
-    DEFAULT_VIDEO="mpv"; DEFAULT_AUDIO="mpv"; DEFAULT_OFFICE="libreoffice"; DEFAULT_MAIL="thunderbird"; DEFAULT_ARCHIVE="file-roller"
+    DEFAULT_VIDEO="mpv"; DEFAULT_AUDIO="mpv"; DEFAULT_OFFICE="libreoffice"; DEFAULT_MAIL="thunderbird"; DEFAULT_ARCHIVE="ouch"
 }
 set_baseline_vars
 # shellcheck disable=SC1090
@@ -92,45 +92,45 @@ set_mime_keys() {
 
 ext_catalog() {
     cat <<EOF
-http://|Web & Links|x-scheme-handler/http|$DEFAULT_BROWSER|firefox,brave-browser,chromium,google-chrome,zen-browser,librewolf,vivaldi,qutebrowser
-https://|Web & Links|x-scheme-handler/https|$DEFAULT_BROWSER|firefox,brave-browser,chromium,google-chrome,zen-browser,librewolf,vivaldi,qutebrowser
-.html|Web & Links|text/html|$DEFAULT_BROWSER|firefox,brave-browser,chromium,zen-browser,nvim,hx,zed,codium
-mailto:|Web & Links|x-scheme-handler/mailto|$DEFAULT_MAIL|thunderbird,betterbird,geary,evolution,kmail,aerc,firefox
-magnet:|Web & Links|x-scheme-handler/magnet|$DEFAULT_ARCHIVE|qbittorrent,transmission-gtk,fragments,firefox
+http://|Web & Links|x-scheme-handler/http|$DEFAULT_BROWSER|firefox,brave-browser,chromium,google-chrome,zen-browser,librewolf,vivaldi,epiphany,qutebrowser
+https://|Web & Links|x-scheme-handler/https|$DEFAULT_BROWSER|firefox,brave-browser,chromium,google-chrome,zen-browser,librewolf,vivaldi,epiphany,qutebrowser
+.html|Web & Links|text/html|$DEFAULT_BROWSER|firefox,brave-browser,chromium,google-chrome,zen-browser,epiphany,nvim,hx,zed,codium,gnome-text-editor
+mailto:|Web & Links|x-scheme-handler/mailto|$DEFAULT_MAIL|thunderbird,betterbird,geary,evolution,kmail,aerc,neomutt,firefox,google-chrome
+magnet:|Web & Links|x-scheme-handler/magnet|$DEFAULT_ARCHIVE|qbittorrent,transmission-gtk,fragments,firefox,google-chrome
 ssh://|Web & Links|x-scheme-handler/ssh|$DEFAULT_TERMINAL|kitty,foot,ghostty,alacritty,wezterm,ptyxis,konsole,cosmic-term
 folder/|Files & Disks|inode/directory|$DEFAULT_FILES|yazi,nautilus,thunar,dolphin,nemo,pcmanfm,cosmic-files,lf,ranger
-.pdf|Documents & Office|application/pdf|$DEFAULT_PDF|zathura,papers,evince,okular,sioyek,firefox,libreoffice
-.epub|Documents & Office|application/epub+zip|$DEFAULT_PDF|foliate,zathura,okular,papers,calibre
-.docx|Documents & Office|application/vnd.openxmlformats-officedocument.wordprocessingml.document|$DEFAULT_OFFICE|libreoffice,onlyoffice,abiword,calligra
-.xlsx|Documents & Office|application/vnd.openxmlformats-officedocument.spreadsheetml.sheet|$DEFAULT_OFFICE|libreoffice,onlyoffice,gnumeric,calligra
-.pptx|Documents & Office|application/vnd.openxmlformats-officedocument.presentationml.presentation|$DEFAULT_OFFICE|libreoffice,onlyoffice,calligra
-.odt|Documents & Office|application/vnd.oasis.opendocument.text|$DEFAULT_OFFICE|libreoffice,onlyoffice,abiword
-.csv|Documents & Office|text/csv|$DEFAULT_OFFICE|libreoffice,nvim,hx,zed,codium,gnumeric
+.pdf|Documents & Office|application/pdf|$DEFAULT_PDF|zathura,papers,evince,okular,sioyek,firefox,google-chrome,libreoffice
+.epub|Documents & Office|application/epub+zip|$DEFAULT_PDF|foliate,zathura,okular,papers,calibre,firefox
+.docx|Documents & Office|application/vnd.openxmlformats-officedocument.wordprocessingml.document|$DEFAULT_OFFICE|libreoffice,onlyoffice-desktopeditors,abiword,calligra
+.xlsx|Documents & Office|application/vnd.openxmlformats-officedocument.spreadsheetml.sheet|$DEFAULT_OFFICE|libreoffice,onlyoffice-desktopeditors,gnumeric,calligra
+.pptx|Documents & Office|application/vnd.openxmlformats-officedocument.presentationml.presentation|$DEFAULT_OFFICE|libreoffice,onlyoffice-desktopeditors,calligra
+.odt|Documents & Office|application/vnd.oasis.opendocument.text|$DEFAULT_OFFICE|libreoffice,onlyoffice-desktopeditors,abiword
+.csv|Documents & Office|text/csv|$DEFAULT_OFFICE|libreoffice,nvim,hx,zed,codium,gnome-text-editor,gnumeric
 .png|Images & Graphics|image/png|$DEFAULT_IMAGE|imv,loupe,swayimg,feh,gwenview,eog,gimp,firefox
 .jpg|Images & Graphics|image/jpeg|$DEFAULT_IMAGE|imv,loupe,swayimg,feh,gwenview,eog,gimp,firefox
 .webp|Images & Graphics|image/webp|$DEFAULT_IMAGE|imv,loupe,swayimg,feh,gwenview,gimp,firefox
 .gif|Images & Graphics|image/gif|$DEFAULT_IMAGE|imv,loupe,mpv,gwenview,firefox
-.svg|Images & Graphics|image/svg+xml|$DEFAULT_IMAGE|inkscape,imv,loupe,gimp,firefox,nvim
+.svg|Images & Graphics|image/svg+xml|$DEFAULT_IMAGE|inkscape,imv,loupe,gimp,firefox,nvim,hx
 .mp4|Video & Audio|video/mp4|$DEFAULT_VIDEO|mpv,vlc,celluloid,haruna,clapper,cosmic-player,totem,firefox
 .mkv|Video & Audio|video/x-matroska|$DEFAULT_VIDEO|mpv,vlc,celluloid,haruna,clapper,cosmic-player,totem
 .webm|Video & Audio|video/webm|$DEFAULT_VIDEO|mpv,vlc,celluloid,haruna,clapper,firefox
 .mov|Video & Audio|video/quicktime|$DEFAULT_VIDEO|mpv,vlc,celluloid,haruna,clapper
-.mp3|Video & Audio|audio/mpeg|$DEFAULT_AUDIO|mpv,amberol,elisa,rhythmbox,audacious,strawberry,cosmic-player,vlc
-.flac|Video & Audio|audio/flac|$DEFAULT_AUDIO|mpv,amberol,elisa,rhythmbox,audacious,strawberry,vlc
-.wav|Video & Audio|audio/x-wav|$DEFAULT_AUDIO|mpv,amberol,elisa,audacious,vlc
-.txt|Code & Text|text/plain|$DEFAULT_EDITOR|nvim,hx,zed,codium,code,gnome-text-editor,kate,cosmic-edit,micro
-.md|Code & Text|text/markdown|$DEFAULT_EDITOR|nvim,hx,zed,codium,code,obsidian,gnome-text-editor,kate
-.json|Code & Text|application/json|$DEFAULT_EDITOR|nvim,hx,zed,codium,code,gnome-text-editor,kate,firefox
-.toml|Code & Text|application/toml|$DEFAULT_EDITOR|nvim,hx,zed,codium,code,gnome-text-editor,kate
-.yaml|Code & Text|application/x-yaml|$DEFAULT_EDITOR|nvim,hx,zed,codium,code,gnome-text-editor,kate
-.sh|Code & Text|application/x-shellscript|$DEFAULT_EDITOR|nvim,hx,zed,codium,code,gnome-text-editor,kate
-.rs|Code & Text|text/rust|$DEFAULT_EDITOR|nvim,hx,zed,codium,code,gnome-text-editor,kate
-.py|Code & Text|text/x-python|$DEFAULT_EDITOR|nvim,hx,zed,codium,code,gnome-text-editor,kate
-.zip|Archives & Torrents|application/zip|$DEFAULT_ARCHIVE|file-roller,ark,peazip,xarchiver,yazi
-.tar.gz|Archives & Torrents|application/x-compressed-tar|$DEFAULT_ARCHIVE|file-roller,ark,peazip,xarchiver,yazi
-.tar.zst|Archives & Torrents|application/x-zstd-compressed-tar|$DEFAULT_ARCHIVE|file-roller,ark,peazip,yazi
-.7z|Archives & Torrents|application/x-7z-compressed|$DEFAULT_ARCHIVE|file-roller,ark,peazip,yazi
-.torrent|Archives & Torrents|application/x-bittorrent|$DEFAULT_ARCHIVE|qbittorrent,transmission-gtk,fragments
+.mp3|Video & Audio|audio/mpeg|$DEFAULT_AUDIO|mpv,termusic,amberol,elisa,rhythmbox,audacious,strawberry,cosmic-player,vlc
+.flac|Video & Audio|audio/flac|$DEFAULT_AUDIO|mpv,termusic,amberol,elisa,rhythmbox,audacious,strawberry,vlc
+.wav|Video & Audio|audio/x-wav|$DEFAULT_AUDIO|mpv,termusic,amberol,elisa,audacious,vlc
+.txt|Code & Text|text/plain|$DEFAULT_EDITOR|nvim,hx,gnome-text-editor,nano,zed,codium,code,kate,cosmic-edit,micro
+.md|Code & Text|text/markdown|$DEFAULT_EDITOR|nvim,hx,gnome-text-editor,nano,zed,codium,code,kate,firefox
+.json|Code & Text|application/json|$DEFAULT_EDITOR|nvim,hx,gnome-text-editor,nano,zed,codium,code,kate,firefox
+.toml|Code & Text|application/toml|$DEFAULT_EDITOR|nvim,hx,gnome-text-editor,nano,zed,codium,code,kate
+.yaml|Code & Text|application/x-yaml|$DEFAULT_EDITOR|nvim,hx,gnome-text-editor,nano,zed,codium,code,kate
+.sh|Code & Text|application/x-shellscript|$DEFAULT_EDITOR|nvim,hx,gnome-text-editor,nano,zed,codium,code,kate
+.rs|Code & Text|text/rust|$DEFAULT_EDITOR|nvim,hx,gnome-text-editor,nano,zed,codium,code,kate
+.py|Code & Text|text/x-python|$DEFAULT_EDITOR|nvim,hx,gnome-text-editor,nano,zed,codium,code,kate
+.zip|Archives & Torrents|application/zip|$DEFAULT_ARCHIVE|ouch,yazi,file-roller,ark,peazip,xarchiver,nautilus
+.tar.gz|Archives & Torrents|application/x-compressed-tar|$DEFAULT_ARCHIVE|ouch,yazi,file-roller,ark,peazip,xarchiver,nautilus
+.tar.zst|Archives & Torrents|application/x-zstd-compressed-tar|$DEFAULT_ARCHIVE|ouch,yazi,file-roller,ark,peazip,nautilus
+.7z|Archives & Torrents|application/x-7z-compressed|$DEFAULT_ARCHIVE|ouch,yazi,file-roller,ark,peazip,nautilus
+.torrent|Archives & Torrents|application/x-bittorrent|$DEFAULT_ARCHIVE|qbittorrent,transmission-gtk,fragments,firefox
 EOF
 }
 
@@ -153,7 +153,7 @@ apply_role_mimes() {
 apply_preset() {
     case "${1,,}" in
         superfedora|default|tui) set_baseline_vars ;;
-        gnome|workstation) DEFAULT_SUITE="gnome"; DEFAULT_TERMINAL="$(pick_app ptyxis kgx kitty)"; DEFAULT_BROWSER="$(pick_app firefox epiphany)"; DEFAULT_FILES="$(pick_app nautilus thunar yazi)"; DEFAULT_EDITOR="$(pick_app gnome-text-editor gedit nvim)"; DEFAULT_MONITOR="$(pick_app missioncenter resources btop)"; DEFAULT_PDF="$(pick_app papers evince zathura)"; DEFAULT_IMAGE="$(pick_app loupe eog imv)"; DEFAULT_VIDEO="$(pick_app clapper celluloid totem mpv)"; DEFAULT_AUDIO="$(pick_app amberol rhythmbox mpv)"; DEFAULT_OFFICE="libreoffice"; DEFAULT_MAIL="$(pick_app geary evolution thunderbird)"; DEFAULT_ARCHIVE="file-roller" ;;
+        gnome|workstation) DEFAULT_SUITE="gnome"; DEFAULT_TERMINAL="$(pick_app ptyxis kgx kitty)"; DEFAULT_BROWSER="$(pick_app firefox epiphany)"; DEFAULT_FILES="$(pick_app nautilus thunar yazi)"; DEFAULT_EDITOR="$(pick_app gnome-text-editor gedit nvim)"; DEFAULT_MONITOR="$(pick_app missioncenter resources btop)"; DEFAULT_PDF="$(pick_app papers evince zathura)"; DEFAULT_IMAGE="$(pick_app loupe eog imv)"; DEFAULT_VIDEO="$(pick_app clapper celluloid totem mpv)"; DEFAULT_AUDIO="$(pick_app amberol rhythmbox mpv)"; DEFAULT_OFFICE="libreoffice"; DEFAULT_MAIL="$(pick_app geary evolution thunderbird)"; DEFAULT_ARCHIVE="ouch" ;;
         kde|plasma) DEFAULT_SUITE="kde"; DEFAULT_TERMINAL="$(pick_app konsole kitty)"; DEFAULT_BROWSER="$(pick_app firefox brave-browser)"; DEFAULT_FILES="$(pick_app dolphin thunar yazi)"; DEFAULT_EDITOR="$(pick_app kate nvim)"; DEFAULT_MONITOR="$(pick_app btop htop)"; DEFAULT_PDF="$(pick_app okular zathura)"; DEFAULT_IMAGE="$(pick_app gwenview imv)"; DEFAULT_VIDEO="$(pick_app haruna vlc mpv)"; DEFAULT_AUDIO="$(pick_app elisa mpv)"; DEFAULT_OFFICE="$(pick_app libreoffice calligra)"; DEFAULT_MAIL="$(pick_app kmail thunderbird)"; DEFAULT_ARCHIVE="$(pick_app ark file-roller)" ;;
         cosmic|system76) DEFAULT_SUITE="cosmic"; DEFAULT_TERMINAL="$(pick_app cosmic-term alacritty kitty)"; DEFAULT_BROWSER="firefox"; DEFAULT_FILES="$(pick_app cosmic-files nautilus yazi)"; DEFAULT_EDITOR="$(pick_app cosmic-edit hx nvim)"; DEFAULT_MONITOR="$(pick_app resources btop)"; DEFAULT_PDF="$(pick_app papers okular zathura)"; DEFAULT_IMAGE="$(pick_app loupe imv)"; DEFAULT_VIDEO="$(pick_app cosmic-player mpv)"; DEFAULT_AUDIO="$(pick_app cosmic-player amberol mpv)"; DEFAULT_OFFICE="libreoffice"; DEFAULT_MAIL="thunderbird"; DEFAULT_ARCHIVE="$(pick_app file-roller ark)" ;;
         studio|creator|pro) DEFAULT_SUITE="studio"; DEFAULT_TERMINAL="$(pick_app ghostty wezterm kitty)"; DEFAULT_BROWSER="$(pick_app zen-browser brave-browser firefox)"; DEFAULT_FILES="$(pick_app thunar nautilus yazi)"; DEFAULT_EDITOR="$(pick_app zed codium code nvim)"; DEFAULT_MONITOR="$(pick_app nvtop missioncenter btop)"; DEFAULT_PDF="$(pick_app sioyek okular zathura)"; DEFAULT_IMAGE="$(pick_app gimp swayimg imv)"; DEFAULT_VIDEO="$(pick_app vlc mpv)"; DEFAULT_AUDIO="$(pick_app strawberry audacious mpv)"; DEFAULT_OFFICE="$(pick_app onlyoffice-desktopeditors libreoffice)"; DEFAULT_MAIL="$(pick_app betterbird thunderbird)"; DEFAULT_ARCHIVE="$(pick_app peazip ark file-roller)" ;;
@@ -187,7 +187,7 @@ set_role() {
 launch_role_app() {
     local app="$1" cls="${2:-floating-tui}"; shift 2
     case "$app" in
-        yazi|lf|ranger|nnn|nvim|hx|helix|micro|nano|btop|htop|btm|glances|nvtop|aerc|neomutt|termusic|cmus) exec "$0" --class "$cls" -e "$app" "$@" ;;
+        yazi|lf|ranger|nnn|nvim|hx|helix|micro|nano|btop|htop|btm|glances|nvtop|aerc|neomutt|termusic|cmus|ouch|dua) exec "$0" --class "$cls" --title "$app" -e "$app" "$@" ;;
         *) for b in "$app" "${app}-browser" "${app}-desktopeditors"; do command -v "$b" >/dev/null 2>&1 && exec "$b" "$@"; done; exec xdg-open "${1:-$HOME}" ;;
     esac
 }
@@ -196,7 +196,7 @@ case "${1:-}" in
     --probe)
         printf 'DEF|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n' "$DEFAULT_TERMINAL" "$DEFAULT_BROWSER" "$DEFAULT_FILES" "$DEFAULT_EDITOR" "$DEFAULT_MONITOR" "$DEFAULT_PDF" "$DEFAULT_IMAGE" "$DEFAULT_VIDEO" "$DEFAULT_AUDIO" "$DEFAULT_OFFICE" "$DEFAULT_MAIL" "$DEFAULT_ARCHIVE" "${DEFAULT_SUITE:-superfedora}"
         ins=""
-        for c in kitty foot ghostty alacritty wezterm ptyxis kgx rio konsole cosmic-term firefox brave-browser chromium google-chrome zen-browser librewolf vivaldi floorp epiphany qutebrowser yazi lf ranger nnn nautilus thunar dolphin nemo pcmanfm cosmic-files nvim hx micro nano zed code codium subl kate gnome-text-editor gedit cosmic-edit zathura papers evince okular sioyek foliate imv loupe swayimg feh gwenview eog gimp inkscape mpv vlc celluloid haruna clapper cosmic-player totem amberol elisa rhythmbox audacious strawberry termusic cmus libreoffice onlyoffice-desktopeditors abiword gnumeric thunderbird betterbird geary evolution kmail aerc neomutt file-roller ark peazip xarchiver qbittorrent transmission-gtk fragments btop htop btm glances nvtop missioncenter resources; do
+        for c in kitty foot ghostty alacritty wezterm ptyxis kgx rio konsole cosmic-term firefox brave-browser chromium google-chrome zen-browser librewolf vivaldi floorp epiphany qutebrowser yazi lf ranger nnn dua nautilus thunar dolphin nemo pcmanfm cosmic-files nvim hx micro nano zed code codium subl kate gnome-text-editor gedit cosmic-edit zathura papers evince okular sioyek foliate calibre imv loupe swayimg feh nsxiv gwenview eog gimp inkscape mpv vlc celluloid haruna clapper cosmic-player totem amberol elisa rhythmbox audacious strawberry termusic cmus libreoffice onlyoffice-desktopeditors abiword gnumeric calligra thunderbird betterbird geary evolution kmail aerc neomutt file-roller ark peazip xarchiver ouch qbittorrent transmission-gtk fragments btop htop btm glances nvtop missioncenter resources; do
             command -v "$c" >/dev/null 2>&1 && ins="${ins:+$ins,}$c"
         done
         printf 'INS|%s\n' "$ins"
@@ -204,37 +204,29 @@ case "${1:-}" in
             [[ -z "$ext" ]] && continue
             cur=""; [[ -f "$MIME_FILE" ]] && cur="$(grep -m1 "^${mime}=" "$MIME_FILE" 2>/dev/null | cut -d= -f2- | cut -d';' -f1 || true)"
             [[ -n "$cur" ]] && cur="$(desktop_to_app "$cur")" || cur="$def_app"
-            printf 'EXT|%s|%s|%s|%s|%s\n' "$ext" "$grp" "$mime" "$cur" "$opts"
+            fopts=""; IFS=',' read -ra oarr <<< "$opts"; for o in "${oarr[@]}"; do [[ ",$ins," == *",$o,"* ]] && fopts="${fopts:+$fopts,}$o"; done
+            [[ -z "$fopts" ]] && fopts="$cur"; [[ ",$fopts," != *",$cur,"* ]] && cur="${fopts%%,*}"
+            printf 'EXT|%s|%s|%s|%s|%s\n' "$ext" "$grp" "$mime" "$cur" "$fopts"
         done < <(ext_catalog)
         exit 0 ;;
     --preset) shift; apply_preset "${1:-superfedora}" ;;
     --install-suite)
         shift; s="${1:-gnome}"
         case "$s" in
-            gnome) pkgs="ptyxis nautilus gnome-text-editor papers loupe celluloid rhythmbox geary file-roller" ;;
-            kde)   pkgs="konsole dolphin kate okular gwenview haruna elisa kmail ark" ;;
-            cosmic) pkgs="cosmic-term cosmic-files cosmic-edit cosmic-player" ;;
-            studio) pkgs="thunar gimp vlc strawberry peazip nvtop" ;;
-            *) pkgs="kitty yazi neovim zathura imv mpv btop" ;;
+            gnome) pkgs="ptyxis nautilus gnome-text-editor papers loupe celluloid rhythmbox geary file-roller" ;; kde) pkgs="konsole dolphin kate okular gwenview haruna elisa kmail ark" ;;
+            cosmic) pkgs="cosmic-term cosmic-files cosmic-edit cosmic-player" ;; studio) pkgs="thunar gimp vlc strawberry peazip nvtop" ;; *) pkgs="kitty yazi neovim zathura imv mpv btop" ;;
         esac
         exec "$0" --class floating-tui -e sh -c "echo 'Installing $s ecosystem suite packages: $pkgs'; echo; sudo dnf install -y --skip-unavailable $pkgs; ~/.local/bin/xdg-terminal-exec --preset $s; echo; read -n 1 -p 'Done! Press any key...'" ;;
     --set) shift; set_role "${1:-}" "${2:-}" ;;
     --set-ext)
-        shift; target_ext="${1:-}"; target_app="${2:-}"; desk="$(app_to_desktop "$target_app")"
-        mime="$(ext_catalog | awk -F'|' -v e="$target_ext" '$1==e{print $3; exit}')"
-        [[ -n "$mime" ]] && set_mime_keys "$desk" "$mime"
-        command -v qs >/dev/null 2>&1 && qs ipc --any-display call status refresh >/dev/null 2>&1 || true; exit 0 ;;
+        shift; target_ext="${1:-}"; target_app="${2:-}"; desk="$(app_to_desktop "$target_app")"; mime="$(ext_catalog | awk -F'|' -v e="$target_ext" '$1==e{print $3; exit}')"
+        [[ -n "$mime" ]] && set_mime_keys "$desk" "$mime"; command -v qs >/dev/null 2>&1 && qs ipc --any-display call status refresh >/dev/null 2>&1 || true; exit 0 ;;
     --reset) apply_preset "superfedora" ;;
-    --browser) shift; launch_role_app "$DEFAULT_BROWSER" "floating-tui" "$@" ;;
-    --files)   shift; launch_role_app "$DEFAULT_FILES" "superfiles" "$@" ;;
-    --editor)  shift; launch_role_app "$DEFAULT_EDITOR" "floating-tui" "$@" ;;
-    --pdf)     shift; launch_role_app "$DEFAULT_PDF" "floating-tui" "$@" ;;
-    --image)   shift; launch_role_app "$DEFAULT_IMAGE" "floating-tui" "$@" ;;
-    --video)   shift; launch_role_app "$DEFAULT_VIDEO" "floating-tui" "$@" ;;
-    --audio)   shift; launch_role_app "$DEFAULT_AUDIO" "floating-tui" "$@" ;;
-    --office)  shift; launch_role_app "$DEFAULT_OFFICE" "floating-tui" "$@" ;;
-    --mail)    shift; launch_role_app "$DEFAULT_MAIL" "floating-tui" "$@" ;;
-    --archive) shift; launch_role_app "$DEFAULT_ARCHIVE" "floating-tui" "$@" ;;
+    --browser) shift; launch_role_app "$DEFAULT_BROWSER" "floating-tui" "$@" ;; --files) shift; launch_role_app "$DEFAULT_FILES" "superfiles" "$@" ;;
+    --editor)  shift; launch_role_app "$DEFAULT_EDITOR" "floating-tui" "$@" ;;  --pdf)   shift; launch_role_app "$DEFAULT_PDF" "floating-tui" "$@" ;;
+    --image)   shift; launch_role_app "$DEFAULT_IMAGE" "floating-tui" "$@" ;;   --video) shift; launch_role_app "$DEFAULT_VIDEO" "floating-tui" "$@" ;;
+    --audio)   shift; launch_role_app "$DEFAULT_AUDIO" "floating-tui" "$@" ;;   --office) shift; launch_role_app "$DEFAULT_OFFICE" "floating-tui" "$@" ;;
+    --mail)    shift; launch_role_app "$DEFAULT_MAIL" "floating-tui" "$@" ;;    --archive) shift; launch_role_app "$DEFAULT_ARCHIVE" "floating-tui" "$@" ;;
     --monitor) shift; launch_role_app "$DEFAULT_MONITOR" "floating-term" "$@" ;;
 esac
 

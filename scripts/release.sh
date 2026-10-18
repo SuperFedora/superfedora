@@ -49,7 +49,7 @@ if head -c 2 bin/superfedora | grep -q '^#!'; then
 fi
 mkdir -p "$HOME/.local/bin"
 install -m 755 bin/superfedora "$HOME/.local/bin/.sf.tmp.$$" && mv -f "$HOME/.local/bin/.sf.tmp.$$" "$HOME/.local/bin/superfedora"
-ln -sf superfedora "$HOME/.local/bin/sf"
+rm -f "$HOME/.local/bin/sf" bin/sf 2>/dev/null || true
 while IFS= read -r -d '' f; do
     bash -n "$f" || { echo "error: syntax check failed: $f" >&2; exit 1; }
 done < <(find . -path ./.git -prune -o -name '*.sh' -type f -print0)

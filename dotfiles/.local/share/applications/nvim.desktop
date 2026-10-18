@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Neovim
+GenericName=Text Editor
+Comment=Hyperextensible Vim-based text editor
+Exec=xdg-terminal-exec --editor %F
+Icon=nvim
+Terminal=false
+Categories=Utility;TextEditor;Development;
+MimeType=text/plain;text/markdown;
+Keywords=editor;nvim;neovim;vim;code;text;
+StartupNotify=false
+StartupWMClass=nvim

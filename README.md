@@ -10,7 +10,7 @@ Minimal Fedora -> keyboard-driven Hyprland workstation, with COSMIC keybindings,
 curl -fsSL https://superfedora.github.io/install.sh | bash
 ```
 
-It checks what is already installed and installs only what is missing, so it is safe to re-run. Afterwards, use `superfedora` (or the short `sf` alias): `superfedora status`, `superfedora update`, `superfedora service`, `superfedora system-upgrade`, and `superfedora --help`.
+It checks what is already installed and installs only what is missing, so it is safe to re-run. Afterwards, use `superfedora`: `superfedora status`, `superfedora update`, `superfedora service`, `superfedora system-upgrade`, and `superfedora --help`.
 
 **Docs, components, and keybindings: [superfedora.github.io](https://superfedora.github.io/)**
 

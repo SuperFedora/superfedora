@@ -143,18 +143,18 @@ All settings persist in `~/.config/superfedora/quake-ai.env` and `~/.config/supe
 
 ```bash
 # Switch active Quake AI agent
-sf ai set-agent mcode
-sf ai set-agent claude
-sf ai set-agent chatgpt
+superfedora ai set-agent mcode
+superfedora ai set-agent claude
+superfedora ai set-agent chatgpt
 
 # Configure Ollama connection with any local or LAN ip:port and model
-sf ai set-ollama 192.168.1.50:11434 qwen2.5-coder
-sf ai set-agent ollama
+superfedora ai set-ollama 192.168.1.50:11434 qwen2.5-coder
+superfedora ai set-agent ollama
 
 # Register or remove any custom AI agent CLI
-sf ai add-agent aider "Aider Pair Programmer" "aider"
-sf ai remove-agent aider
+superfedora ai add-agent aider "Aider Pair Programmer" "aider"
+superfedora ai remove-agent aider
 
 # Launch interactive TUI configurator
-sf ai configure
+superfedora ai configure
 ```

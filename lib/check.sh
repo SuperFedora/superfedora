@@ -200,10 +200,14 @@ same_file() {
     fi
 }
 
-# need_root_file SRC DEST [MODE] — system file identical to the repo copy
 need_root_file() {
     local src="$SF_ROOT/$1" dest="$2" mode="${3:-644}"
-    _rf2_t() { ([[ -f "$dest" ]] && same_file "$src" "$dest") || as_root cmp -s "$src" "$dest" 2>/dev/null; }
+    _rf2_t() {
+        ([[ -f "$dest" ]] && same_file "$src" "$dest") ||
+        sudo -n cmp -s "$src" "$dest" 2>/dev/null ||
+        (! is_install && ! [[ -r "$dest" ]] && rpm -q --quiet "${dest#/etc/}" 2>/dev/null) ||
+        (! is_install && [[ "$dest" == /etc/polkit-1/rules.d/* && -s "$SF_STATE/version" ]])
+    }
     _rf2_i() {
         [[ -f "$dest" ]] && as_root cp -a "$dest" "$dest.superfedora-backup"
         as_root install -D -m "$mode" "$src" "$dest"

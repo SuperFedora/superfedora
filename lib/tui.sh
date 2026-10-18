@@ -5,9 +5,9 @@
 # tui.sh — 16-Bit SNES Startup Control Deck & Btrfs Snapshot Rollback TUI
 # ==============================================================================
 # Usage:
-#   sf tui [status|banner|rollback]     Launch 16-bit SNES Control Deck TUI
-#   sf welcome                          Launch startup welcome & setup TUI
-#   sf rollback [--list|--create|--baseline|<id>] Manage or revert Btrfs snapshots
+#   superfedora tui [status|banner|rollback]     Launch 16-bit SNES Control Deck TUI
+#   superfedora welcome                          Launch startup welcome & setup TUI
+#   superfedora rollback [--list|--create|--baseline|<id>] Manage or revert Btrfs snapshots
 # ==============================================================================
 set -euo pipefail
 
@@ -96,7 +96,7 @@ run_rollback() {
         local snap
         snap="$(cat "$STATE_DIR/last_pre_install_snapshot" 2>/dev/null || true)"
         [[ -n "$snap" ]] || { echo "error: no pre-install snapshot recorded in $STATE_DIR" >&2; exit 1; }
-        echo "No TTY detected; use 'sf rollback $snap' or 'sf rollback --list'."
+        echo "No TTY detected; use 'superfedora rollback $snap' or 'superfedora rollback --list'."
         exit 0
     fi
 
@@ -128,7 +128,7 @@ run_interactive_tui() {
         printf '  %s[4]%s Btrfs Snapshots, grub-btrfs & Boot-Guard Rollback Manager\n' "$C_CYN$B" "$R"
         printf '  %s[5]%s Omarchy Quattro Dock & Workspace Layout Controls\n' "$C_CYN$B" "$R"
         printf '  %s[6]%s 16-Bit Sound Engine (%s) & IdleScreen Setup\n' "$C_CYN$B" "$R" "$SFX_STATE"
-        printf '  %s[7]%s Workstation Health Audit (sf status)\n' "$C_CYN$B" "$R"
+        printf '  %s[7]%s Workstation Health Audit (superfedora status)\n' "$C_CYN$B" "$R"
         printf '  %s[q]%s Exit Control Deck\n\n' "$D" "$R"
         read -r -p "SuperFedora Deck > " choice || exit 0
         "$SF_ROOT/lib/sfx.sh" play click 2>/dev/null || true

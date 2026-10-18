@@ -4,6 +4,8 @@
 # desc: DE-independent applications (LibreOffice, Yazi, Zathura, MPV, Helix, SuperForge suite)
 
 module_run() {
+    local forge_cmd
+    forge_cmd="$(command -v superforge 2>/dev/null || echo "$SF_ROOT/lib/forge.sh")"
     need_pkgs "$SF_ROOT/packages/apps.txt"
     need_service tailscaled.service
 
@@ -14,11 +16,11 @@ module_run() {
     }
     _flathub_i() {
         flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true
-        "$SF_ROOT/lib/forge.sh" build bazaar
+        "$forge_cmd" build bazaar
     }
     need "Flathub + Bazaar Store (io.github.kolunmi.Bazaar)" _flathub_t _flathub_i
 
-    # DE-Independent SuperForge Source-Built Application Suite
+    # DE-Independent SuperForge Application Suite
     local item name bin label
     for item in \
         "yazi:yazi:File Manager TUI (yazi)" \
@@ -47,7 +49,7 @@ module_run() {
             command -v "$bin" >/dev/null 2>&1 || [[ -x "$HOME/.local/bin/$bin" ]] || return 1
             [[ -f "$HOME/.local/share/superfedora/forge/stamps/$name.stamp" || -f "$SF_STATE/source-built/$name.stamp" ]]
         }
-        _app_i() { "$SF_ROOT/lib/forge.sh" build "$name"; }
+        _app_i() { SF_BUILD_MODE="${SF_BUILD_MODE:-race}" "$forge_cmd" build "$name"; }
         need "$label" _app_t _app_i
     done
 

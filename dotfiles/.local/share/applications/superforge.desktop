@@ -1,12 +1,12 @@
 [Desktop Entry]
 Name=SuperForge
 GenericName=Source Build & Package Engine
-Comment=SuperFedora Declarative Source Builder & Toolchain Manager
-Exec=xdg-terminal-exec --class superfiles -e superforge tui
+Comment=SuperFedora Declarative Source Builder, GitHub/Recipe Installer & WebApp Engine
+Exec=superforge gui
 Icon=applications-development
 Terminal=false
 Type=Application
 Categories=Development;System;Building;
-Keywords=build;compile;forge;packages;source;superforge;
+Keywords=build;compile;forge;packages;source;github;recipe;webapps;superforge;
 StartupNotify=false
-StartupWMClass=superfiles
+StartupWMClass=superforge

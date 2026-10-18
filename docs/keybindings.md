@@ -1,6 +1,6 @@
 # SuperFedora Keybindings
 
-> Generated from [`bindings.conf`](../dotfiles/.config/hypr/conf/bindings.conf) for **SuperFedora v0.11.0** by `scripts/gen-keybindings-doc.py`. Do not edit by hand.
+> Generated from [`bindings.conf`](../dotfiles/.config/hypr/conf/bindings.conf) for **SuperFedora v0.12.0** by `scripts/gen-keybindings-doc.py`. Do not edit by hand.
 >
 > Bindings mirror Pop!_OS COSMIC defaults. Press **Super + F1** on the desktop for a searchable list.
 
@@ -14,11 +14,6 @@
 | Super + Ctrl + Esc | Debug: reload config |
 | Super + Q | Close window |
 | Alt + F4 | Close window |
-
-## COSMIC: focus (stack-aware, like COSMIC)
-
-| Keys | Action |
-| :--- | :--- |
 | Super + ← | Focus left |
 | Super + → | Focus right |
 | Super + ↑ | Focus up |
@@ -138,13 +133,12 @@
 | Super + B | Web browser |
 | Super + E | File manager |
 | Super + F | Home folder |
-| Super + Space | Switch keyboard layout |
+| Super + Space | App launcher |
 | Super + T | Terminal |
 | Super + A | App library |
 | Super + Shift + A | Launchpad App Grid |
 | Super + W | Workspace / window overview |
 | Super + / | Launcher |
-| Super (tap) | Launcher (tap Super) |
 | Alt + Tab | Window switcher |
 | Alt + Shift + Tab | Window switcher (previous) |
 | Super + Tab | Window switcher |
@@ -164,13 +158,12 @@
 | Display | Display & system settings (Fn+F7) |
 | WLAN | Wi-Fi & network settings (Fn+F8) |
 | RFKill | Wireless / network settings (Fn+F8) |
-| Tools | Personalization & settings (Fn+F9) |
+| Tools | Theme & appearance (Fn+F9) |
 | Bluetooth | Bluetooth & devices settings (Fn+F10) |
 | Search | Bluetooth & devices settings (Fn+F10) |
 | Keyboard | ThinkPad keyboard backlight (Fn+F11) |
 | KbdBrightnessUp | Keyboard backlight up (Fn+Space) |
 | KbdBrightnessDown | Keyboard backlight down |
-| Favorites | Quick AI Console (Fn+F12) |
 | WebCam | Toggle web camera kill-switch |
 | PowerOff | Power & battery settings |
 | Sleep | Power & sleep settings |
@@ -196,8 +189,6 @@
 | Super + Shift + T | Activity monitor |
 | Super + Shift + B | Private browser window |
 | Super + P | Pin floating window |
-| Super + ` | Quick AI Console |
-| Super + Shift + ` | Quake AI TTY terminal console |
 | Super + Ctrl + ` | Toggle scratchpad |
 | Super + Alt + Tab | Next tab in stack |
 | Super + Alt + Shift + Tab | Previous tab in stack |

@@ -5,6 +5,7 @@
 # SuperFedora web installer
 #
 #   curl -fsSL https://superfedora.github.io/install.sh | bash
+#   curl -fsSL https://superfedora.github.io/install.sh | bash -s -- --race
 #   curl -fsSL https://superfedora.github.io/install.sh | bash -s -- --quick
 #   curl -fsSL https://superfedora.github.io/install.sh | bash -s -- --build-from-source
 #   curl -fsSL https://superfedora.github.io/install.sh | bash -s -- --dry-run
@@ -13,14 +14,17 @@
 # Fedora system. This script:
 #   1. checks that this is Fedora and that you can use sudo
 #   2. downloads the latest SuperFedora release to ~/.local/share/superfedora
-#   3. installs the `superfedora` and `sf` commands to ~/.local/bin
-#   4. prompts for Build from Source (default) vs Quick Install (tuned to localhost CPU)
-#   5. runs `superfedora install`, checking every component idempotently
+#   3. bootstraps `superforge` first into ~/.local/bin/superforge
+#   4. installs the `superfedora` command to ~/.local/bin
+#   5. selects Two-Stage Race (default: easy binaries first, special builds later),
+#      Build from Source (-march=native upfront), or Quick Install
+#   6. runs `superfedora install`, using `superforge` to build & install everything
 #
 # Arguments:
 #   -h, --help                   show this help message
-#   --quick                      prebuilt binary packages & fast bootstrap
-#   --build-from-source          compile & tune for localhost hardware (-march=native) [default]
+#   --race                       easy binaries first, queue -march=native builds after [default]
+#   --quick                      prebuilt binary packages & fast bootstrap only
+#   --build-from-source          compile & tune for localhost hardware (-march=native) upfront
 #   --dry-run                    preview what would be installed without changes
 #   --only <modules>             run only specified modules (e.g. 40,desktop)
 #   --skip <modules>             skip specified modules
@@ -29,7 +33,7 @@
 # Environment:
 #   SUPERFEDORA_VERSION=v0.3.0   install a specific release (default: latest)
 #   SUPERFEDORA_REF=main         install a branch instead of a release
-#   SUPERFEDORA_BUILD_MODE=...   set install mode non-interactively (quick|source)
+#   SUPERFEDORA_BUILD_MODE=...   set install mode non-interactively (race|quick|source)
 #   SUPERFEDORA_NO_RUN=1         fetch and install the command only
 #   SUPERFEDORA_ARGS="--dry-run" extra arguments for `superfedora install`
 # ==============================================================================
@@ -41,6 +45,7 @@ usage() {
 SuperFedora web installer
 
   curl -fsSL https://superfedora.github.io/install.sh | bash
+  curl -fsSL https://superfedora.github.io/install.sh | bash -s -- --race
   curl -fsSL https://superfedora.github.io/install.sh | bash -s -- --quick
   curl -fsSL https://superfedora.github.io/install.sh | bash -s -- --build-from-source
   curl -fsSL https://superfedora.github.io/install.sh | bash -s -- --dry-run
@@ -49,16 +54,19 @@ Start from a Fedora "Minimal Install" (Everything netinstall) or any existing
 Fedora system. This script:
   1. checks that this is Fedora and that you can use sudo
   2. downloads the latest SuperFedora release to ~/.local/share/superfedora
-  3. installs the `superfedora` and `sf` commands to ~/.local/bin
-  4. selects Build from Source (default) or Quick Install (localhost -march=native)
-  5. runs `superfedora install`, which checks every component and installs
-     only what is missing (safe to re-run at any time)
+  3. bootstraps `superforge` first into ~/.local/bin/superforge
+  4. installs the `superfedora` command to ~/.local/bin
+  5. selects Two-Stage Race (default: easy binaries first, special builds later),
+     Build from Source (-march=native upfront), or Quick Install
+  6. runs `superfedora install`, using `superforge` to install everything
 
 Arguments:
   -h, --help                   show this help message
-  --quick                      prebuilt binary packages & fast bootstrap
-  --build-from-source          compile & tune for localhost hardware (-march=native) [default]
+  --race                       easy binaries first, queue -march=native builds after [default]
+  --quick                      prebuilt binary packages & fast bootstrap only
+  --build-from-source          compile & tune for localhost hardware (-march=native) upfront
   --dry-run                    preview what would be installed without changes
+  --uninstall                  uninstall SuperFedora (delegates to superfedora uninstall)
   --only <modules>             run only specified modules (e.g. 40,desktop)
   --skip <modules>             skip specified modules
   -v, --verbose                show verbose command execution
@@ -66,27 +74,28 @@ Arguments:
 Environment:
   SUPERFEDORA_VERSION=v0.3.0   install a specific release (default: latest)
   SUPERFEDORA_REF=main         install a branch instead of a release
-  SUPERFEDORA_BUILD_MODE=...   set install mode non-interactively (quick|source)
+  SUPERFEDORA_BUILD_MODE=...   set install mode non-interactively (race|quick|source)
   SUPERFEDORA_NO_RUN=1         fetch and install the command only
   SUPERFEDORA_ARGS="--dry-run" extra arguments for `superfedora install`
 ==============================================================================
 EOF
 }
 
-case "${1:-}" in
-    -h|--help)
-        usage
-        exit 0
-        ;;
-esac
-
 REPO="SuperFedora/superfedora"
 DEST="${XDG_DATA_HOME:-$HOME/.local/share}/superfedora"
 BIN_DIR="$HOME/.local/bin"
-# SuperFedora builds from source by default: every binary is compiled and tuned
-# for the localhost CPU (-march=native / target-cpu=native). Set to "quick" to
-# opt into prebuilt binary packages instead.
-DEFAULT_BUILD_MODE="source"
+DEFAULT_BUILD_MODE="race"
+
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    --uninstall|uninstall)
+        shift
+        [[ -x "$BIN_DIR/superfedora" ]] && exec "$BIN_DIR/superfedora" uninstall "$@"
+        [[ -x "$DEST/bin/superfedora" ]] && exec "$DEST/bin/superfedora" uninstall "$@"
+        printf '\033[1;34m::\033[0m superfedora is not currently installed in %s or %s\n' "$BIN_DIR" "$DEST"
+        exit 0
+        ;;
+esac
 
 say()  { printf '\033[1;34m::\033[0m %s\n' "$*"; }
 fail() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
@@ -116,12 +125,10 @@ if [[ -n "${SUPERFEDORA_REF:-}" ]]; then
 else
     REF="${SUPERFEDORA_VERSION:-}"
     if [[ -z "$REF" ]]; then
-        # 1. Fast, un-rate-limited CDN resolution from superfedora.github.io
         REF="$(curl -fsSL "https://superfedora.github.io/VERSION" 2>/dev/null | tr -d '[:space:]' || true)"
         if [[ -n "$REF" ]]; then
             [[ "$REF" =~ ^v ]] || REF="v$REF"
         else
-            # 2. Fallback to GitHub REST API
             REF="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
                    | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)"
         fi
@@ -143,23 +150,37 @@ mv "$SRC" "$DEST.new"
 rm -rf "$DEST"
 mv "$DEST.new" "$DEST"
 
+# Step 1: Install SuperForge FIRST so it is ready to build & install SuperFedora
+if [[ -x "$DEST/bin/superforge" ]]; then
+    install -m 755 "$DEST/bin/superforge" "$BIN_DIR/superforge"
+elif [[ ! -x "$BIN_DIR/superforge" ]]; then
+    cat > "$BIN_DIR/superforge" <<EOF
+#!/bin/sh
+# Bootstrapped by the SuperFedora web installer. Source: $DEST
+exec "$DEST/lib/forge.sh" "\$@"
+EOF
+    chmod +x "$BIN_DIR/superforge"
+fi
+say "installed SuperForge first -> $BIN_DIR/superforge"
+
+# Step 2: Install SuperFedora CLI (`superfedora`)
 cat > "$BIN_DIR/superfedora" <<EOF
 #!/bin/sh
 # Installed by the SuperFedora web installer. Source: $DEST
 exec "$DEST/bin/superfedora" "\$@"
 EOF
 chmod +x "$BIN_DIR/superfedora"
-ln -sf superfedora "$BIN_DIR/sf"
+rm -f "$BIN_DIR/sf" 2>/dev/null || true
 if [[ "${SUPERFEDORA_SYSTEM_WIDE:-0}" == "1" && -w /usr/local/bin ]]; then
+    install -m 755 "$BIN_DIR/superforge" /usr/local/bin/superforge 2>/dev/null || true
     install -m 755 "$BIN_DIR/superfedora" /usr/local/bin/superfedora
-    ln -sf superfedora /usr/local/bin/sf
+    rm -f /usr/local/bin/sf 2>/dev/null || true
 fi
-say "installed SuperFedora $(cat "$DEST/VERSION") -> $BIN_DIR/superfedora (alias: $BIN_DIR/sf)"
+say "installed SuperFedora $(cat "$DEST/VERSION") -> $BIN_DIR/superfedora"
 
 [[ "${SUPERFEDORA_NO_RUN:-}" == 1 ]] && exit 0
 
 # ------------------------------------------------------------------------------
-# Collect arguments to forward to `superfedora install`
 FORWARD_ARGS=()
 if [[ -n "${SUPERFEDORA_ARGS:-}" ]]; then
     # shellcheck disable=SC2206
@@ -171,13 +192,14 @@ HAS_MODE_FLAG=0
 IS_DRY_RUN=0
 for arg in "${FORWARD_ARGS[@]}"; do
     case "$arg" in
-        --quick|--binary|--build-from-source|--from-source|--source|--native) HAS_MODE_FLAG=1 ;;
+        --race|--hybrid|--quick|--binary|--build-from-source|--from-source|--source|--native) HAS_MODE_FLAG=1 ;;
         --dry-run) IS_DRY_RUN=1 ;;
     esac
 done
 
 if [[ $HAS_MODE_FLAG -eq 0 && -n "${SUPERFEDORA_BUILD_MODE:-}" ]]; then
     case "${SUPERFEDORA_BUILD_MODE,,}" in
+        race|hybrid|two-stage) FORWARD_ARGS+=("--race"); HAS_MODE_FLAG=1 ;;
         source|native|build-from-source) FORWARD_ARGS+=("--build-from-source"); HAS_MODE_FLAG=1 ;;
         quick|binary|prebuilt) FORWARD_ARGS+=("--quick"); HAS_MODE_FLAG=1 ;;
         *) FORWARD_ARGS+=("--${DEFAULT_BUILD_MODE}"); HAS_MODE_FLAG=1 ;;
@@ -185,31 +207,33 @@ if [[ $HAS_MODE_FLAG -eq 0 && -n "${SUPERFEDORA_BUILD_MODE:-}" ]]; then
 fi
 
 if [[ $HAS_MODE_FLAG -eq 0 && $IS_DRY_RUN -eq 0 && -t 1 && -r /dev/tty ]]; then
-    printf '\n\033[1;34m::\033[0m \033[1mSelect SuperFedora installation mode:\033[0m\n'
-    printf '   \033[1;32m[1]\033[0m Build from Source -- Compile & tune for localhost hardware (-march=native) (default)\n'
-    printf '   \033[1;36m[2]\033[0m Quick Install     -- Prebuilt binary packages & fast bootstrap\n'
+    printf '\n\033[1;34m::\033[0m \033[1mSelect SuperFedora installation mode (powered by SuperForge):\033[0m\n'
+    printf '   \033[1;32m[1]\033[0m Two-Stage Race    -- Easy binaries first to reach desktop fast, special -march=native builds later (default)\n'
+    printf '   \033[1;33m[2]\033[0m Build from Source -- Compile & tune everything upfront for localhost hardware (-march=native)\n'
+    printf '   \033[1;36m[3]\033[0m Quick Install     -- Prebuilt binary packages only (skip background compilation)\n'
     mode_choice="1"
-    read -r -p ":: Enter selection [1/2] (default: 1): " mode_choice < /dev/tty || mode_choice="1"
+    read -r -p ":: Enter selection [1/2/3] (default: 1): " mode_choice < /dev/tty || mode_choice="1"
     case "${mode_choice,,}" in
-        2|quick|q|binary|prebuilt)
-            say "selected Quick Install (prebuilt binary packages)"
-            FORWARD_ARGS+=("--quick") ;;
-        *)
+        2|source|s|native|build-from-source)
             say "selected Build from Source (localhost hardware optimization: -march=native / target-cpu=native)"
             FORWARD_ARGS+=("--build-from-source") ;;
+        3|quick|q|binary|prebuilt)
+            say "selected Quick Install (prebuilt binary packages only)"
+            FORWARD_ARGS+=("--quick") ;;
+        *)
+            say "selected Two-Stage Race (easy binaries first via SuperForge, special -march=native builds queued after)"
+            FORWARD_ARGS+=("--race") ;;
     esac
 fi
 
-# Non-interactive runs with no explicit mode flag still get the documented
-# default, so piped/headless installs are deterministic.
 if [[ $HAS_MODE_FLAG -eq 0 ]]; then
     case "$DEFAULT_BUILD_MODE" in
+        race) FORWARD_ARGS+=("--race") ;;
         quick) FORWARD_ARGS+=("--quick") ;;
         *) FORWARD_ARGS+=("--build-from-source") ;;
     esac
 fi
 
-# Re-attach stdin to the terminal so sudo can prompt when piped from curl
 if [[ -t 1 && -r /dev/tty ]]; then
     exec "$BIN_DIR/superfedora" install "${FORWARD_ARGS[@]}" < /dev/tty
 else

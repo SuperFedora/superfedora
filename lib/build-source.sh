@@ -4,7 +4,7 @@
 # ==============================================================================
 # build-source.sh — Localhost Hardware-Optimized Source Builder (-march=native)
 # ==============================================================================
-# Usage (alias: sf build):
+# Usage:
 #   superfedora build status                 Show detected localhost CPU & build flags
 #   superfedora build profile                Generate ~/.config/superfedora/hardware-flags.env
 #   superfedora build all [--force]          Compile workstation suite for localhost CPU
@@ -165,7 +165,7 @@ build_target() {
             make -C "$tmp/btop" PREFIX="$HOME/.local" install
             rm -rf "$tmp"
             [[ -x "$HOME/.local/bin/btop" ]] && mark_built btop ;;
-        superfedora|sf)
+        superfedora)
             ensure_build_deps gcc make
             if ! command -v cargo >/dev/null 2>&1; then
                 curl -fsSL https://sh.rustup.rs | sh -s -- -y --no-modify-path
@@ -178,8 +178,8 @@ build_target() {
             if [[ -x "$sf_bin" ]]; then
                 install -m 755 "$sf_bin" "$SF_ROOT/bin/.sf.tmp.$$" && mv -f "$SF_ROOT/bin/.sf.tmp.$$" "$SF_ROOT/bin/superfedora"
                 install -m 755 "$sf_bin" "$HOME/.local/bin/.sf.tmp.$$" && mv -f "$HOME/.local/bin/.sf.tmp.$$" "$HOME/.local/bin/superfedora"
-                ln -sf superfedora "$HOME/.local/bin/sf"
-                [[ -w /usr/local/bin && "${SUPERFEDORA_SYSTEM_WIDE:-0}" == "1" ]] && { install -m 755 "$sf_bin" /usr/local/bin/superfedora; ln -sf superfedora /usr/local/bin/sf; } || true
+                rm -f "$HOME/.local/bin/sf" "$SF_ROOT/bin/sf" 2>/dev/null || true
+                [[ -w /usr/local/bin && "${SUPERFEDORA_SYSTEM_WIDE:-0}" == "1" ]] && { install -m 755 "$sf_bin" /usr/local/bin/superfedora; rm -f /usr/local/bin/sf 2>/dev/null || true; } || true
                 mark_built superfedora
             fi ;;
         *)
@@ -204,8 +204,8 @@ print_status() {
     printf '  COMPONENT   STATE           BINARY\n'
     printf '  ---------   -------------   ------\n'
     local c
-    for c in superfedora supertheme superforge supershell supernotify superagent wlctl bluetui wiremix tuigreet fuzzel btop; do
-        local st="binary/pkg" b="$c"; [[ "$c" == "supershell" ]] && b="superdock"
+    for c in superfedora supertheme superforge superbar supershell supernotify wlctl bluetui wiremix tuigreet fuzzel btop; do
+        local st="binary/pkg" b="$c"; [[ "$c" == "supershell" ]] && b="supersettings"
         is_source_built "$c" "$b" && st="source-native"
         printf '  %-12s [%-13s] %s\n' "$c" "$st" "$(command -v "$b" 2>/dev/null || echo missing)"
     done
@@ -239,7 +239,7 @@ case "$ACTION" in
         for t in superfedora wlctl bluetui wiremix tuigreet fuzzel btop; do
             build_target "$t" "$FORCE"
         done ;;
-    superfedora|sf|wlctl|bluetui|wiremix|tuigreet|fuzzel|btop)
+    superfedora|wlctl|bluetui|wiremix|tuigreet|fuzzel|btop)
         build_target "$ACTION" "$FORCE" ;;
     *)
         if [[ -x "$HOME/.local/bin/superforge" ]]; then

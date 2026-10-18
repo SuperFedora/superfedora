@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=SuperBar
+GenericName=4-Edge Bar & Dock Studio
+Comment=SuperFedora 4-Edge Bar, Dynamic Island, Widgets, Quick Tools & Status Pills Studio
+Exec=superbar gui
+Icon=superbar
+Terminal=false
+Type=Application
+Categories=Settings;DesktopSettings;System;Utility;
+Keywords=bar;dock;panel;island;widgets;tools;tray;pills;clock;workspaces;superbar;superfedora;
+StartupNotify=false
+StartupWMClass=superbar

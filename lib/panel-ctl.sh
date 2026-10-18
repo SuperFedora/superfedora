@@ -5,17 +5,17 @@
 # panel-ctl.sh — Omarchy-Style Dock & Workspace Layout Engine
 # ==============================================================================
 # Usage:
-#   sf dock status                           Print dock & workspace layout status
-#   sf dock position <bottom|top|left|right> Move dock to a screen edge
-#   sf dock autohide <on|off|toggle>         Configure dock auto-hide
-#   sf dock always <on|off|toggle>           Show dock on all workspaces or floating-only
-#   sf dock pinned <id...>                   Replace pinned .desktop app IDs
-#   sf dock pin <id> [index]                 Pin a .desktop app to the dock
-#   sf dock unpin <id>                       Remove a pinned .desktop app
-#   sf dock apps                             Toggle fullscreen Launchpad App Grid
-#   sf dock reset                            Restore default dock config
-#   sf dock layout [cycle|tiling|scrolling|floating] [ws]  Switch workspace layout
-#   sf dock minimize [address]               Minimize window to dock (special:minimized)
+#   superfedora dock status                           Print dock & workspace layout status
+#   superfedora dock position <bottom|top|left|right> Move dock to a screen edge
+#   superfedora dock autohide <on|off|toggle>         Configure dock auto-hide
+#   superfedora dock always <on|off|toggle>           Show dock on all workspaces or floating-only
+#   superfedora dock pinned <id...>                   Replace pinned .desktop app IDs
+#   superfedora dock pin <id> [index]                 Pin a .desktop app to the dock
+#   superfedora dock unpin <id>                       Remove a pinned .desktop app
+#   superfedora dock apps                             Toggle fullscreen Launchpad App Grid
+#   superfedora dock reset                            Restore default dock config
+#   superfedora dock layout [cycle|tiling|scrolling|floating] [ws]  Switch workspace layout
+#   superfedora dock minimize [address]               Minimize window to dock (special:minimized)
 # ==============================================================================
 set -euo pipefail
 

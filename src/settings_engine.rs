@@ -9,12 +9,20 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+fn resolve_bin(program: &str) -> String {
+    if !program.contains('/') {
+        let local = PathBuf::from(home_dir()).join(".local/bin").join(program);
+        if local.is_file() { return local.to_string_lossy().into_owned(); }
+    }
+    program.to_string()
+}
+
 fn run_out(program: &str, args: &[&str]) -> String {
-    Command::new(program).args(args).output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default()
+    Command::new(resolve_bin(program)).args(args).output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default()
 }
 
 fn run_silent(program: &str, args: &[&str]) {
-    let _ = Command::new(program).args(args).stdout(Stdio::null()).stderr(Stdio::null()).status();
+    let _ = Command::new(resolve_bin(program)).args(args).stdout(Stdio::null()).stderr(Stdio::null()).status();
 }
 
 fn pgrep_exact(proc_name: &str) -> bool {
@@ -170,18 +178,6 @@ pub fn apply_setting(args: &[String]) -> i32 {
             run_silent("qs", &["ipc", "call", "status", "refresh"]);
             0
         }
-        "theme" | "palette" => {
-            run_silent("supertheme", &[if val.is_empty() { "toggle" } else { val }]);
-            run_silent("qs", &["ipc", "call", "theme", "reload"]);
-            run_silent("qs", &["ipc", "call", "status", "refresh"]);
-            0
-        }
-        "corners" => {
-            run_silent("supertheme", &["corners", if val.is_empty() { "toggle" } else { val }]);
-            run_silent("qs", &["ipc", "call", "theme", "reload"]);
-            run_silent("qs", &["ipc", "call", "status", "refresh"]);
-            0
-        }
         "ui-scale" => {
             let sz: u32 = match val {
                 "compact" | "small" | "13" => 13, "default" | "normal" | "14" => 14,
@@ -198,18 +194,6 @@ pub fn apply_setting(args: &[String]) -> i32 {
             let enable = match val { "on" | "1" => true, "off" | "0" => false, _ => !cur_on };
             let _ = fs::write(cfg.join("animations"), if enable { "1\n" } else { "0\n" });
             run_silent("hyprctl", &["keyword", "animations:enabled", if enable { "true" } else { "false" }]);
-            run_silent("qs", &["ipc", "call", "status", "refresh"]);
-            0
-        }
-        "nightlight" => {
-            let running = pgrep_exact("wlsunset");
-            run_silent("pkill", &["-x", "wlsunset"]);
-            let parsed_temp = val.parse::<u32>().ok().filter(|&t| (2000..=6500).contains(&t));
-            if val == "on" || (val == "toggle" && !running) || parsed_temp.is_some() {
-                let temp = parsed_temp.unwrap_or_else(|| fs::read_to_string(cfg.join("nightlight-temp")).ok().and_then(|s| s.trim().parse::<u32>().ok()).unwrap_or(4000));
-                let _ = fs::write(cfg.join("nightlight-temp"), format!("{temp}\n"));
-                let _ = Command::new("wlsunset").args(["-T", &temp.to_string(), "-t", "2600"]).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn();
-            }
             run_silent("qs", &["ipc", "call", "status", "refresh"]);
             0
         }
@@ -238,8 +222,7 @@ pub fn apply_setting(args: &[String]) -> i32 {
             0
         }
         "touchpad" => {
-            run_silent(&format!("{}/.config/hypr/scripts/toggle-touchpad.sh", home_dir()), &["touchpad", if val.is_empty() { "toggle" } else { val }]);
-            run_silent("qs", &["ipc", "call", "status", "refresh"]);
+            run_silent("supersettings", &["apply", "touchpad", if val.is_empty() { "toggle" } else { val }]);
             0
         }
         _ => { eprintln!("[FAIL] Unknown setting domain: {act}"); 2 }

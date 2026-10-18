@@ -5,10 +5,10 @@
 # sfx.sh — SuperFedora 16-Bit Sound Engine (pw-play + synthesized PCM WAV)
 # ==============================================================================
 # Usage:
-#   sf sfx status                    Print 16-bit sound engine state (on/off)
-#   sf sfx on | off | toggle | mute  Enable, disable, or toggle 16-bit UI sounds
-#   sf sfx init                      Pre-synthesize 16-bit WAV sound bank
-#   sf sfx [play] <chime>            Play chime (startup|click|confirm|toggle|volume|alert)
+#   superfedora sfx status                    Print 16-bit sound engine state (on/off)
+#   superfedora sfx on | off | toggle | mute  Enable, disable, or toggle 16-bit UI sounds
+#   superfedora sfx init                      Pre-synthesize 16-bit WAV sound bank
+#   superfedora sfx [play] <chime>            Play chime (startup|click|confirm|toggle|volume|alert)
 # ==============================================================================
 set -euo pipefail
 

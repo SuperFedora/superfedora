@@ -5,12 +5,12 @@
 # session-ctl.sh — Desktop Environment (DE) & Session Selector for Lock Screen
 # ==============================================================================
 # Usage:
-#   sf session status              Print active/selected DE label for hyprlock
-#   sf session list                List all installed Wayland/X11 sessions
-#   sf session next                Cycle to the next installed DE session
-#   sf session set <session-id>    Select a specific DE session (e.g. gnome, hyprland)
-#   sf session switch              Exit current compositor to launch selected DE
-#   sf session pick                Interactive Fuzzel DE selector
+#   superfedora session status              Print active/selected DE label for hyprlock
+#   superfedora session list                List all installed Wayland/X11 sessions
+#   superfedora session next                Cycle to the next installed DE session
+#   superfedora session set <session-id>    Select a specific DE session (e.g. gnome, hyprland)
+#   superfedora session switch              Exit current compositor to launch selected DE
+#   superfedora session pick                Interactive Fuzzel DE selector
 # ==============================================================================
 set -euo pipefail
 
@@ -21,17 +21,22 @@ mkdir -p "$STATE_DIR"
 discover_sessions() {
     SESS_IDS=()
     SESS_NAMES=()
-    local f id name
+    local f id name has_sf=0
+    [[ -f /usr/share/wayland-sessions/superfedora.desktop ]] && has_sf=1
     for f in /usr/share/wayland-sessions/*.desktop /usr/share/xsessions/*.desktop; do
         [[ -f "$f" ]] || continue
+        grep -qiE '^(NoDisplay|Hidden)=true' "$f" 2>/dev/null && continue
         id="$(basename "$f" .desktop)"
+        if [[ "$has_sf" -eq 1 && ( "$id" == "hyprland" || "$id" == "hyprland-uwsm" ) ]]; then
+            continue
+        fi
         name="$(grep -m1 '^Name=' "$f" 2>/dev/null | cut -d= -f2- || echo "$id")"
         SESS_IDS+=("$id")
         SESS_NAMES+=("${name:-$id}")
     done
     if [[ "${#SESS_IDS[@]}" -eq 0 ]]; then
-        SESS_IDS=("hyprland" "gnome")
-        SESS_NAMES=("Hyprland" "GNOME")
+        SESS_IDS=("superfedora")
+        SESS_NAMES=("SuperFedora")
     fi
 }
 
@@ -45,7 +50,10 @@ get_current_id() {
             --method org.freedesktop.DBus.Properties.Get \
             org.freedesktop.Accounts.User Session 2>/dev/null | sed -n "s/.*'\\([^']*\\)'.*/\\1/p" || true)"
     fi
-    echo "${cur:-hyprland}"
+    if [[ ( -z "$cur" || "$cur" == "hyprland" || "$cur" == "hyprland-uwsm" ) && -f /usr/share/wayland-sessions/superfedora.desktop ]]; then
+        cur="superfedora"
+    fi
+    echo "${cur:-superfedora}"
 }
 
 set_session_id() {

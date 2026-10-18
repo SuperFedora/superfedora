@@ -5,6 +5,14 @@ All notable changes to SuperFedora. Every change ships as a tagged release
 
 ## [Unreleased]
 
+- Standardized on `superfedora` as the sole canonical CLI binary across all 8 repositories, removing the deprecated `sf` alias, `SuperBar`, and `SuperNotify` standalone extraction.
+
+## [0.12.0] — 2026-10-18
+
+### Added
+- **Standalone SuperBar & SuperNotify Extraction (`SuperFedora/superbar`, `SuperFedora/supernotify`):** Extracted `superbar` (`v0.5.0`) and `supernotify` (`v0.4.0`) into standalone Rust repositories with dedicated QML shell surfaces (`SuperBar.qml`, `BarWidgets.qml`, `ConcaveFillet.qml`, `ForgeWindow.qml`, `ForgeRail.qml`, `SuperBarWindow.qml`) and full-screen `WARNING` cast overlays.
+- **Canonical `superfedora` CLI Standardization:** Standardized all installers, source builders (`superforge`), QML shell hooks, Hyprland keybindings, and documentation on `superfedora` as the sole canonical workstation CLI, removing the legacy `sf` symlink alias and adding `superfedora uninstall` cleanup (`src/ops/uninstall.rs`).
+
 ## [0.11.0] — 2026-10-16
 
 ### Added

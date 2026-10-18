@@ -1,6 +1,6 @@
 # Desktop Environment: Hyprland + Quickshell (COSMIC keybindings)
 
-The SuperFedora desktop is an Omarchy-style Hyprland session with a Quickshell bar, themed Tokyo Night, using **Pop!_OS COSMIC keybindings**. Every file listed here lives in [`dotfiles/`](../dotfiles) and is deployed by [`lib/install-dotfiles.sh`](../lib/install-dotfiles.sh) (`sf dotfiles`).
+The SuperFedora desktop is an Omarchy-style Hyprland session with a Quickshell bar, themed Tokyo Night, using **Pop!_OS COSMIC keybindings**. Every file listed here lives in [`dotfiles/`](../dotfiles) and is deployed by [`lib/install-dotfiles.sh`](../lib/install-dotfiles.sh) (`superfedora dotfiles`).
 
 The full keybinding reference is generated from the config: **[keybindings.md](keybindings.md)**.
 
@@ -123,15 +123,15 @@ Hypridle owns `org.freedesktop.ScreenSaver` on Hyprland and drives IdleScreen:
 
 ---
 
-## 6. CLI & Workstation Utilities (`sf`)
+## 6. CLI & Workstation Utilities (`superfedora`)
 
 ```bash
-sf theme [snes|tokyo-night|catppuccin|nord|01..08] --mode night|day --corners square|rounded --nightlight on|off
-sf forge <owner/repo|ripgrep|fastfetch|idlescreen|fd|zoxide|btop|hyprland|quickshell>
-sf notify [--banner ready|warning|update|checkpoint | --cast ai|security|builder|engineer|app|all | dnd | clear]
-sf dock [position bottom|top|left|right | autohide toggle | layout cycle]
-sf sfx [status|on|off|toggle|play startup|click|confirm|toggle|volume|alert]
-sf tui                             # Launch 16-bit SNES Cartridge Control Deck TUI
-sf rollback [--list|--create|--setup|--baseline|<id>] # Snapper + grub-btrfs + Boot-Guard
-sf dotfiles                        # Deploy desktop configs & reload Hyprland
+superfedora theme [snes|tokyo-night|catppuccin|nord|01..08] --mode night|day --corners square|rounded --nightlight on|off
+superfedora forge <owner/repo|ripgrep|fastfetch|idlescreen|fd|zoxide|btop|hyprland|quickshell>
+superfedora notify [--banner ready|warning|update|checkpoint | --cast ai|security|builder|engineer|app|all | dnd | clear]
+superfedora dock [position bottom|top|left|right | autohide toggle | layout cycle]
+superfedora sfx [status|on|off|toggle|play startup|click|confirm|toggle|volume|alert]
+superfedora tui                             # Launch 16-bit SNES Cartridge Control Deck TUI
+superfedora rollback [--list|--create|--setup|--baseline|<id>] # Snapper + grub-btrfs + Boot-Guard
+superfedora dotfiles                        # Deploy desktop configs & reload Hyprland
 ```

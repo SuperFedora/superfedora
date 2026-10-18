@@ -17,7 +17,7 @@ float_term() { "$TERM_CMD" --class floating-term -e "$@" & }
 menu_main() {
     case "$(pick "Go" \
         "󰚩  Quake AI" "󰀻  Apps" "  Capture" "󰔡  Toggle" "  Style" "  Setup" "  About" "  System")" in
-        *Quake*)   qs ipc call superdeck toggleAi >/dev/null 2>&1 || "$S/quake-ai.sh" toggle ;;
+        *Quake*)   ~/.local/bin/superagent toggle ;;
         *Apps*)    fuzzel ;;
         *Capture*) menu_capture ;;
         *Toggle*)  menu_toggle ;;
@@ -30,31 +30,31 @@ menu_main() {
 
 menu_capture() {
     case "$(pick "Capture" "  Region" "  Window" "󰍹  Screen" "󰈋  Color picker")" in
-        *Region*) "$S/screenshot.sh" region ;;
-        *Window*) "$S/screenshot.sh" window ;;
-        *Screen*) "$S/screenshot.sh" screen ;;
+        *Region*) ~/.local/bin/superbar capture region ;;
+        *Window*) ~/.local/bin/superbar capture window ;;
+        *Screen*) ~/.local/bin/superbar capture screen ;;
         *Color*)  sleep 0.2; hyprpicker -a ;;
     esac
 }
 
 menu_toggle() {
     case "$(pick "Toggle" "󰚩  Quake AI console" "󰀻  Launchpad App Grid" "󰘔  Dock visibility" "󰕰  Workspace layout" "󰒲  Idle / stay awake" "󰍜  Top bar" "  Gaps" "󰹑  Float active window")" in
-        *Quake*)     qs ipc call superdeck toggleAi >/dev/null 2>&1 || "$S/quake-ai.sh" toggle ;;
+        *Quake*)     ~/.local/bin/superagent toggle ;;
         *Launchpad*) qs ipc call dock toggleApps ;;
         *Dock*)      qs ipc call dock toggle ;;
-        *Workspace*) "$S/toggle-tiling.sh" cycle ;;
-        *Idle*)      "$S/toggle-idle.sh" ;;
+        *Workspace*) ~/.local/bin/superbar tiling cycle ;;
+        *Idle*)      ~/.local/bin/superlock idle cycle ;;
         *bar*)       qs ipc call bar toggle ;;
-        *Gaps*)      "$S/toggle-gaps.sh" ;;
+        *Gaps*)      ~/.local/bin/superbar gaps toggle ;;
         *Float*)     hyprctl dispatch togglefloating >/dev/null ;;
     esac
 }
 
 menu_style() {
     case "$(pick "Style" "Next 16-bit color" "Toggle dark / light mode" "Pick 16-bit theme" "Edit look & feel")" in
-        *Next*)   "$S/wallpaper.sh" next ;;
-        *Toggle*) "$S/wallpaper.sh" toggle ;;
-        *Pick*)   "$S/wallpaper.sh" pick ;;
+        *Next*)   ~/.local/bin/supertheme next ;;
+        *Toggle*) ~/.local/bin/supertheme toggle ;;
+        *Pick*)   ~/.local/bin/supertheme pick ;;
         *Edit*)   float_term "${EDITOR:-nano}" "$H/conf/looknfeel.conf" ;;
     esac
 }
@@ -63,15 +63,15 @@ menu_setup() {
     case "$(pick "Setup" \
         "  Audio" "  Wi-Fi" "󰂯  Bluetooth" "󰍹  Monitors" "  Keybindings" \
         "  Hyprland config" "  Hypridle" "  Hyprlock" "  Quickshell bar" "  IdleScreen")" in
-        *Audio*)      qs ipc call superdeck open audio ;;
-        *Wi-Fi*)      qs ipc call superdeck open wifi ;;
-        *Bluetooth*)  qs ipc call superdeck open bluetooth ;;
+        *Audio*)      qs ipc call settings open system ;;
+        *Wi-Fi*)      qs ipc call settings open network ;;
+        *Bluetooth*)  qs ipc call settings open devices ;;
         *Monitors*)   float_term "${EDITOR:-nano}" "$H/conf/monitors.conf" ;;
         *Keybind*)    float_term "${EDITOR:-nano}" "$H/conf/bindings.conf" ;;
         *Hyprland*)   float_term "${EDITOR:-nano}" "$H/hyprland.conf" ;;
         *Hypridle*)   float_term "${EDITOR:-nano}" "$H/hypridle.conf" ;;
         *Hyprlock*)   float_term "${EDITOR:-nano}" "$H/hyprlock.conf" ;;
-        *Quickshell*) float_term "${EDITOR:-nano}" "$HOME/.config/quickshell/Bar.qml" ;;
+        *Quickshell*) float_term "${EDITOR:-nano}" "$HOME/.config/quickshell/SuperBar.qml" ;;
         *IdleScreen*) float_term idlescreen tui ;;
     esac
 }

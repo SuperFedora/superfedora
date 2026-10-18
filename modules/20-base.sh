@@ -22,7 +22,7 @@ module_run() {
         [[ -d "$SF_ROOT/dotfiles/.config/superfedora/cast" ]] && as_root cp -rf "$SF_ROOT/dotfiles/.config/superfedora/cast" /usr/share/superfedora/ 2>/dev/null || true
         [[ -d "$SF_ROOT/dotfiles/.config" ]] && as_root cp -rn "$SF_ROOT/dotfiles/.config/." /etc/skel/.config/ 2>/dev/null || true
         [[ ! -f /etc/skel/.config/superfedora/theme.env ]] && as_root sh -c 'printf "THEME_COLOR=\"12-cobalt\"\nTHEME_MODE=\"dark\"\nTHEME_CORNERS=\"square\"\nTHEME_NIGHTLIGHT=\"off\"\n" > /etc/skel/.config/superfedora/theme.env' || true
-        [[ -x "$SF_ROOT/bin/superfedora" ]] && { as_root install -m 755 "$SF_ROOT/bin/superfedora" /usr/local/bin/superfedora; as_root ln -sf superfedora /usr/local/bin/sf; } || true
+        [[ -x "$SF_ROOT/bin/superfedora" ]] && { as_root install -m 755 "$SF_ROOT/bin/superfedora" /usr/local/bin/superfedora; as_root rm -f /usr/local/bin/sf 2>/dev/null || true; } || true
         command -v restorecon >/dev/null 2>&1 && as_root restorecon -Rv /usr/local/bin /usr/share/superfedora /etc/superfedora /etc/profile.d/superfedora.sh >/dev/null 2>&1 || true
     fi
 

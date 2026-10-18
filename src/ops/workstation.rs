@@ -38,9 +38,11 @@ pub fn generate_manifest(st: &WorkstationState) -> String {
         .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
         .and_then(|v| v.get("dnd").and_then(|b| b.as_bool()))
         .unwrap_or(false);
-    let agent_id = fs::read_to_string(cfg.join("active-agent")).unwrap_or_else(|_| "agy".into()).trim().to_string();
-    let ollama_host = fs::read_to_string(cfg.join("ollama-host")).unwrap_or_else(|_| "127.0.0.1:11434".into()).trim().to_string();
-    let ollama_model = fs::read_to_string(cfg.join("ollama-model")).unwrap_or_else(|_| "qwen2.5-coder:7b".into()).trim().to_string();
+    let qenv = fs::read_to_string(cfg.join("quake-ai.env")).unwrap_or_default();
+    let qval = |k: &str| qenv.lines().find_map(|l| l.strip_prefix(&format!("{k}=")).map(|v| v.trim().trim_matches('\'').trim_matches('"').to_string()));
+    let agent_id = qval("AI_AGENT").or_else(|| fs::read_to_string(cfg.join("active-agent")).ok().map(|s| s.trim().to_string())).unwrap_or_else(|| "openclaw".into());
+    let ollama_host = qval("OLLAMA_HOST").unwrap_or_default();
+    let ollama_model = qval("OLLAMA_MODEL").unwrap_or_default();
 
     format!(
         "# SuperFedora Declarative Workstation Clone Manifest (workstation.toml)\n\
@@ -175,15 +177,15 @@ pub fn run_import_cmd(st: &mut WorkstationState, args: &[String]) -> i32 {
     let dock_hide = parse_kv(&txt, "supershell", "dock_autohide").unwrap_or_else(|| st.dock_autohide.clone());
     let tiling = parse_kv(&txt, "supershell", "tiling_layout").unwrap_or_else(|| st.tiling_layout.clone());
     let dnd = parse_kv(&txt, "supernotify", "dnd").unwrap_or_else(|| "false".into());
-    let agent = parse_kv(&txt, "superagent", "active_agent").unwrap_or_else(|| "agy".into());
-    let ol_host = parse_kv(&txt, "superagent", "ollama_host").unwrap_or_else(|| "127.0.0.1:11434".into());
-    let ol_model = parse_kv(&txt, "superagent", "ollama_model").unwrap_or_else(|| "qwen2.5-coder:7b".into());
+    let agent = parse_kv(&txt, "superagent", "active_agent").unwrap_or_else(|| "openclaw".into());
+    let ol_host = parse_kv(&txt, "superagent", "ollama_host").unwrap_or_default();
+    let ol_model = parse_kv(&txt, "superagent", "ollama_model").unwrap_or_default();
 
     println!("\x1b[1;38;5;141m[::] SUPERFEDORA DECLARATIVE WORKSTATION IMPORT ({})\x1b[0m", in_path.display());
     println!("  Workstation Mode : {ws_mode} (UI scale: {ui_scale}px)");
     println!("  SuperTheme       : {palette} ({th_mode}, {corners} corners, nightlight: {nightlight})");
     println!("  SuperShell Dock  : {dock_pos} (autohide: {dock_hide}, layout: {tiling})");
-    println!("  SuperAgent       : {agent} (Ollama: {ol_host} // {ol_model})");
+    println!("  SuperAgent       : {agent} (Endpoint: {} // {})", if ol_host.is_empty() { "unconfigured" } else { &ol_host }, if ol_model.is_empty() { "auto" } else { &ol_model });
 
     if dry {
         println!("  [DRY-RUN] Declarative workstation manifest verified (0 mutations performed).");
@@ -201,8 +203,6 @@ pub fn run_import_cmd(st: &mut WorkstationState, args: &[String]) -> i32 {
         ("dock-autohide", &dock_hide),
         ("tiling-layout", &tiling),
         ("active-agent", &agent),
-        ("ollama-host", &ol_host),
-        ("ollama-model", &ol_model),
     ] {
         let _ = fs::write(cfg.join(f), format!("{val}\n"));
     }

@@ -8,12 +8,16 @@ module_run() {
     need_root_file system/etc/polkit-1/rules.d/50-superfedora.rules /etc/polkit-1/rules.d/50-superfedora.rules
     need_root_file system/usr/share/wayland-sessions/superfedora.desktop /usr/share/wayland-sessions/superfedora.desktop
 
-    _cache_t() { [[ -d /var/cache/tuigreet ]]; }
+    _cache_t() {
+        [[ -d /var/cache/tuigreet && -f /usr/share/wayland-sessions/superfedora.desktop ]]
+    }
     _cache_i() {
         as_root systemd-tmpfiles --create /etc/tmpfiles.d/superfedora-tuigreet.conf
+        mkdir -p "$HOME/.config/superfedora"
+        printf 'SELECTED_SESSION="superfedora"\n' > "$HOME/.config/superfedora/session.env"
         command -v restorecon >/dev/null 2>&1 && as_root restorecon -Rv /etc/greetd /var/cache/tuigreet /etc/polkit-1/rules.d /usr/share/wayland-sessions >/dev/null 2>&1 || true
     }
-    need "/var/cache/tuigreet" _cache_t _cache_i
+    need "/var/cache/tuigreet + SuperFedora default DE" _cache_t _cache_i
 
     # Only one display manager may own display-manager.service
     local dm

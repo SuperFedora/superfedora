@@ -5,15 +5,15 @@
 # notify-ctl.sh — 16-Bit Workstation Notifications, Cast Comms & Banner Controller
 # ==============================================================================
 # Usage:
-#   sf notify status                        Print DND, unread count & daemon state
-#   sf notify history                       List notification history from Center
-#   sf notify dnd [on|off|toggle]           Get, set, or toggle Do Not Disturb
-#   sf notify clear                         Dismiss all active toasts & clear history
-#   sf notify dismiss                       Dismiss the most recent notification
-#   sf notify center                        Toggle the Notification Center popover
-#   sf notify send <title> [body]           Send a desktop notification via notify-send
-#   sf notify --banner <ready|warning|update|checkpoint>  Trigger 16-bit center banner
-#   sf notify --cast <ai|security|builder|engineer|app|all> Trigger 16-bit cast comms test
+#   superfedora notify status                        Print DND, unread count & daemon state
+#   superfedora notify history                       List notification history from Center
+#   superfedora notify dnd [on|off|toggle]           Get, set, or toggle Do Not Disturb
+#   superfedora notify clear                         Dismiss all active toasts & clear history
+#   superfedora notify dismiss                       Dismiss the most recent notification
+#   superfedora notify center                        Toggle the Notification Center popover
+#   superfedora notify send <title> [body]           Send a desktop notification via notify-send
+#   superfedora notify --banner <ready|warning|update|checkpoint>  Trigger 16-bit center banner
+#   superfedora notify --cast <ai|security|builder|engineer|app|all> Trigger 16-bit cast comms test
 # ==============================================================================
 set -euo pipefail
 
@@ -112,7 +112,7 @@ trigger_banner() {
             qs_call banner checkpoint || "$SF_ROOT/lib/sfx.sh" play confirm >/dev/null 2>&1 || true
             printf '  [OK] Banner triggered: C H E C K P O I N T   S A V E D\n' ;;
         *)
-            echo "Usage: sf notify --banner <ready|warning|update|checkpoint>" >&2
+            echo "Usage: superfedora notify --banner <ready|warning|update|checkpoint>" >&2
             exit 2 ;;
     esac
 }
@@ -151,7 +151,7 @@ trigger_cast() {
             qs_call cast synth || { command -v notify-send >/dev/null 2>&1 && notify-send -a "PIPEWIRE // DSP" "16-Bit PCM Synth Locked" "Low-latency PipeWire quantum 64/48000Hz and FM chiptune cues online." || true; }
             printf '  [OK] Cast comms triggered: Audio Synth / Media (Bottom-Center)\n' ;;
         all|test) qs_call cast all || true; printf '  [OK] Cast comms triggered: Full Workstation Cast Showcase\n' ;;
-        *) echo "Usage: sf notify --cast <ai|security|builder|engineer|app|navigator|medic|archivist|commander|synth|all>" >&2; exit 2 ;;
+        *) echo "Usage: superfedora notify --cast <ai|security|builder|engineer|app|navigator|medic|archivist|commander|synth|all>" >&2; exit 2 ;;
     esac
 }
 
@@ -207,7 +207,7 @@ case "$ACTION" in
                 echo "$DND"
                 ;;
             *)
-                echo "Usage: sf notify dnd [on|off|toggle|status]" >&2
+                echo "Usage: superfedora notify dnd [on|off|toggle|status]" >&2
                 exit 2
                 ;;
         esac

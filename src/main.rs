@@ -1,7 +1,7 @@
 // Copyright 2026 SuperFedora Contributors
 // SPDX-License-Identifier: Apache-2.0
 // ==============================================================================
-// superfedora / sf — Native Rust 16-Bit Workstation Engine & Graphical TUI
+// superfedora — Native Rust 16-Bit Workstation Engine & Graphical TUI
 // ==============================================================================
 
 mod charts_cli;
