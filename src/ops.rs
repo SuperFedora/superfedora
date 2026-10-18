@@ -193,7 +193,9 @@ pub fn run_system_upgrade(st: &WorkstationState, args: &[String]) -> i32 {
 
 pub fn run_repo_cmd(st: &WorkstationState, args: &[String]) -> i32 {
     let sub = args.first().map(|s| s.as_str()).unwrap_or("status");
-    let ws = st.sf_root.parent().map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from("/home/jeryd/Projects/superfedora"));
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/jeryd".into());
+    let def_ws = PathBuf::from(home).join("Projects/superfedora");
+    let ws = st.sf_root.parent().filter(|p| p.join("superfedora/.git").exists()).map(Path::to_path_buf).unwrap_or(def_ws);
     match sub {
         "status" | "list" => {
             println!("\x1b[1;38;5;141m[::] @SUPERFEDORA MULTI-REPOSITORY ORCHESTRATION ({})\x1b[0m", ws.display());

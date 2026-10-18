@@ -181,7 +181,7 @@ sync_runtime_tree() {
     [[ -d "$ws/superfedora/lib" ]] && src="$ws/superfedora"
     if [[ "$(realpath "$src" 2>/dev/null)" != "$(realpath "$dst" 2>/dev/null)" ]]; then
         mkdir -p "$dst"
-        for d in bin lib modules packages scripts system docs dotfiles; do
+        for d in bin lib modules packages scripts system docs dotfiles src tests; do
             [[ -d "$src/$d" ]] && { rm -rf "$dst/$d.new"; cp -a "$src/$d" "$dst/$d.new" && rm -rf "$dst/$d" && mv "$dst/$d.new" "$dst/$d"; }
         done
         for f in VERSION install.sh AGENTS.md README.md LICENSE CHANGELOG.md; do [[ -f "$src/$f" ]] && cp -a "$src/$f" "$dst/$f"; done
