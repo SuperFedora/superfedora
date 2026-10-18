@@ -81,6 +81,8 @@ need_pkgs() {
             r_added "$p"
         elif [[ ( "${SF_COPR_FALLBACK:-0}" == "1" || -f "$SF_STATE/copr-fallback" ) && "$p" =~ ^(hyprland|quickshell|fuzzel)$ ]] && run_logged "$SF_ROOT/lib/forge.sh" "$p"; then
             r_added "$p (superforge source fallback)"
+        elif [[ "$p" == "idlescreen" ]] && (run_logged as_root dnf install -y "$(curl -fsSL https://api.github.com/repos/idlescreen/idlescreen/releases/latest 2>/dev/null | grep -oE 'https://[^\"]+x86_64\.rpm' | head -1)" || run_logged "$SF_ROOT/lib/forge.sh" idlescreen); then
+            r_added "$p (release fallback)"
         else
             r_failed "$p (dnf install)"
         fi
