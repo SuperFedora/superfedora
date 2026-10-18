@@ -5,7 +5,14 @@ All notable changes to SuperFedora. Every change ships as a tagged release
 
 ## [Unreleased]
 
-- Standardized on `superfedora` as the sole canonical CLI binary across all 8 repositories, removing the deprecated `sf` alias, `SuperBar`, and `SuperNotify` standalone extraction.
+- Native Rust 1.99 workstation orchestration, zero-Python runtime and verification toolchain, and 100% `systemd --user` session management across all 8 `@SuperFedora` repositories.
+
+## [0.13.0] — 2026-10-18
+
+### Added
+- **Zero-Python Native Rust & Node Toolchain (`superfedora` v0.13.0, `superforge` v0.7.0, `supertheme` v0.7.0, `supershell` v0.7.0, `superbar` v0.6.0, `supernotify` v0.5.0, `.github` v0.7.0):** Migrated all legacy Python runtime utilities and Page Rules test suites to native Rust integration tests (`tests/page_rules.rs`), Node.js ESM suites (`tests/test_page_rules.mjs`, `tests/test_webpage_verification.mjs`), `superforge webapp-forge` (`src/webapp.rs`), and `superfedora keybindings-doc [--check]` (`src/ops/keybindings_doc.rs`).
+- **100% `systemd --user` Session Management (`superfedora-session.target`, `cliphist.service`, `hypridle.service`):** Replaced ad-hoc background shell daemons in `hyprland.conf` with declarative `systemd --user` units bound to `superfedora-session.target`, ensuring clean session teardown and automatic restart recovery.
+- **Native Rust WM Dispatchers (`superfedora wm`):** Consolidated Hyprland window layout, workspace state, touchpad toggle, and dynamic keybinding help dispatch into native Rust subcommands (`src/ops/wm.rs`).
 
 ## [0.12.0] — 2026-10-18
 

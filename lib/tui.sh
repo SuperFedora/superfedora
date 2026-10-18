@@ -13,7 +13,7 @@ set -euo pipefail
 
 SF_ROOT="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/.." && pwd)"
 STATE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/superfedora"
-VERSION="$(tr -d '[:space:]' < "$SF_ROOT/VERSION" 2>/dev/null || echo 0.5.0)"
+VERSION="$(tr -d '[:space:]' < "$SF_ROOT/VERSION" 2>/dev/null || echo 0.13.0)"
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/bin:/bin:$PATH"
 
 if [[ -t 1 && "${NO_COLOR:-0}" != "1" ]]; then

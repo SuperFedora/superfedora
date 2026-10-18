@@ -31,7 +31,7 @@
 #   -v, --verbose                show verbose command execution
 #
 # Environment:
-#   SUPERFEDORA_VERSION=v0.3.0   install a specific release (default: latest)
+#   SUPERFEDORA_VERSION=v0.13.0  install a specific release (default: latest)
 #   SUPERFEDORA_REF=main         install a branch instead of a release
 #   SUPERFEDORA_BUILD_MODE=...   set install mode non-interactively (race|quick|source)
 #   SUPERFEDORA_NO_RUN=1         fetch and install the command only
@@ -72,7 +72,7 @@ Arguments:
   -v, --verbose                show verbose command execution
 
 Environment:
-  SUPERFEDORA_VERSION=v0.3.0   install a specific release (default: latest)
+  SUPERFEDORA_VERSION=v0.13.0  install a specific release (default: latest)
   SUPERFEDORA_REF=main         install a branch instead of a release
   SUPERFEDORA_BUILD_MODE=...   set install mode non-interactively (race|quick|source)
   SUPERFEDORA_NO_RUN=1         fetch and install the command only

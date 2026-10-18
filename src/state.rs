@@ -120,7 +120,7 @@ impl WorkstationState {
                 }
             }
         }
-        let version = fs::read_to_string(sf_root.join("VERSION")).unwrap_or_else(|_| "0.8.0".into()).trim().to_string();
+        let version = fs::read_to_string(sf_root.join("VERSION")).unwrap_or_else(|_| "0.13.0".into()).trim().to_string();
         let mut st = Self {
             version, sf_root, state_dir, theme_color: "12-cobalt".into(), theme_mode: "dark".into(), theme_corners: "square".into(),
             primary_rgb: (122, 162, 247), secondary_rgb: (187, 154, 247), sfx_on: true, dock_pos: "bottom".into(),

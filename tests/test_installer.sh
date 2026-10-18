@@ -69,19 +69,19 @@ cat > "$MOCK_BIN/curl" << 'EOF'
 #!/bin/sh
 case "$*" in
   *VERSION*)
-    echo "0.3.0"
+    echo "0.13.0"
     exit 0 ;;
 esac
 TMP_ARCHIVE=$(mktemp -d)
-mkdir -p "$TMP_ARCHIVE/superfedora-v0.3.0/bin"
-cat > "$TMP_ARCHIVE/superfedora-v0.3.0/bin/superfedora" << 'BEOF'
+mkdir -p "$TMP_ARCHIVE/superfedora-v0.13.0/bin"
+cat > "$TMP_ARCHIVE/superfedora-v0.13.0/bin/superfedora" << 'BEOF'
 #!/bin/sh
 echo "mock superfedora $*"
 exit 0
 BEOF
-chmod +x "$TMP_ARCHIVE/superfedora-v0.3.0/bin/superfedora"
-echo "0.3.0" > "$TMP_ARCHIVE/superfedora-v0.3.0/VERSION"
-tar -czf - -C "$TMP_ARCHIVE" superfedora-v0.3.0
+chmod +x "$TMP_ARCHIVE/superfedora-v0.13.0/bin/superfedora"
+echo "0.13.0" > "$TMP_ARCHIVE/superfedora-v0.13.0/VERSION"
+tar -czf - -C "$TMP_ARCHIVE" superfedora-v0.13.0
 rm -rf "$TMP_ARCHIVE"
 exit 0
 EOF
